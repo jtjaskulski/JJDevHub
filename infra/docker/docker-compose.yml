@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # REVERSE PROXY & UNDER CONSTRUCTION PAGE
+  nginx:
+    image: nginx:alpine
+    container_name: jjdevhub-nginx
+    ports:
+      - "8081:80" # Changed host port to avoid conflict with CVIS
+      - "444:443" # Changed host port to avoid conflict with CVIS
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
+    restart: always
+    networks:
+      - jjdevhub-net
+
+  # SECRETS MANAGEMENT
+  vault:
+    image: hashicorp/vault:latest
+    container_name: jjdevhub-vault
+    ports:
+      - "8201:8200" # Changed host port
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: "jjdevhub-root-token"
+      VAULT_ADDR: "http://0.0.0.0:8200"
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - jjdevhub-net
+
+  # CI/CD
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jjdevhub-jenkins
+    ports:
+      - "8082:8080" # Changed host port
+      - "50001:50000" # Changed host port
+    volumes:
+      - jenkins_home:/var/jenkins_home
+    networks:
+      - jjdevhub-net
+
+  # DATABASE (Content & Relational Data)
+  db:
+    image: postgres:16-alpine
+    container_name: jjdevhub-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: jjdevhub_content
+    ports:
+      - "5433:5432" # Changed host port
+    networks:
+      - jjdevhub-net
+
+  # READ DATABASE (Query Side / Analytics)
+  mongodb:
+    image: mongo:latest
+    container_name: jjdevhub-mongo
+    ports:
+      - "27018:27017" # Changed host port
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - jjdevhub-net
+
+networks:
+  jjdevhub-net:
+    driver: bridge
+
+volumes:
+  jenkins_home:
+  mongo_data:

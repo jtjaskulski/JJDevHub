@@ -1,0 +1,6 @@
+@JJDevHub.AI.Gateway_HostAddress = http://localhost:5280
+
+GET {{JJDevHub.AI.Gateway_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
