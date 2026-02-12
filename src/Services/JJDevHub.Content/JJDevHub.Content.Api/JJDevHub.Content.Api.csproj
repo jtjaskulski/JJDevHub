@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\JJDevHub.Content.Application\JJDevHub.Content.Application.csproj" />
+    <ProjectReference Include="..\JJDevHub.Content.Infrastructure\JJDevHub.Content.Infrastructure.csproj" />
+    <ProjectReference Include="..\JJDevHub.Content.Persistence\JJDevHub.Content.Persistence.csproj" />
+  </ItemGroup>
+
+</Project>

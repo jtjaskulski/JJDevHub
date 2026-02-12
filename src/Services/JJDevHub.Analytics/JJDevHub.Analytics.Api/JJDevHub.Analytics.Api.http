@@ -1,0 +1,6 @@
+@JJDevHub.Analytics.Api_HostAddress = http://localhost:5086
+
+GET {{JJDevHub.Analytics.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
