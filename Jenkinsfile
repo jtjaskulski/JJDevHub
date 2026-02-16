@@ -1,98 +1,167 @@
 pipeline {
     agent any
-    
+
     options {
         buildDiscarder(logRotator(numToKeepStr: '10'))
         timestamps()
+        timeout(time: 30, unit: 'MINUTES')
     }
 
     environment {
-        // Define common environment variables here if needed
         DOTNET_CLI_TELEMETRY_OPTOUT = '1'
+        DOTNET_NOLOGO = '1'
+        SONAR_HOST_URL = 'http://jjdevhub-sonarqube:9000'
+        SONAR_PROJECT_KEY = 'JJDevHub'
     }
 
     stages {
-        stage('Detect Changes') {
+        // ───────────────────────────────────────────────────────
+        // STAGE 1: RESTORE
+        // ───────────────────────────────────────────────────────
+        stage('Restore') {
+            steps {
+                sh 'dotnet restore JJDevHub.sln'
+            }
+        }
+
+        // ───────────────────────────────────────────────────────
+        // STAGE 2: BUILD
+        // ───────────────────────────────────────────────────────
+        stage('Build') {
+            steps {
+                sh 'dotnet build JJDevHub.sln --configuration Release --no-restore'
+            }
+        }
+
+        // ───────────────────────────────────────────────────────
+        // STAGE 3: UNIT TESTS (fast, no infra needed)
+        // ───────────────────────────────────────────────────────
+        stage('Unit Tests') {
+            steps {
+                sh '''dotnet test tests/JJDevHub.Content.UnitTests/JJDevHub.Content.UnitTests.csproj \
+                    --configuration Release \
+                    --no-build \
+                    --logger "trx;LogFileName=unit-test-results.trx" \
+                    --collect:"XPlat Code Coverage" \
+                    --results-directory ./test-results/unit'''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'test-results/unit/**/*', allowEmptyArchive: true
+                }
+            }
+        }
+
+        // ───────────────────────────────────────────────────────
+        // STAGE 4: INTEGRATION TESTS (Testcontainers: PG + Mongo)
+        // ───────────────────────────────────────────────────────
+        stage('Integration Tests') {
+            steps {
+                sh '''dotnet test tests/JJDevHub.Content.IntegrationTests/JJDevHub.Content.IntegrationTests.csproj \
+                    --configuration Release \
+                    --no-build \
+                    --logger "trx;LogFileName=integration-test-results.trx" \
+                    --collect:"XPlat Code Coverage" \
+                    --results-directory ./test-results/integration'''
+            }
+            post {
+                always {
+                    archiveArtifacts artifacts: 'test-results/integration/**/*', allowEmptyArchive: true
+                }
+            }
+        }
+
+        // ───────────────────────────────────────────────────────
+        // STAGE 5: SONARQUBE ANALYSIS
+        // ───────────────────────────────────────────────────────
+        stage('SonarQube Analysis') {
+            steps {
+                withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                    sh '''dotnet tool install --global dotnet-sonarscanner || true
+
+                    export PATH="$PATH:$HOME/.dotnet/tools"
+
+                    dotnet-sonarscanner begin \
+                        /k:"${SONAR_PROJECT_KEY}" \
+                        /d:sonar.host.url="${SONAR_HOST_URL}" \
+                        /d:sonar.token="${SONAR_TOKEN}" \
+                        /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
+                        /d:sonar.cs.vstest.reportsPaths="**/*.trx" \
+                        /d:sonar.coverage.exclusions="**/Migrations/**,**/Program.cs,**/DependencyInjection.cs" \
+                        /d:sonar.exclusions="**/wwwroot/**,**/node_modules/**"
+
+                    dotnet build JJDevHub.sln --configuration Release --no-restore
+
+                    dotnet-sonarscanner end /d:sonar.token="${SONAR_TOKEN}"'''
+                }
+            }
+        }
+
+        // ───────────────────────────────────────────────────────
+        // STAGE 6: QUALITY GATE
+        // ───────────────────────────────────────────────────────
+        stage('Quality Gate') {
             steps {
                 script {
-                    // Check for changes in specific directories to optimize build
-                    if (fileExists('.git')) {
-                        echo "Git repository detected. Checking changes..."
-                        // Returns 0 if found (true), 1 if not found (false). We invert logic for variable assignment if needed or just check exit code.
-                        // Grep returns 0 if match found.
-                        env.CONTENT_CHANGED = sh(script: "git diff --name-only HEAD~1 HEAD | grep 'src/Services/JJDevHub.Content' || true", returnStdout: true).trim() ? 'true' : 'false'
-                        env.IDENTITY_CHANGED = sh(script: "git diff --name-only HEAD~1 HEAD | grep 'src/Services/JJDevHub.Identity' || true", returnStdout: true).trim() ? 'true' : 'false'
-                        env.EDUCATION_CHANGED = sh(script: "git diff --name-only HEAD~1 HEAD | grep 'src/Services/JJDevHub.Education' || true", returnStdout: true).trim() ? 'true' : 'false'
-                        env.WEB_CHANGED = sh(script: "git diff --name-only HEAD~1 HEAD | grep 'src/Clients/web' || true", returnStdout: true).trim() ? 'true' : 'false'
-                        
-                        echo "Changes detected: Content=${env.CONTENT_CHANGED}, Identity=${env.IDENTITY_CHANGED}, Education=${env.EDUCATION_CHANGED}, Web=${env.WEB_CHANGED}"
-                    } else {
-                        echo "No git repository found (or first run). Building everything."
-                        env.CONTENT_CHANGED = 'true'
-                        env.IDENTITY_CHANGED = 'true'
-                        env.EDUCATION_CHANGED = 'true'
-                        env.WEB_CHANGED = 'true'
+                    timeout(time: 5, unit: 'MINUTES') {
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error "Pipeline aborted: SonarQube Quality Gate status is ${qg.status}"
+                        }
                     }
                 }
             }
         }
 
-        stage('Build & Test') {
+        // ───────────────────────────────────────────────────────
+        // STAGE 7: DOCKER BUILD
+        // ───────────────────────────────────────────────────────
+        stage('Docker Build') {
             parallel {
-                stage('Backend - Content') {
-                    when { expression { env.CONTENT_CHANGED == 'true' || env.BUILD_ALL == 'true' } }
+                stage('Content API Image') {
                     steps {
                         dir('src/Services/JJDevHub.Content') {
-                            // Assuming project structure. Adjust path to csproj if needed
-                            sh 'dotnet restore'
-                            sh 'dotnet build --configuration Release --no-restore'
-                            // sh 'dotnet test --no-build --configuration Release'
+                            sh '''docker build \
+                                -f JJDevHub.Content.Api/Dockerfile \
+                                -t jjdevhub-content-api:${BUILD_NUMBER} \
+                                -t jjdevhub-content-api:latest \
+                                ../..'''
                         }
                     }
                 }
-                stage('Backend - Identity') {
-                    when { expression { env.IDENTITY_CHANGED == 'true' || env.BUILD_ALL == 'true' } }
+                stage('Angular Web Image') {
                     steps {
-                        dir('src/Services/JJDevHub.Identity') {
-                            sh 'dotnet restore'
-                            sh 'dotnet build --configuration Release --no-restore'
-                        }
-                    }
-                }
-                 stage('Backend - Education') {
-                    when { expression { env.EDUCATION_CHANGED == 'true' || env.BUILD_ALL == 'true' } }
-                    steps {
-                        dir('src/Services/JJDevHub.Education') {
-                            sh 'dotnet restore'
-                            sh 'dotnet build --configuration Release --no-restore'
-                        }
-                    }
-                }
-                stage('Frontend - Angular') {
-                    when { expression { env.WEB_CHANGED == 'true' || env.BUILD_ALL == 'true' } }
-                    steps {
-                        dir('src/Clients/web') {
-                            sh 'npm install'
-                            sh 'npm run build -- --configuration production'
-                        }
+                        sh '''docker build \
+                            -f src/Clients/web/Dockerfile \
+                            -t jjdevhub-angular:${BUILD_NUMBER} \
+                            -t jjdevhub-angular:latest \
+                            .'''
                     }
                 }
             }
         }
 
-        stage('Security Scan') {
+        // ───────────────────────────────────────────────────────
+        // STAGE 8: DEPLOY (Docker Compose)
+        // ───────────────────────────────────────────────────────
+        stage('Deploy') {
             steps {
-                echo 'Checking secrets in HashiCorp Vault...'
-                // Placeholder for Vault integration
-                // withVault(...) { ... }
+                dir('infra/docker') {
+                    sh 'docker-compose up -d --remove-orphans'
+                }
             }
         }
+    }
 
-        stage('Deploy Local Docker') {
-            steps {
-                // Ensure docker-compose exists
-                sh 'docker-compose up -d --build --remove-orphans'
-            }
+    post {
+        always {
+            cleanWs()
+        }
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs above.'
         }
     }
 }

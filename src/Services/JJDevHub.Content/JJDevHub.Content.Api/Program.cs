@@ -1,39 +1,54 @@
+using JJDevHub.Content.Api.Endpoints;
+using JJDevHub.Content.Api.Middleware;
+using JJDevHub.Content.Application;
+using JJDevHub.Content.Infrastructure;
+using JJDevHub.Content.Persistence;
+using MongoDB.Driver;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+builder.Services
+    .AddApplication()
+    .AddPersistence(builder.Configuration)
+    .AddInfrastructure(builder.Configuration);
+
+// Health Checks
+var mongoConnectionString = builder.Configuration["MongoDb:ConnectionString"]!;
+builder.Services.AddHealthChecks()
+    .AddNpgSql(
+        builder.Configuration.GetConnectionString("ContentDb")!,
+        name: "postgresql",
+        tags: ["db", "write"])
+    .AddMongoDb(
+        sp => new MongoClient(mongoConnectionString),
+        name: "mongodb",
+        tags: ["db", "read"]);
+
+// OpenTelemetry Metrics -> Prometheus
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService("JJDevHub.Content.Api"))
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddRuntimeInstrumentation()
+        .AddPrometheusExporter());
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+app.MapPrometheusScrapingEndpoint();
+app.MapHealthChecks("/health");
+app.MapWorkExperienceEndpoints();
 
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+public partial class Program { }
