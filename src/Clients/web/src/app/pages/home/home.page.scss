@@ -1,0 +1,28 @@
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.hero {
+  text-align: center;
+  padding: 48px 16px;
+
+  h1 {
+    font-size: 2.5rem;
+    font-weight: 300;
+    margin: 0 0 8px;
+  }
+
+  .subtitle {
+    font-size: 1.1rem;
+    opacity: 0.7;
+    margin: 0;
+  }
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+}

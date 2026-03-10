@@ -5,7 +5,7 @@ using JJDevHub.Shared.Kernel.BuildingBlocks;
 
 namespace JJDevHub.Content.Core.Entities;
 
-public class WorkExperience : AggregateRoot
+public class WorkExperience : AuditableAggregateRoot
 {
     public string CompanyName { get; private set; } = null!;
     public string Position { get; private set; } = null!;
@@ -56,6 +56,7 @@ public class WorkExperience : AggregateRoot
 
     public void MarkAsDeleted()
     {
+        Deactivate();
         AddDomainEvent(new WorkExperienceDeletedDomainEvent(Id));
     }
 

@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # REVERSE PROXY & UNDER CONSTRUCTION PAGE
+  # REVERSE PROXY
   nginx:
     image: nginx:alpine
     container_name: jjdevhub-nginx
@@ -10,7 +10,14 @@ services:
       - "444:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/html:/usr/share/nginx/html:ro
+    depends_on:
+      - angular-web
+      - content-api
+      - analytics-api
+      - identity-api
+      - ai-gateway
+      - notification-api
+      - education-api
     restart: always
     networks:
       - jjdevhub-net
@@ -31,7 +38,7 @@ services:
 
   # CI/CD
   jenkins:
-    image: jenkins/jenkins:lts
+    image: jenkins/jenkins:lts-jdk17
     container_name: jjdevhub-jenkins
     ports:
       - "8082:8080"
@@ -160,12 +167,108 @@ services:
     networks:
       - jjdevhub-net
 
-  # FRONTEND CLIENT (Angular)
+  # ===================== APPLICATION SERVICES =====================
+
+  # FRONTEND (Angular + Material)
   angular-web:
     build:
-      context: .
-      dockerfile: src/Clients/web/Dockerfile
+      context: ../../src/Clients/web
+      dockerfile: Dockerfile
     container_name: jjdevhub-angular
+    restart: always
+    networks:
+      - jjdevhub-net
+
+  # CONTENT API (main bounded context)
+  content-api:
+    build:
+      context: ../..
+      dockerfile: src/Services/JJDevHub.Content/JJDevHub.Content.Api/Dockerfile
+    container_name: jjdevhub-content-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__ContentDb: "Host=db;Port=5432;Database=jjdevhub_content;Username=postgres;Password=password"
+      MongoDb__ConnectionString: "mongodb://mongodb:27017"
+      MongoDb__DatabaseName: "jjdevhub_content_read"
+      Kafka__BootstrapServers: "kafka:9092"
+    depends_on:
+      - db
+      - mongodb
+      - kafka
+    restart: always
+    networks:
+      - jjdevhub-net
+
+  # ANALYTICS API
+  analytics-api:
+    build:
+      context: ../..
+      dockerfile: src/Services/JJDevHub.Analytics/JJDevHub.Analytics.Api/Dockerfile
+    container_name: jjdevhub-analytics-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    restart: always
+    networks:
+      - jjdevhub-net
+
+  # IDENTITY API
+  identity-api:
+    build:
+      context: ../..
+      dockerfile: src/Services/JJDevHub.Identity/Dockerfile
+    container_name: jjdevhub-identity-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    restart: always
+    networks:
+      - jjdevhub-net
+
+  # AI GATEWAY
+  ai-gateway:
+    build:
+      context: ../..
+      dockerfile: src/Services/JJDevHub.AI.Gateway/JJDevHub.AI.Gateway/Dockerfile
+    container_name: jjdevhub-ai-gateway
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    restart: always
+    networks:
+      - jjdevhub-net
+
+  # NOTIFICATION API
+  notification-api:
+    build:
+      context: ../..
+      dockerfile: src/Services/JJDevHub.Notification/Dockerfile
+    container_name: jjdevhub-notification-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    restart: always
+    networks:
+      - jjdevhub-net
+
+  # EDUCATION API
+  education-api:
+    build:
+      context: ../..
+      dockerfile: src/Services/JJDevHub.Education/Dockerfile
+    container_name: jjdevhub-education-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    restart: always
+    networks:
+      - jjdevhub-net
+
+  # SYNC WORKER (background service)
+  sync-worker:
+    build:
+      context: ../..
+      dockerfile: src/Services/JJDevHub.Sync/Dockerfile
+    container_name: jjdevhub-sync-worker
+    environment:
+      DOTNET_ENVIRONMENT: Production
+    depends_on:
+      - kafka
     restart: always
     networks:
       - jjdevhub-net

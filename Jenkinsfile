@@ -4,7 +4,7 @@ pipeline {
     options {
         buildDiscarder(logRotator(numToKeepStr: '10'))
         timestamps()
-        timeout(time: 30, unit: 'MINUTES')
+        timeout(time: 45, unit: 'MINUTES')
     }
 
     environment {
@@ -34,7 +34,7 @@ pipeline {
         }
 
         // ───────────────────────────────────────────────────────
-        // STAGE 3: UNIT TESTS (fast, no infra needed)
+        // STAGE 3: UNIT TESTS
         // ───────────────────────────────────────────────────────
         stage('Unit Tests') {
             steps {
@@ -53,7 +53,7 @@ pipeline {
         }
 
         // ───────────────────────────────────────────────────────
-        // STAGE 4: INTEGRATION TESTS (Testcontainers: PG + Mongo)
+        // STAGE 4: INTEGRATION TESTS (Testcontainers)
         // ───────────────────────────────────────────────────────
         stage('Integration Tests') {
             steps {
@@ -72,7 +72,19 @@ pipeline {
         }
 
         // ───────────────────────────────────────────────────────
-        // STAGE 5: SONARQUBE ANALYSIS
+        // STAGE 5: ANGULAR BUILD
+        // ───────────────────────────────────────────────────────
+        stage('Angular Build') {
+            steps {
+                dir('src/Clients/web') {
+                    sh 'npm ci'
+                    sh 'npx ng build --configuration production'
+                }
+            }
+        }
+
+        // ───────────────────────────────────────────────────────
+        // STAGE 6: SONARQUBE ANALYSIS
         // ───────────────────────────────────────────────────────
         stage('SonarQube Analysis') {
             steps {
@@ -98,7 +110,7 @@ pipeline {
         }
 
         // ───────────────────────────────────────────────────────
-        // STAGE 6: QUALITY GATE
+        // STAGE 7: QUALITY GATE
         // ───────────────────────────────────────────────────────
         stage('Quality Gate') {
             steps {
@@ -114,35 +126,87 @@ pipeline {
         }
 
         // ───────────────────────────────────────────────────────
-        // STAGE 7: DOCKER BUILD
+        // STAGE 8: DOCKER BUILD (all services in parallel)
         // ───────────────────────────────────────────────────────
         stage('Docker Build') {
             parallel {
-                stage('Content API Image') {
+                stage('Content API') {
                     steps {
-                        dir('src/Services/JJDevHub.Content') {
-                            sh '''docker build \
-                                -f JJDevHub.Content.Api/Dockerfile \
-                                -t jjdevhub-content-api:${BUILD_NUMBER} \
-                                -t jjdevhub-content-api:latest \
-                                ../..'''
-                        }
+                        sh '''docker build \
+                            -f src/Services/JJDevHub.Content/JJDevHub.Content.Api/Dockerfile \
+                            -t jjdevhub-content-api:${BUILD_NUMBER} \
+                            -t jjdevhub-content-api:latest \
+                            .'''
                     }
                 }
-                stage('Angular Web Image') {
+                stage('Analytics API') {
+                    steps {
+                        sh '''docker build \
+                            -f src/Services/JJDevHub.Analytics/JJDevHub.Analytics.Api/Dockerfile \
+                            -t jjdevhub-analytics-api:${BUILD_NUMBER} \
+                            -t jjdevhub-analytics-api:latest \
+                            .'''
+                    }
+                }
+                stage('Identity API') {
+                    steps {
+                        sh '''docker build \
+                            -f src/Services/JJDevHub.Identity/Dockerfile \
+                            -t jjdevhub-identity-api:${BUILD_NUMBER} \
+                            -t jjdevhub-identity-api:latest \
+                            .'''
+                    }
+                }
+                stage('AI Gateway') {
+                    steps {
+                        sh '''docker build \
+                            -f src/Services/JJDevHub.AI.Gateway/JJDevHub.AI.Gateway/Dockerfile \
+                            -t jjdevhub-ai-gateway:${BUILD_NUMBER} \
+                            -t jjdevhub-ai-gateway:latest \
+                            .'''
+                    }
+                }
+                stage('Notification API') {
+                    steps {
+                        sh '''docker build \
+                            -f src/Services/JJDevHub.Notification/Dockerfile \
+                            -t jjdevhub-notification-api:${BUILD_NUMBER} \
+                            -t jjdevhub-notification-api:latest \
+                            .'''
+                    }
+                }
+                stage('Education API') {
+                    steps {
+                        sh '''docker build \
+                            -f src/Services/JJDevHub.Education/Dockerfile \
+                            -t jjdevhub-education-api:${BUILD_NUMBER} \
+                            -t jjdevhub-education-api:latest \
+                            .'''
+                    }
+                }
+                stage('Sync Worker') {
+                    steps {
+                        sh '''docker build \
+                            -f src/Services/JJDevHub.Sync/Dockerfile \
+                            -t jjdevhub-sync-worker:${BUILD_NUMBER} \
+                            -t jjdevhub-sync-worker:latest \
+                            .'''
+                    }
+                }
+                stage('Angular Web') {
                     steps {
                         sh '''docker build \
                             -f src/Clients/web/Dockerfile \
                             -t jjdevhub-angular:${BUILD_NUMBER} \
                             -t jjdevhub-angular:latest \
-                            .'''
+                            src/Clients/web'''
                     }
                 }
             }
         }
 
         // ───────────────────────────────────────────────────────
-        // STAGE 8: DEPLOY (Docker Compose)
+        // STAGE 9: DEPLOY (Docker Compose)
         // ───────────────────────────────────────────────────────
         stage('Deploy') {
             steps {

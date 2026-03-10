@@ -48,6 +48,7 @@ public class WorkExperienceRepository : IWorkExperienceRepository
 
     public void Delete(WorkExperience workExperience)
     {
-        _context.WorkExperiences.Remove(workExperience);
+        workExperience.MarkAsDeleted();
+        _context.WorkExperiences.Update(workExperience);
     }
 }

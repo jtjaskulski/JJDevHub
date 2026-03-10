@@ -1,0 +1,42 @@
+.work-experience {
+  h2 {
+    font-weight: 400;
+    margin: 0 0 24px;
+  }
+}
+
+.spinner-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 48px;
+}
+
+.error-card mat-card-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--mat-sys-error);
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.experience-card {
+  .period {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    opacity: 0.7;
+    font-size: 0.9rem;
+
+    mat-icon {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+    }
+  }
+}

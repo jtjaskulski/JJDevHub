@@ -1,45 +1,62 @@
-﻿/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
-
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
+import React from 'react';
+import {StatusBar, useColorScheme} from 'react-native';
+import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+  MD3DarkTheme,
+  MD3LightTheme,
+  PaperProvider,
+} from 'react-native-paper';
+import {NavigationContainer} from '@react-navigation/native';
+import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import {HomeScreen} from './src/screens/HomeScreen';
+import {WorkExperienceScreen} from './src/screens/WorkExperienceScreen';
+
+const Tab = createBottomTabNavigator();
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
+  const theme = isDarkMode ? MD3DarkTheme : MD3LightTheme;
 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
+      <PaperProvider theme={theme}>
+        <StatusBar
+          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+          backgroundColor={theme.colors.surface}
+        />
+        <NavigationContainer>
+          <Tab.Navigator
+            screenOptions={({route}) => ({
+              headerStyle: {backgroundColor: theme.colors.surface},
+              headerTintColor: theme.colors.onSurface,
+              tabBarStyle: {backgroundColor: theme.colors.surface},
+              tabBarActiveTintColor: theme.colors.primary,
+              tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
+              tabBarIcon: ({color, size}) => {
+                const icons: Record<string, string> = {
+                  Home: 'home',
+                  'Work Experience': 'work',
+                };
+                return (
+                  <MaterialIcons
+                    name={icons[route.name] || 'circle'}
+                    size={size}
+                    color={color}
+                  />
+                );
+              },
+            })}>
+            <Tab.Screen name="Home" component={HomeScreen} />
+            <Tab.Screen
+              name="Work Experience"
+              component={WorkExperienceScreen}
+            />
+          </Tab.Navigator>
+        </NavigationContainer>
+      </PaperProvider>
     </SafeAreaProvider>
   );
 }
-
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
-
-  return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
 
 export default App;

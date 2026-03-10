@@ -23,6 +23,18 @@ public class WorkExperienceConfiguration : IEntityTypeConfiguration<WorkExperien
         builder.Property(e => e.IsPublic)
             .IsRequired();
 
+        builder.Property(e => e.IsActive)
+            .HasColumnName("is_active")
+            .HasDefaultValue(true)
+            .IsRequired();
+
+        builder.Property(e => e.CreatedDate)
+            .HasColumnName("created_date")
+            .IsRequired();
+
+        builder.Property(e => e.ModifiedDate)
+            .HasColumnName("modified_date");
+
         builder.OwnsOne(e => e.Period, period =>
         {
             period.Property(p => p.Start)

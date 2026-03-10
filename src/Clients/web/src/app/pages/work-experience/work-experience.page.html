@@ -1,0 +1,44 @@
+<div class="work-experience">
+  <h2>Work Experience</h2>
+
+  @if (loading()) {
+    <div class="spinner-wrapper">
+      <mat-spinner diameter="48"></mat-spinner>
+    </div>
+  } @else if (error()) {
+    <mat-card appearance="outlined" class="error-card">
+      <mat-card-content>
+        <mat-icon>error_outline</mat-icon>
+        <span>{{ error() }}</span>
+      </mat-card-content>
+    </mat-card>
+  } @else if (experiences().length === 0) {
+    <mat-card appearance="outlined">
+      <mat-card-content>
+        <p>No work experiences found.</p>
+      </mat-card-content>
+    </mat-card>
+  } @else {
+    <div class="timeline">
+      @for (exp of experiences(); track exp.id) {
+        <mat-card appearance="outlined" class="experience-card">
+          <mat-card-header>
+            <mat-icon mat-card-avatar>business</mat-icon>
+            <mat-card-title>{{ exp.position }}</mat-card-title>
+            <mat-card-subtitle>{{ exp.companyName }}</mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="period">
+              <mat-icon>calendar_today</mat-icon>
+              <span>
+                {{ formatDate(exp.period.start) }}
+                &mdash;
+                {{ exp.period.end ? formatDate(exp.period.end) : 'Present' }}
+              </span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      }
+    </div>
+  }
+</div>
