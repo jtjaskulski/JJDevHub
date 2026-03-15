@@ -1,0 +1,6 @@
+@JJDevHub.Notification_HostAddress = http://localhost:5112
+
+GET {{JJDevHub.Notification_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

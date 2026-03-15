@@ -1,0 +1,14 @@
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/.angular
+.git
+.vs
+.vscode
+test-results
+docs
+infra
+tests
+*.md
+src/Clients

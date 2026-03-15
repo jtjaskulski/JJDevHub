@@ -1,16 +1,23 @@
 version: '3.8'
 
 services:
-  # REVERSE PROXY & UNDER CONSTRUCTION PAGE
+  # REVERSE PROXY
   nginx:
     image: nginx:alpine
     container_name: jjdevhub-nginx
     ports:
-      - "8081:80" # Changed host port to avoid conflict with CVIS
-      - "444:443" # Changed host port to avoid conflict with CVIS
+      - "8081:80"
+      - "444:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/html:/usr/share/nginx/html:ro
+    depends_on:
+      - angular-web
+      - content-api
+      - analytics-api
+      - identity-api
+      - ai-gateway
+      - notification-api
+      - education-api
     restart: always
     networks:
       - jjdevhub-net
@@ -20,7 +27,7 @@ services:
     image: hashicorp/vault:latest
     container_name: jjdevhub-vault
     ports:
-      - "8201:8200" # Changed host port
+      - "8201:8200"
     environment:
       VAULT_DEV_ROOT_TOKEN_ID: "jjdevhub-root-token"
       VAULT_ADDR: "http://0.0.0.0:8200"
@@ -31,17 +38,17 @@ services:
 
   # CI/CD
   jenkins:
-    image: jenkins/jenkins:lts
+    image: jenkins/jenkins:lts-jdk17
     container_name: jjdevhub-jenkins
     ports:
-      - "8082:8080" # Changed host port
-      - "50001:50000" # Changed host port
+      - "8082:8080"
+      - "50001:50000"
     volumes:
       - jenkins_home:/var/jenkins_home
     networks:
       - jjdevhub-net
 
-  # DATABASE (Content & Relational Data)
+  # WRITE DATABASE (Command Side - PostgreSQL)
   db:
     image: postgres:16-alpine
     container_name: jjdevhub-db
@@ -50,18 +57,219 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: jjdevhub_content
     ports:
-      - "5433:5432" # Changed host port
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - jjdevhub-net
 
-  # READ DATABASE (Query Side / Analytics)
+  # READ DATABASE (Query Side - MongoDB)
   mongodb:
     image: mongo:latest
     container_name: jjdevhub-mongo
     ports:
-      - "27018:27017" # Changed host port
+      - "27018:27017"
     volumes:
       - mongo_data:/data/db
+    networks:
+      - jjdevhub-net
+
+  # MESSAGE BROKER (CQRS Backbone)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: jjdevhub-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - jjdevhub-net
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: jjdevhub-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - jjdevhub-net
+
+  # CODE QUALITY - SONARQUBE
+  sonarqube-db:
+    image: postgres:16-alpine
+    container_name: jjdevhub-sonarqube-db
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+      POSTGRES_DB: sonarqube
+    volumes:
+      - sonarqube_db_data:/var/lib/postgresql/data
+    networks:
+      - jjdevhub-net
+
+  sonarqube:
+    image: sonarqube:lts-community
+    container_name: jjdevhub-sonarqube
+    depends_on:
+      - sonarqube-db
+    ports:
+      - "9000:9000"
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonarqube-db:5432/sonarqube
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: sonar
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_logs:/opt/sonarqube/logs
+      - sonarqube_extensions:/opt/sonarqube/extensions
+    networks:
+      - jjdevhub-net
+
+  # MONITORING - PROMETHEUS
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: jjdevhub-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+    restart: always
+    networks:
+      - jjdevhub-net
+
+  # MONITORING - GRAFANA
+  grafana:
+    image: grafana/grafana:latest
+    container_name: jjdevhub-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    restart: always
+    networks:
+      - jjdevhub-net
+
+  # ===================== APPLICATION SERVICES =====================
+
+  # FRONTEND (Angular + Material)
+  angular-web:
+    build:
+      context: ../../src/Clients/web
+      dockerfile: Dockerfile
+    container_name: jjdevhub-angular
+    restart: always
+    networks:
+      - jjdevhub-net
+
+  # CONTENT API (main bounded context)
+  content-api:
+    build:
+      context: ../..
+      dockerfile: src/Services/JJDevHub.Content/JJDevHub.Content.Api/Dockerfile
+    container_name: jjdevhub-content-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__ContentDb: "Host=db;Port=5432;Database=jjdevhub_content;Username=postgres;Password=password"
+      MongoDb__ConnectionString: "mongodb://mongodb:27017"
+      MongoDb__DatabaseName: "jjdevhub_content_read"
+      Kafka__BootstrapServers: "kafka:9092"
+    depends_on:
+      - db
+      - mongodb
+      - kafka
+    restart: always
+    networks:
+      - jjdevhub-net
+
+  # ANALYTICS API
+  analytics-api:
+    build:
+      context: ../..
+      dockerfile: src/Services/JJDevHub.Analytics/JJDevHub.Analytics.Api/Dockerfile
+    container_name: jjdevhub-analytics-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    restart: always
+    networks:
+      - jjdevhub-net
+
+  # IDENTITY API
+  identity-api:
+    build:
+      context: ../..
+      dockerfile: src/Services/JJDevHub.Identity/Dockerfile
+    container_name: jjdevhub-identity-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    restart: always
+    networks:
+      - jjdevhub-net
+
+  # AI GATEWAY
+  ai-gateway:
+    build:
+      context: ../..
+      dockerfile: src/Services/JJDevHub.AI.Gateway/JJDevHub.AI.Gateway/Dockerfile
+    container_name: jjdevhub-ai-gateway
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    restart: always
+    networks:
+      - jjdevhub-net
+
+  # NOTIFICATION API
+  notification-api:
+    build:
+      context: ../..
+      dockerfile: src/Services/JJDevHub.Notification/Dockerfile
+    container_name: jjdevhub-notification-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    restart: always
+    networks:
+      - jjdevhub-net
+
+  # EDUCATION API
+  education-api:
+    build:
+      context: ../..
+      dockerfile: src/Services/JJDevHub.Education/Dockerfile
+    container_name: jjdevhub-education-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    restart: always
+    networks:
+      - jjdevhub-net
+
+  # SYNC WORKER (background service)
+  sync-worker:
+    build:
+      context: ../..
+      dockerfile: src/Services/JJDevHub.Sync/Dockerfile
+    container_name: jjdevhub-sync-worker
+    environment:
+      DOTNET_ENVIRONMENT: Production
+    depends_on:
+      - kafka
+    restart: always
     networks:
       - jjdevhub-net
 
@@ -71,4 +279,11 @@ networks:
 
 volumes:
   jenkins_home:
+  postgres_data:
   mongo_data:
+  sonarqube_db_data:
+  sonarqube_data:
+  sonarqube_logs:
+  sonarqube_extensions:
+  prometheus_data:
+  grafana_data:

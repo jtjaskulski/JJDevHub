@@ -1,0 +1,21 @@
+using JJDevHub.Content.Application.Interfaces;
+using JJDevHub.Content.Infrastructure.Messaging;
+using JJDevHub.Content.Infrastructure.ReadStore;
+using JJDevHub.Shared.Kernel.Messaging;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace JJDevHub.Content.Infrastructure;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<MongoDbSettings>(configuration.GetSection(MongoDbSettings.SectionName));
+        services.AddSingleton<IWorkExperienceReadStore, MongoWorkExperienceReadStore>();
+
+        services.AddSingleton<IEventBus, KafkaEventBus>();
+
+        return services;
+    }
+}
