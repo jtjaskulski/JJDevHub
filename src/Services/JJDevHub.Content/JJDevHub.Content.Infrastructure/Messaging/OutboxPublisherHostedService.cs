@@ -82,68 +82,72 @@ public sealed class OutboxPublisherHostedService : BackgroundService
 
     private async Task<int> ProcessBatchAsync(int batchSize, CancellationToken cancellationToken)
     {
-        var processed = 0;
         await using var scope = _scopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ContentDbContext>();
 
-        const string selectSql = """
-            SELECT id, event_type, payload, message_key, aggregate_type, aggregate_id, created_utc, processed_utc, correlation_id
-            FROM content.outbox_messages
-            WHERE processed_utc IS NULL
-            ORDER BY created_utc
-            LIMIT 1
-            FOR UPDATE SKIP LOCKED
-            """;
+        await using var tx = await db.Database.BeginTransactionAsync(cancellationToken)
+            .ConfigureAwait(false);
 
-        for (var i = 0; i < batchSize; i++)
+        var messages = await db.Set<OutboxMessage>()
+            .FromSqlInterpolated($"""
+                SELECT id, event_type, payload, message_key, aggregate_type, aggregate_id, created_utc, processed_utc, correlation_id
+                FROM content.outbox_messages
+                WHERE processed_utc IS NULL
+                ORDER BY created_utc
+                LIMIT {batchSize}
+                FOR UPDATE SKIP LOCKED
+                """)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        if (messages.Count == 0)
         {
-            await using var tx = await db.Database.BeginTransactionAsync(cancellationToken)
-                .ConfigureAwait(false);
+            await tx.RollbackAsync(cancellationToken).ConfigureAwait(false);
+            return 0;
+        }
 
-            var batch = await db.Set<OutboxMessage>()
-                .FromSqlRaw(selectSql)
-                .ToListAsync(cancellationToken)
-                .ConfigureAwait(false);
-
-            var msg = batch.Count > 0 ? batch[0] : null;
-            if (msg is null)
-            {
-                await tx.RollbackAsync(cancellationToken).ConfigureAwait(false);
-                break;
-            }
-
-            try
+        var processed = 0;
+        try
+        {
+            foreach (var msg in messages)
             {
                 await _producer!.ProduceAsync(
                     msg.EventType,
                     new Message<string, string> { Key = msg.MessageKey, Value = msg.Payload },
                     cancellationToken).ConfigureAwait(false);
-            }
-            catch (ProduceException<string, string> ex)
-            {
-                _logger.LogWarning(ex,
-                    "Kafka publish failed for outbox {OutboxId} ({EventType}): {Reason}",
-                    msg.Id, msg.EventType, ex.Error.Reason);
-                await tx.RollbackAsync(cancellationToken).ConfigureAwait(false);
-                throw;
-            }
 
+                processed++;
+
+                _logger.LogDebug(
+                    "Published outbox {OutboxId} to topic {Topic}",
+                    msg.Id,
+                    msg.EventType);
+            }
+        }
+        catch (ProduceException<string, string> ex)
+        {
+            _logger.LogWarning(ex,
+                "Kafka publish failed ({EventType}): {Reason}. Committing {Processed} already published.",
+                ex.DeliveryResult?.Topic ?? "unknown", ex.Error.Reason, processed);
+        }
+
+        if (processed > 0)
+        {
             var utc = DateTime.UtcNow;
+            var publishedIds = messages.Take(processed).Select(m => m.Id).ToList();
             await db.Database.ExecuteSqlInterpolatedAsync(
                 $"""
                  UPDATE content.outbox_messages
                  SET processed_utc = {utc}
-                 WHERE id = {msg.Id}
+                 WHERE id = ANY({publishedIds})
                  """,
                 cancellationToken).ConfigureAwait(false);
 
             await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
-            processed++;
-
-            _logger.LogDebug(
-                "Published outbox {OutboxId} to topic {Topic}",
-                msg.Id,
-                msg.EventType);
+        }
+        else
+        {
+            await tx.RollbackAsync(cancellationToken).ConfigureAwait(false);
         }
 
         return processed;

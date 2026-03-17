@@ -4,6 +4,9 @@ using JJDevHub.Content.Api.Endpoints;
 using JJDevHub.Content.Application.Commands.AddWorkExperience;
 using JJDevHub.Content.Application.DTOs;
 using JJDevHub.Content.IntegrationTests.Fixtures;
+using JJDevHub.Content.Persistence;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace JJDevHub.Content.IntegrationTests.Api;
 
@@ -174,6 +177,26 @@ public class WorkExperienceEndpointsTests : IClassFixture<ContentApiFactory>, IA
         var putResponse = await _client.PutAsJsonAsync($"/api/content/work-experiences/{dto.Id}", stale);
 
         putResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
+    }
+
+    [Fact]
+    public async Task CreateWorkExperience_ShouldWriteOutboxRow()
+    {
+        var command = new AddWorkExperienceCommand(
+            "Outbox Corp", "Engineer",
+            new DateTime(2023, 1, 1), null, true);
+
+        var response = await _client.PostAsJsonAsync("/api/content/work-experiences", command);
+        var created = await response.Content.ReadFromJsonAsync<CreatedResponse>();
+
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ContentDbContext>();
+        var outboxRow = await db.OutboxMessages
+            .FirstOrDefaultAsync(m => m.AggregateId == created!.Id);
+
+        outboxRow.Should().NotBeNull();
+        outboxRow!.EventType.Should().Be("WorkExperienceCreatedIntegrationEvent");
+        outboxRow.ProcessedUtc.Should().BeNull("the publisher is disabled in tests");
     }
 
     private record CreatedResponse(Guid Id);

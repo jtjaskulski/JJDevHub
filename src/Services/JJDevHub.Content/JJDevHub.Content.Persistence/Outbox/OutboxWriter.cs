@@ -17,7 +17,7 @@ public class OutboxWriter : IOutboxWriter
     public void Enqueue<T>(T integrationEvent, string aggregateType, Guid aggregateId)
         where T : IntegrationEvent
     {
-        var payload = JsonSerializer.Serialize(integrationEvent, integrationEvent.GetType());
+        var payload = JsonSerializer.Serialize(integrationEvent);
         _db.Set<OutboxMessage>().Add(new OutboxMessage
         {
             Id = Guid.NewGuid(),

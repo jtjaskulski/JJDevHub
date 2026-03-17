@@ -28,6 +28,10 @@ public class ContentApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Disable the outbox Kafka publisher — no Kafka container in the test setup.
+        // Outbox *writing* is still exercised: domain event handlers call IOutboxWriter.Enqueue,
+        // which inserts rows into content.outbox_messages within the same PG transaction.
+        // Only the background publishing to Kafka is skipped.
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(

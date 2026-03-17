@@ -51,19 +51,29 @@ public class ContentDbContext : DbContext, IUnitOfWork
     }
 
     /// <summary>
-    /// Dispatches domain events before <see cref="DbContext.SaveChangesAsync(CancellationToken)"/> so handler
-    /// failures roll back the DB transaction. Kafka integration events are written via <see cref="IOutboxWriter"/>
-    /// and committed atomically with aggregates; a background worker publishes from the outbox after commit.
-    /// MongoDB read-model updates in handlers still run before commit (see backlog: transactional-outbox-kafka.md).
+    /// Persists aggregates first, then dispatches domain events inside an explicit transaction.
+    /// The first flush validates PG constraints; if it fails no events are dispatched.
+    /// Handlers add outbox entries (via <see cref="IOutboxWriter"/>) and update MongoDB;
+    /// a second flush persists outbox rows. <see cref="Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction.CommitAsync"/>
+    /// commits aggregates and outbox atomically. MongoDB upserts still run before commit
+    /// (known tradeoff, see backlog: transactional-outbox-kafka.md, option A).
     /// </summary>
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         ApplyAuditInfo();
         var domainEvents = CollectDomainEvents();
 
+        await using var transaction = await Database.BeginTransactionAsync(cancellationToken);
+
+        var result = await base.SaveChangesAsync(cancellationToken);
+
         await DispatchDomainEventsAsync(domainEvents, cancellationToken);
 
-        return await base.SaveChangesAsync(cancellationToken);
+        if (ChangeTracker.HasChanges())
+            await base.SaveChangesAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
+        return result;
     }
 
     private void ApplyAuditInfo()

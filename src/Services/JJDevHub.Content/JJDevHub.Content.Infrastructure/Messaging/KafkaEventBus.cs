@@ -31,7 +31,7 @@ public class KafkaEventBus : IEventBus, IDisposable
         var message = new Message<string, string>
         {
             Key = integrationEvent.Id.ToString(),
-            Value = JsonSerializer.Serialize(integrationEvent, integrationEvent.GetType())
+            Value = JsonSerializer.Serialize(integrationEvent)
         };
 
         try
