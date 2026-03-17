@@ -42,7 +42,7 @@ public class ContentApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             services.AddSingleton<IWorkExperienceReadStore, MongoWorkExperienceReadStore>();
 
             services.RemoveAll<IEventBus>();
-            services.AddSingleton(Substitute.For<IEventBus>());
+            services.AddSingleton<IEventBus, NoOpEventBus>();
         });
 
         builder.UseEnvironment("Development");

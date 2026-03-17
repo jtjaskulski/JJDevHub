@@ -60,6 +60,7 @@ public static class WorkExperienceEndpoints
     {
         var command = new UpdateWorkExperienceCommand(
             id,
+            request.Version,
             request.CompanyName,
             request.Position,
             request.StartDate,
@@ -81,6 +82,7 @@ public static class WorkExperienceEndpoints
 }
 
 public record UpdateWorkExperienceRequest(
+    long Version,
     string CompanyName,
     string Position,
     DateTime StartDate,

@@ -20,8 +20,8 @@ public class GetWorkExperiencesQueryHandlerTests
     {
         var expected = new List<WorkExperienceDto>
         {
-            new(Guid.NewGuid(), "Corp1", "Dev", DateTime.UtcNow.AddYears(-2), null, true, true, 24),
-            new(Guid.NewGuid(), "Corp2", "QA", DateTime.UtcNow.AddYears(-1), DateTime.UtcNow, false, false, 12)
+            new(Guid.NewGuid(), 1L, "Corp1", "Dev", DateTime.UtcNow.AddYears(-2), null, true, true, 24),
+            new(Guid.NewGuid(), 1L, "Corp2", "QA", DateTime.UtcNow.AddYears(-1), DateTime.UtcNow, false, false, 12)
         }.AsReadOnly();
         _readStore.GetAllAsync(Arg.Any<CancellationToken>()).Returns(expected);
 
@@ -38,7 +38,7 @@ public class GetWorkExperiencesQueryHandlerTests
     {
         var expected = new List<WorkExperienceDto>
         {
-            new(Guid.NewGuid(), "Corp1", "Dev", DateTime.UtcNow.AddYears(-2), null, true, true, 24)
+            new(Guid.NewGuid(), 1L, "Corp1", "Dev", DateTime.UtcNow.AddYears(-2), null, true, true, 24)
         }.AsReadOnly();
         _readStore.GetPublicAsync(Arg.Any<CancellationToken>()).Returns(expected);
 

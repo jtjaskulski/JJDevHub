@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using JJDevHub.Content.Application.Abstractions;
 using JJDevHub.Content.Core.Entities;
 using JJDevHub.Shared.Kernel.BuildingBlocks;
 using MediatR;
@@ -9,13 +10,18 @@ namespace JJDevHub.Content.Persistence;
 public class ContentDbContext : DbContext, IUnitOfWork
 {
     private readonly IMediator _mediator;
+    private readonly ICurrentUser _currentUser;
 
     public DbSet<WorkExperience> WorkExperiences => Set<WorkExperience>();
 
-    public ContentDbContext(DbContextOptions<ContentDbContext> options, IMediator mediator)
+    public ContentDbContext(
+        DbContextOptions<ContentDbContext> options,
+        IMediator mediator,
+        ICurrentUser currentUser)
         : base(options)
     {
         _mediator = mediator;
+        _currentUser = currentUser;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -55,18 +61,18 @@ public class ContentDbContext : DbContext, IUnitOfWork
 
     private void ApplyAuditInfo()
     {
+        var utc = DateTime.UtcNow;
+        var subject = _currentUser.Subject;
+
         foreach (var entry in ChangeTracker.Entries<AuditableEntity>())
         {
             switch (entry.State)
             {
                 case EntityState.Added:
-                    entry.Entity.GetType()
-                        .GetProperty(nameof(AuditableEntity.CreatedDate))!
-                        .SetValue(entry.Entity, DateTime.UtcNow);
+                    entry.Entity.ApplyPersistenceOnCreate(utc, subject);
                     break;
-
                 case EntityState.Modified:
-                    entry.Entity.MarkModified();
+                    entry.Entity.ApplyPersistenceOnModify(utc, subject);
                     break;
             }
         }

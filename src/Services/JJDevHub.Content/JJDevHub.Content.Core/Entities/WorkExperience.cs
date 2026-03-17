@@ -67,18 +67,26 @@ public class WorkExperience : AuditableAggregateRoot
     private static void ValidateCompanyName(string companyName)
     {
         if (string.IsNullOrWhiteSpace(companyName))
-            throw new InvalidWorkExperienceException("Company name cannot be empty.");
+            throw new InvalidWorkExperienceException(
+                "CONTENT.WORK_EXPERIENCE.COMPANY_NAME_EMPTY",
+                "Company name cannot be empty.");
 
         if (companyName.Length > 200)
-            throw new InvalidWorkExperienceException("Company name cannot exceed 200 characters.");
+            throw new InvalidWorkExperienceException(
+                "CONTENT.WORK_EXPERIENCE.COMPANY_NAME_MAX",
+                "Company name cannot exceed 200 characters.");
     }
 
     private static void ValidatePosition(string position)
     {
         if (string.IsNullOrWhiteSpace(position))
-            throw new InvalidWorkExperienceException("Position cannot be empty.");
+            throw new InvalidWorkExperienceException(
+                "CONTENT.WORK_EXPERIENCE.POSITION_EMPTY",
+                "Position cannot be empty.");
 
         if (position.Length > 200)
-            throw new InvalidWorkExperienceException("Position cannot exceed 200 characters.");
+            throw new InvalidWorkExperienceException(
+                "CONTENT.WORK_EXPERIENCE.POSITION_MAX",
+                "Position cannot exceed 200 characters.");
     }
 }

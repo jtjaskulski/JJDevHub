@@ -1,11 +1,16 @@
 using FluentValidation;
 
-namespace JJDevHub.Content.Application.Commands.AddWorkExperience;
+namespace JJDevHub.Content.Application.Commands.UpdateWorkExperience;
 
-public class AddWorkExperienceCommandValidator : AbstractValidator<AddWorkExperienceCommand>
+public class UpdateWorkExperienceCommandValidator : AbstractValidator<UpdateWorkExperienceCommand>
 {
-    public AddWorkExperienceCommandValidator()
+    public UpdateWorkExperienceCommandValidator()
     {
+        RuleFor(x => x.ExpectedVersion)
+            .GreaterThan(0)
+            .WithErrorCode("VALIDATION.WORK_EXPERIENCE.VERSION_REQUIRED")
+            .WithMessage("ExpectedVersion must be greater than 0.");
+
         RuleFor(x => x.CompanyName)
             .NotEmpty()
             .WithErrorCode("VALIDATION.WORK_EXPERIENCE.COMPANY_NAME_EMPTY")
@@ -19,7 +24,6 @@ public class AddWorkExperienceCommandValidator : AbstractValidator<AddWorkExperi
             .WithErrorCode("VALIDATION.WORK_EXPERIENCE.POSITION_MAX");
 
         RuleFor(x => x.StartDate)
-            .NotEmpty()
             .LessThanOrEqualTo(DateTime.UtcNow)
             .WithErrorCode("VALIDATION.WORK_EXPERIENCE.START_DATE_FUTURE");
 

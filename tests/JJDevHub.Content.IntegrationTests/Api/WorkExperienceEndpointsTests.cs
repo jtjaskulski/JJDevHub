@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using JJDevHub.Content.Api.Endpoints;
 using JJDevHub.Content.Application.Commands.AddWorkExperience;
 using JJDevHub.Content.Application.DTOs;
 using JJDevHub.Content.IntegrationTests.Fixtures;
@@ -119,6 +120,60 @@ public class WorkExperienceEndpointsTests : IClassFixture<ContentApiFactory>, IA
         experiences!.Should().AllSatisfy(e => e.IsPublic.Should().BeTrue());
         experiences.Should().Contain(e => e.CompanyName == "Public Corp");
         experiences.Should().NotContain(e => e.CompanyName == "Private Corp");
+    }
+
+    [Fact]
+    public async Task UpdateWorkExperience_WithCorrectVersion_ShouldReturn204()
+    {
+        var command = new AddWorkExperienceCommand(
+            "Updatable Co", "Dev",
+            new DateTime(2022, 1, 1), null, true);
+        var createResponse = await _client.PostAsJsonAsync("/api/content/work-experiences", command);
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await createResponse.Content.ReadFromJsonAsync<CreatedResponse>();
+
+        var getResponse = await _client.GetAsync($"/api/content/work-experiences/{created!.Id}");
+        var dto = await getResponse.Content.ReadFromJsonAsync<WorkExperienceDto>();
+
+        var update = new UpdateWorkExperienceRequest(
+            dto!.Version,
+            "Updated Co",
+            dto.Position,
+            dto.StartDate,
+            dto.EndDate,
+            dto.IsPublic);
+
+        var putResponse = await _client.PutAsJsonAsync(
+            $"/api/content/work-experiences/{dto.Id}",
+            update);
+
+        putResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task UpdateWorkExperience_WithStaleVersion_ShouldReturn409()
+    {
+        var command = new AddWorkExperienceCommand(
+            "Stale Co", "Dev",
+            new DateTime(2021, 1, 1), null, true);
+        var createResponse = await _client.PostAsJsonAsync("/api/content/work-experiences", command);
+        var created = await createResponse.Content.ReadFromJsonAsync<CreatedResponse>();
+        var getResponse = await _client.GetAsync($"/api/content/work-experiences/{created!.Id}");
+        var dto = await getResponse.Content.ReadFromJsonAsync<WorkExperienceDto>();
+
+        var updateOk = new UpdateWorkExperienceRequest(
+            dto!.Version,
+            "First update",
+            dto.Position,
+            dto.StartDate,
+            dto.EndDate,
+            dto.IsPublic);
+        await _client.PutAsJsonAsync($"/api/content/work-experiences/{dto.Id}", updateOk);
+
+        var stale = updateOk with { CompanyName = "Second update", Version = dto.Version };
+        var putResponse = await _client.PutAsJsonAsync($"/api/content/work-experiences/{dto.Id}", stale);
+
+        putResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
 
     private record CreatedResponse(Guid Id);

@@ -31,9 +31,9 @@
             <div class="period">
               <mat-icon>calendar_today</mat-icon>
               <span>
-                {{ formatDate(exp.period.start) }}
+                {{ formatDate(exp.startDate) }}
                 &mdash;
-                {{ exp.period.end ? formatDate(exp.period.end) : 'Present' }}
+                {{ exp.endDate ? formatDate(exp.endDate) : 'Present' }}
               </span>
             </div>
           </mat-card-content>

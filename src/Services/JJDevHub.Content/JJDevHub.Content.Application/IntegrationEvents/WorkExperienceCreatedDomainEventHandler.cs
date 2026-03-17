@@ -33,6 +33,7 @@ public class WorkExperienceCreatedDomainEventHandler
 
         var readModel = new WorkExperienceReadModel
         {
+            Version = entity.Version,
             Id = entity.Id,
             CompanyName = entity.CompanyName,
             Position = entity.Position,

@@ -46,6 +46,7 @@ public class MongoWorkExperienceReadStore : IWorkExperienceReadStore
         var document = new WorkExperienceDocument
         {
             Id = model.Id,
+            RowVersion = model.Version,
             CompanyName = model.CompanyName,
             Position = model.Position,
             StartDate = model.StartDate,
@@ -71,6 +72,7 @@ public class MongoWorkExperienceReadStore : IWorkExperienceReadStore
 
     private static WorkExperienceDto MapToDto(WorkExperienceDocument document) => new(
         document.Id,
+        document.RowVersion > 0 ? document.RowVersion : 1L,
         document.CompanyName,
         document.Position,
         document.StartDate,

@@ -22,14 +22,29 @@ export class ApiService {
     return this.http.get<WorkExperience>(`${this.baseUrl}/api/content/work-experiences/${id}`);
   }
 
-  createWorkExperience(
-    data: Omit<WorkExperience, 'id' | 'isActive' | 'createdDate' | 'modifiedDate'>
-  ): Observable<WorkExperience> {
-    return this.http.post<WorkExperience>(`${this.baseUrl}/api/content/work-experiences`, data);
+  createWorkExperience(body: {
+    companyName: string;
+    position: string;
+    startDate: string;
+    endDate: string | null;
+    isPublic: boolean;
+  }): Observable<{ id: string }> {
+    return this.http.post<{ id: string }>(`${this.baseUrl}/api/content/work-experiences`, body);
   }
 
-  updateWorkExperience(id: string, data: Partial<WorkExperience>): Observable<void> {
-    return this.http.put<void>(`${this.baseUrl}/api/content/work-experiences/${id}`, data);
+  /** Body musi zawierać version (optymistyczna współbieżność). */
+  updateWorkExperience(
+    id: string,
+    body: {
+      version: number;
+      companyName: string;
+      position: string;
+      startDate: string;
+      endDate: string | null;
+      isPublic: boolean;
+    },
+  ): Observable<void> {
+    return this.http.put<void>(`${this.baseUrl}/api/content/work-experiences/${id}`, body);
   }
 
   deleteWorkExperience(id: string): Observable<void> {

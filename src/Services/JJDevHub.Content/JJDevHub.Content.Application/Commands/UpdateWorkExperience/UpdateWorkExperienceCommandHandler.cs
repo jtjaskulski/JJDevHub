@@ -1,3 +1,4 @@
+using JJDevHub.Content.Core.Exceptions;
 using JJDevHub.Content.Core.Repositories;
 using JJDevHub.Shared.Kernel.CQRS;
 using MediatR;
@@ -17,6 +18,9 @@ public class UpdateWorkExperienceCommandHandler : ICommandHandler<UpdateWorkExpe
     {
         var experience = await _repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Work experience with ID '{request.Id}' was not found.");
+
+        if (experience.Version != request.ExpectedVersion)
+            throw new WorkExperienceConcurrencyException();
 
         experience.Update(
             request.CompanyName,

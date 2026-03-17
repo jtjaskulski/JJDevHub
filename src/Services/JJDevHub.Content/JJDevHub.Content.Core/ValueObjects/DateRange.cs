@@ -11,12 +11,23 @@ public class DateRange : ValueObject
 
     public DateRange(DateTime start, DateTime? end)
     {
-        if (end.HasValue && end.Value < start)
+        var startUtc = NormalizeToUtc(start);
+        var endUtc = end.HasValue ? NormalizeToUtc(end.Value) : (DateTime?)null;
+
+        if (endUtc.HasValue && endUtc.Value < startUtc)
             throw new ArgumentException("End date cannot be earlier than start date.");
 
-        Start = start;
-        End = end;
+        Start = startUtc;
+        End = endUtc;
     }
+
+    private static DateTime NormalizeToUtc(DateTime d) =>
+        d.Kind switch
+        {
+            DateTimeKind.Utc => d,
+            DateTimeKind.Local => d.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(d, DateTimeKind.Utc)
+        };
 
     public bool IsCurrent => !End.HasValue;
 
