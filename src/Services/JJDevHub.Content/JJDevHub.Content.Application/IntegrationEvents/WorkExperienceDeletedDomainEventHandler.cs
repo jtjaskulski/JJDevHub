@@ -1,6 +1,7 @@
+using JJDevHub.Content.Application.Abstractions;
 using JJDevHub.Content.Application.Interfaces;
+using JJDevHub.Content.Core.Entities;
 using JJDevHub.Content.Core.Events;
-using JJDevHub.Shared.Kernel.Messaging;
 using MediatR;
 
 namespace JJDevHub.Content.Application.IntegrationEvents;
@@ -8,15 +9,17 @@ namespace JJDevHub.Content.Application.IntegrationEvents;
 public class WorkExperienceDeletedDomainEventHandler
     : INotificationHandler<WorkExperienceDeletedDomainEvent>
 {
+    private const string AggregateType = nameof(WorkExperience);
+
     private readonly IWorkExperienceReadStore _readStore;
-    private readonly IEventBus _eventBus;
+    private readonly IOutboxWriter _outbox;
 
     public WorkExperienceDeletedDomainEventHandler(
         IWorkExperienceReadStore readStore,
-        IEventBus eventBus)
+        IOutboxWriter outbox)
     {
         _readStore = readStore;
-        _eventBus = eventBus;
+        _outbox = outbox;
     }
 
     public async Task Handle(
@@ -25,7 +28,9 @@ public class WorkExperienceDeletedDomainEventHandler
     {
         await _readStore.DeleteAsync(notification.WorkExperienceId, cancellationToken);
 
-        await _eventBus.PublishAsync(new WorkExperienceDeletedIntegrationEvent(
-            notification.WorkExperienceId));
+        _outbox.Enqueue(
+            new WorkExperienceDeletedIntegrationEvent(notification.WorkExperienceId),
+            AggregateType,
+            notification.WorkExperienceId);
     }
 }

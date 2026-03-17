@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using JJDevHub.Content.Application.Abstractions;
 using JJDevHub.Content.Core.Entities;
+using JJDevHub.Content.Persistence.Outbox;
 using JJDevHub.Shared.Kernel.BuildingBlocks;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,8 @@ public class ContentDbContext : DbContext, IUnitOfWork
     private readonly ICurrentUser _currentUser;
 
     public DbSet<WorkExperience> WorkExperiences => Set<WorkExperience>();
+
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public ContentDbContext(
         DbContextOptions<ContentDbContext> options,
@@ -47,16 +50,20 @@ public class ContentDbContext : DbContext, IUnitOfWork
         return Expression.Lambda(body, parameter);
     }
 
+    /// <summary>
+    /// Dispatches domain events before <see cref="DbContext.SaveChangesAsync(CancellationToken)"/> so handler
+    /// failures roll back the DB transaction. Kafka integration events are written via <see cref="IOutboxWriter"/>
+    /// and committed atomically with aggregates; a background worker publishes from the outbox after commit.
+    /// MongoDB read-model updates in handlers still run before commit (see backlog: transactional-outbox-kafka.md).
+    /// </summary>
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         ApplyAuditInfo();
         var domainEvents = CollectDomainEvents();
 
-        var result = await base.SaveChangesAsync(cancellationToken);
-
         await DispatchDomainEventsAsync(domainEvents, cancellationToken);
 
-        return result;
+        return await base.SaveChangesAsync(cancellationToken);
     }
 
     private void ApplyAuditInfo()

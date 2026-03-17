@@ -18,7 +18,6 @@ public class DeleteWorkExperienceCommandHandler : ICommandHandler<DeleteWorkExpe
         var experience = await _repository.GetByIdAsync(request.Id, cancellationToken)
             ?? throw new KeyNotFoundException($"Work experience with ID '{request.Id}' was not found.");
 
-        experience.MarkAsDeleted();
         _repository.Delete(experience);
         await _repository.UnitOfWork.SaveChangesAsync(cancellationToken);
 

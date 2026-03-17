@@ -1,5 +1,8 @@
+using JJDevHub.Content.Application.Abstractions;
 using JJDevHub.Content.Core.Repositories;
+using JJDevHub.Content.Persistence.Outbox;
 using JJDevHub.Content.Persistence.Repositories;
+using JJDevHub.Shared.Kernel.BuildingBlocks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +19,8 @@ public static class DependencyInjection
                 npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "content")));
 
         services.AddScoped<IWorkExperienceRepository, WorkExperienceRepository>();
+        services.AddScoped<IOutboxWriter, OutboxWriter>();
+        services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ContentDbContext>());
 
         return services;
     }
