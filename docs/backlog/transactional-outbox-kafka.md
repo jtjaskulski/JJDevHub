@@ -1,16 +1,12 @@
 # Transactional Outbox — Kafka decoupling (backlog plan)
 
-## Problem
+## Problem (historical — partially resolved)
 
-Today, domain event handlers run inside `SaveChangesAsync` **before** PostgreSQL commit:
+Domain event handlers run inside `SaveChangesAsync` within an explicit transaction. Aggregates are flushed first, then handlers dispatch. Kafka publishing has been moved to the transactional outbox (`IOutboxWriter.Enqueue` + `OutboxPublisherHostedService`), so Kafka is no longer a pre-commit side effect.
 
-1. Handlers upsert MongoDB and publish to Kafka.
-2. Then EF commits the write model.
+The remaining pre-commit side effect is **MongoDB**: handlers upsert the read model before the transaction commits. If PG commit fails after a successful MongoDB upsert, the read model can diverge until reconciled.
 
-If **Kafka or MongoDB fails**, the transaction rolls back — good.  
-If handlers **succeed** but **PostgreSQL commit fails** (timeout, constraint, etc.), the read model and downstream consumers can see events that never persisted in the write DB — **inconsistent**.
-
-Running handlers **after** commit fixes PG-first consistency but breaks the opposite case (PG committed, Kafka down). True decoupling needs **at-least-once delivery** aligned with DB commit.
+Running handlers **after** commit would fix PG-first consistency for MongoDB but breaks atomicity if outbox entries also need to be part of the commit. The current approach (explicit transaction: flush aggregates → dispatch handlers → flush outbox → commit) keeps outbox + aggregates atomic while accepting the MongoDB tradeoff.
 
 ## Goal
 

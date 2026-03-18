@@ -27,9 +27,9 @@ We need a `docker-compose` setup for Jenkins that has:
 2.  **Docker-in-Docker (DinD)**: So Jenkins can run `docker` commands (required for your current pipeline).
 3.  **Dotnet SDK**: Or the ability to install it. *Note: Your current Jenkinsfile implies using agents or having dotnet installed on the master. For simplicity, we will run Jenkins with Docker socket mounted.*
 
-### Step 1: Create Jenkins Docker Compose
+### Step 1: Jenkins Docker Compose
 
-Create a file `infra/docker/jenkins-compose.yml` (or similar) with the following content:
+Edit the existing `infra/docker/jenkins-compose.yml` (or the Jenkins service in `docker-compose.yml`). The relevant configuration:
 
 ```yaml
 version: '3.8'
@@ -38,23 +38,22 @@ services:
   jenkins:
     image: jenkins/jenkins:lts-jdk17
     container_name: jenkins-local
-    privileged: true
-    user: root
+    privileged: true          # ⚠ grants full host access — LOCAL DEV ONLY
+    user: root                # ⚠ needed for Docker socket — LOCAL DEV ONLY
     ports:
       - 8080:8080
       - 50000:50000
     volumes:
       - jenkins_home:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
-      # Mount the project directory so Jenkins can access it locally without git clone if needed,
-      # though normally Jenkins clones from git.
-      # For local testing, we might want to push to a local git or use a file path.
+      - /var/run/docker.sock:/var/run/docker.sock  # ⚠ host Docker — LOCAL DEV ONLY
     environment:
       - DOCKER_HOST=unix:///var/run/docker.sock
 
 volumes:
   jenkins_home:
 ```
+
+> **Security note:** Running Jenkins as `root` with `privileged: true` and the host Docker socket mounted gives Jenkins full root-level access to the host. This setup is for **local development only**. For production or shared environments, use a dedicated build agent, Docker-in-Docker (DinD) sidecar, or rootless Docker.
 
 ### Step 2: Run Jenkins
 
@@ -105,7 +104,7 @@ If you don't want to push to a remote:
 1.  You need to mount your source code into the Jenkins container in `jenkins-compose.yml`.
     ```yaml
     volumes:
-      - ../../../:/var/jenkins_git_repo  # Mounts repo root to /var/jenkins_git_repo
+      - ../../:/var/jenkins_git_repo  # Mounts repo root (from infra/docker/) to /var/jenkins_git_repo
     ```
 2.  In Jenkins, use "Pipeline script from SCM" -> Git -> Repository URL: `file:///var/jenkins_git_repo`.
 

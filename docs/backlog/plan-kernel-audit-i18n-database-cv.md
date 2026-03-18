@@ -113,7 +113,7 @@ flowchart TB
 Wykonane w kodzie:
 
 - **Kernel:** `DomainEventsHolder`, audyt (`CreatedById`, `ModifiedById`, `Version` + `ApplyPersistenceOnCreate/Modify`), `DomainException.Code`, `InternalsVisibleTo` Persistence.
-- **Persistence:** `ICurrentUser` / `HttpContextCurrentUser`, migracja schematu przez `EnsureCreated`, kolumny `row_version`, audyt; optymistyczna współbieżność przy UPDATE.
+- **Persistence:** `ICurrentUser` / `HttpContextCurrentUser`, migracja schematu przez EF Core migrations (`dotnet ef database update`), kolumny `row_version`, audyt; optymistyczna współbieżność przy UPDATE.
 - **API:** `ErrorResponse` z `code`, walidacja z `ErrorCode`, PUT z `version`, 409 przy konflikcie; Mongo `GuidSerializer(Standard)`.
 - **Angular:** model zgodny z DTO, `api-error-messages` (PL/EN), PUT wymaga `version`.
 - **CV (rdzeń 2.1):** agregat `CurriculumVitae`, VO `PersonalInfo`, encje `CvSkill`/`CvEducation`/`CvProject`, enumy, `ICurriculumVitaeRepository` — **bez** jeszcze EF/handlers API (task 2.2+).

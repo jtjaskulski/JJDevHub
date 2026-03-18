@@ -184,10 +184,23 @@ public abstract class AuditableEntity : Entity
     public bool IsActive { get; protected set; } = true;
     public DateTime CreatedDate { get; protected set; } = DateTime.UtcNow;
     public DateTime? ModifiedDate { get; protected set; }
+    public string? CreatedById { get; protected set; }
+    public string? ModifiedById { get; protected set; }
+    public long Version { get; protected set; }
 
     public void Deactivate() { IsActive = false; ModifiedDate = DateTime.UtcNow; }
     public void Activate() { IsActive = true; ModifiedDate = DateTime.UtcNow; }
     public void MarkModified() => ModifiedDate = DateTime.UtcNow;
+
+    // Wywoływane z warstwy persystencji (internal + InternalsVisibleTo):
+    internal void ApplyPersistenceOnCreate(DateTime utcNow, string? userSubject)
+    {
+        CreatedDate = utcNow; CreatedById = userSubject; Version = 1;
+    }
+    internal void ApplyPersistenceOnModify(DateTime utcNow, string? userSubject)
+    {
+        ModifiedDate = utcNow; ModifiedById = userSubject; Version++;
+    }
 }
 ```
 
@@ -196,7 +209,7 @@ public abstract class AuditableEntity : Entity
 ```
 Entity (Id)
 ├── AggregateRoot : Entity, IAggregateRoot (+ domain events)
-├── AuditableEntity : Entity (+ IsActive, CreatedDate, ModifiedDate)
+├── AuditableEntity : Entity (+ IsActive, CreatedDate, ModifiedDate, CreatedById, ModifiedById, Version)
 │   └── AuditableAggregateRoot : AuditableEntity, IAggregateRoot (+ domain events)
 ```
 
@@ -536,7 +549,7 @@ public override async Task<int> SaveChangesAsync(CancellationToken ct)
 }
 ```
 
-Potem domain event handler synchronizuje read model:
+Potem domain event handler synchronizuje read model i enqueue'uje integration event do outboxa:
 
 ```csharp
 public class WorkExperienceCreatedDomainEventHandler
@@ -544,19 +557,23 @@ public class WorkExperienceCreatedDomainEventHandler
 {
     private readonly IWorkExperienceRepository _repository;  // PG (read entity)
     private readonly IWorkExperienceReadStore _readStore;     // Mongo (write read model)
-    private readonly IEventBus _eventBus;                     // Kafka
+    private readonly IOutboxWriter _outbox;                   // Outbox (same PG transaction)
 
     public async Task Handle(WorkExperienceCreatedDomainEvent notification, CancellationToken ct)
     {
-        // 1. Odczytaj entity z PostgreSQL
+        // 1. Odczytaj entity z PostgreSQL (widoczne w bieżącej transakcji)
         var entity = await _repository.GetByIdAsync(notification.WorkExperienceId, ct);
 
         // 2. Upsert do MongoDB (sync read model)
         var readModel = new WorkExperienceReadModel { ... };
         await _readStore.UpsertAsync(readModel, ct);
 
-        // 3. Publish do Kafka (dla innych serwisów)
-        await _eventBus.PublishAsync(new WorkExperienceCreatedIntegrationEvent(...));
+        // 3. Enqueue do outboxa (committed atomowo z agregatem)
+        //    OutboxPublisherHostedService opublikuje do Kafka po commit
+        _outbox.Enqueue(
+            new WorkExperienceCreatedIntegrationEvent(...),
+            nameof(WorkExperience),
+            notification.WorkExperienceId);
     }
 }
 ```
@@ -1692,6 +1709,8 @@ dotnet test JJDevHub.sln --collect:"XPlat Code Coverage"
 ```
 
 ### Konfiguracja (`appsettings.json`)
+
+Poniższe wartości dotyczą uruchamiania **z hosta** (`dotnet run`), gdzie porty są mapowane na localhost. Gdy API działa **wewnątrz Docker** (docker-compose), adresy to nazwy kontenerów w sieci Docker (np. `jjdevhub-db:5432`, `jjdevhub-mongo:27017`, `kafka:9092`), ustawiane przez zmienne środowiskowe w `docker-compose.yml`.
 
 ```json
 {

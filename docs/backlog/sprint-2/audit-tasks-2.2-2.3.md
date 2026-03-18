@@ -7,7 +7,7 @@
 
 | Criterion | Result | Evidence |
 |-----------|--------|----------|
-| `ContentDbContext` with domain event dispatch in `SaveChangesAsync` | **Pass** | Events collected after audit fields; handlers run **before** `base.SaveChangesAsync` so PG commit rolls back if a handler fails (aligned with task notes). |
+| `ContentDbContext` with domain event dispatch in `SaveChangesAsync` | **Pass** | Events collected after audit fields. Explicit transaction: aggregates flushed first (`base.SaveChangesAsync`), then handlers dispatched, then outbox entries flushed, then commit — so PG constraints are validated before handlers run. |
 | Fluent API for `WorkExperience`, no data annotations on domain | **Pass** | [WorkExperienceConfiguration.cs](../../../src/Services/JJDevHub.Content/JJDevHub.Content.Persistence/Configurations/WorkExperienceConfiguration.cs) |
 | `DateRange` as owned type | **Pass** | `OwnsOne` on `Period` → `start_date` / `end_date` |
 | Global query filter (soft delete) | **Pass** | `AuditableEntity.IsActive` filter in `OnModelCreating` |
@@ -18,7 +18,7 @@
 
 ### Fixes applied during audit
 
-1. **Domain event order:** Handlers previously ran after `SaveChangesAsync`, so PostgreSQL could commit even when Mongo/Kafka handlers failed. Order corrected to match task 2.2/2.3 wording.
+1. **Domain event order:** Switched to explicit transaction: flush aggregates → dispatch handlers (outbox + Mongo) → flush outbox → commit. Aggregates validated before handlers run; outbox committed atomically with aggregates.
 2. **`IUnitOfWork` registration:** Explicit scoped registration added (handlers already used `repository.UnitOfWork`).
 
 ---
@@ -38,7 +38,7 @@
 
 ### Fixes applied during audit
 
-1. **Delete command:** Handler called `MarkAsDeleted()` and `Delete()` (which also calls `MarkAsDeleted()`), duplicating `WorkExperienceDeletedDomainEvent`. Handler now only calls `_repository.Delete(experience)`.
+1. **Delete command:** Handler calls `experience.MarkAsDeleted()` (raises `WorkExperienceDeletedDomainEvent` + soft-delete) then `_repository.Delete(experience)` (removes from EF tracking).
 
 ### Residual notes
 
