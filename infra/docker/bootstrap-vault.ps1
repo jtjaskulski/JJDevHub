@@ -17,8 +17,9 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     DatabaseName="jjdevhub_content_read"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+$recruiterKey = if ($env:RECRUITER_ACCESS_KEY) { $env:RECRUITER_ACCESS_KEY } else { "CHANGE_ME_BEFORE_USE" }
 & docker exec @vaultEnv $container vault kv put secret/identity/tokens `
-    recruiter-access-key="antigravity-secret-2026"
+    recruiter-access-key="$recruiterKey"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "--- Vault Configuration Complete ---"

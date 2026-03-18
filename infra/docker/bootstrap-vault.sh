@@ -32,7 +32,8 @@ vault_in_container vault kv put secret/database/mongodb \
     DatabaseName="jjdevhub_content_read"
 
 # 4. Identity tokens
+RECRUITER_KEY="${RECRUITER_ACCESS_KEY:-CHANGE_ME_BEFORE_USE}"
 vault_in_container vault kv put secret/identity/tokens \
-    recruiter-access-key="antigravity-secret-2026"
+    recruiter-access-key="$RECRUITER_KEY"
 
 echo "--- Vault Configuration Complete ---"

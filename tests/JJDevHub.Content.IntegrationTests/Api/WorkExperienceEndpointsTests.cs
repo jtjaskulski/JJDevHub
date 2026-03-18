@@ -171,7 +171,8 @@ public class WorkExperienceEndpointsTests : IClassFixture<ContentApiFactory>, IA
             dto.StartDate,
             dto.EndDate,
             dto.IsPublic);
-        await _client.PutAsJsonAsync($"/api/content/work-experiences/{dto.Id}", updateOk);
+        var firstPut = await _client.PutAsJsonAsync($"/api/content/work-experiences/{dto.Id}", updateOk);
+        firstPut.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         var stale = updateOk with { CompanyName = "Second update", Version = dto.Version };
         var putResponse = await _client.PutAsJsonAsync($"/api/content/work-experiences/{dto.Id}", stale);

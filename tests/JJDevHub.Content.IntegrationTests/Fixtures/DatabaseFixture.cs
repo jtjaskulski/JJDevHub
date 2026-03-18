@@ -18,13 +18,6 @@ public static class DatabaseFixture
         var mongoOpts = scope.ServiceProvider.GetRequiredService<IOptions<MongoDbSettings>>();
         var mongoClient = new MongoClient(mongoOpts.Value.ConnectionString);
         var db = mongoClient.GetDatabase(mongoOpts.Value.DatabaseName);
-        try
-        {
-            await db.DropCollectionAsync("work_experiences");
-        }
-        catch (MongoException)
-        {
-            // kolekcja może nie istnieć przy pierwszym uruchomieniu
-        }
+        await db.DropCollectionAsync("work_experiences");
     }
 }
