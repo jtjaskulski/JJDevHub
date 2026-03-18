@@ -1,5 +1,7 @@
 using System.Linq.Expressions;
+using JJDevHub.Content.Application.Abstractions;
 using JJDevHub.Content.Core.Entities;
+using JJDevHub.Content.Persistence.Outbox;
 using JJDevHub.Shared.Kernel.BuildingBlocks;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -9,13 +11,20 @@ namespace JJDevHub.Content.Persistence;
 public class ContentDbContext : DbContext, IUnitOfWork
 {
     private readonly IMediator _mediator;
+    private readonly ICurrentUser _currentUser;
 
     public DbSet<WorkExperience> WorkExperiences => Set<WorkExperience>();
 
-    public ContentDbContext(DbContextOptions<ContentDbContext> options, IMediator mediator)
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
+    public ContentDbContext(
+        DbContextOptions<ContentDbContext> options,
+        IMediator mediator,
+        ICurrentUser currentUser)
         : base(options)
     {
         _mediator = mediator;
+        _currentUser = currentUser;
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -41,32 +50,46 @@ public class ContentDbContext : DbContext, IUnitOfWork
         return Expression.Lambda(body, parameter);
     }
 
+    /// <summary>
+    /// Persists aggregates first, then dispatches domain events inside an explicit transaction.
+    /// The first flush validates PG constraints; if it fails no events are dispatched.
+    /// Handlers add outbox entries (via <see cref="IOutboxWriter"/>) and update MongoDB;
+    /// a second flush persists outbox rows. <see cref="Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction.CommitAsync"/>
+    /// commits aggregates and outbox atomically. MongoDB upserts still run before commit
+    /// (known tradeoff, see backlog: transactional-outbox-kafka.md, option A).
+    /// </summary>
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         ApplyAuditInfo();
         var domainEvents = CollectDomainEvents();
 
+        await using var transaction = await Database.BeginTransactionAsync(cancellationToken);
+
         var result = await base.SaveChangesAsync(cancellationToken);
 
         await DispatchDomainEventsAsync(domainEvents, cancellationToken);
 
+        if (ChangeTracker.HasChanges())
+            await base.SaveChangesAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
         return result;
     }
 
     private void ApplyAuditInfo()
     {
+        var utc = DateTime.UtcNow;
+        var subject = _currentUser.Subject;
+
         foreach (var entry in ChangeTracker.Entries<AuditableEntity>())
         {
             switch (entry.State)
             {
                 case EntityState.Added:
-                    entry.Entity.GetType()
-                        .GetProperty(nameof(AuditableEntity.CreatedDate))!
-                        .SetValue(entry.Entity, DateTime.UtcNow);
+                    entry.Entity.ApplyPersistenceOnCreate(utc, subject);
                     break;
-
                 case EntityState.Modified:
-                    entry.Entity.MarkModified();
+                    entry.Entity.ApplyPersistenceOnModify(utc, subject);
                     break;
             }
         }

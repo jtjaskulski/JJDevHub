@@ -15,6 +15,7 @@ public static class DependencyInjection
         services.AddSingleton<IWorkExperienceReadStore, MongoWorkExperienceReadStore>();
 
         services.AddSingleton<IEventBus, KafkaEventBus>();
+        services.AddHostedService<OutboxPublisherHostedService>();
 
         return services;
     }

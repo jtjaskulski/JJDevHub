@@ -1,8 +1,9 @@
+using JJDevHub.Content.Application.Abstractions;
 using JJDevHub.Content.Application.Interfaces;
 using JJDevHub.Content.Application.ReadModels;
+using JJDevHub.Content.Core.Entities;
 using JJDevHub.Content.Core.Events;
 using JJDevHub.Content.Core.Repositories;
-using JJDevHub.Shared.Kernel.Messaging;
 using MediatR;
 
 namespace JJDevHub.Content.Application.IntegrationEvents;
@@ -10,18 +11,20 @@ namespace JJDevHub.Content.Application.IntegrationEvents;
 public class WorkExperienceUpdatedDomainEventHandler
     : INotificationHandler<WorkExperienceUpdatedDomainEvent>
 {
+    private const string AggregateType = nameof(WorkExperience);
+
     private readonly IWorkExperienceRepository _repository;
     private readonly IWorkExperienceReadStore _readStore;
-    private readonly IEventBus _eventBus;
+    private readonly IOutboxWriter _outbox;
 
     public WorkExperienceUpdatedDomainEventHandler(
         IWorkExperienceRepository repository,
         IWorkExperienceReadStore readStore,
-        IEventBus eventBus)
+        IOutboxWriter outbox)
     {
         _repository = repository;
         _readStore = readStore;
-        _eventBus = eventBus;
+        _outbox = outbox;
     }
 
     public async Task Handle(
@@ -33,6 +36,7 @@ public class WorkExperienceUpdatedDomainEventHandler
 
         var readModel = new WorkExperienceReadModel
         {
+            Version = entity.Version,
             Id = entity.Id,
             CompanyName = entity.CompanyName,
             Position = entity.Position,
@@ -46,7 +50,9 @@ public class WorkExperienceUpdatedDomainEventHandler
 
         await _readStore.UpsertAsync(readModel, cancellationToken);
 
-        await _eventBus.PublishAsync(new WorkExperienceUpdatedIntegrationEvent(
-            notification.WorkExperienceId));
+        _outbox.Enqueue(
+            new WorkExperienceUpdatedIntegrationEvent(notification.WorkExperienceId),
+            AggregateType,
+            notification.WorkExperienceId);
     }
 }

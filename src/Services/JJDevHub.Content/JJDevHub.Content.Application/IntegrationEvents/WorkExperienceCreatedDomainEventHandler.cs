@@ -1,8 +1,9 @@
+using JJDevHub.Content.Application.Abstractions;
 using JJDevHub.Content.Application.Interfaces;
 using JJDevHub.Content.Application.ReadModels;
+using JJDevHub.Content.Core.Entities;
 using JJDevHub.Content.Core.Events;
 using JJDevHub.Content.Core.Repositories;
-using JJDevHub.Shared.Kernel.Messaging;
 using MediatR;
 
 namespace JJDevHub.Content.Application.IntegrationEvents;
@@ -10,18 +11,20 @@ namespace JJDevHub.Content.Application.IntegrationEvents;
 public class WorkExperienceCreatedDomainEventHandler
     : INotificationHandler<WorkExperienceCreatedDomainEvent>
 {
+    private const string AggregateType = nameof(WorkExperience);
+
     private readonly IWorkExperienceRepository _repository;
     private readonly IWorkExperienceReadStore _readStore;
-    private readonly IEventBus _eventBus;
+    private readonly IOutboxWriter _outbox;
 
     public WorkExperienceCreatedDomainEventHandler(
         IWorkExperienceRepository repository,
         IWorkExperienceReadStore readStore,
-        IEventBus eventBus)
+        IOutboxWriter outbox)
     {
         _repository = repository;
         _readStore = readStore;
-        _eventBus = eventBus;
+        _outbox = outbox;
     }
 
     public async Task Handle(
@@ -33,6 +36,7 @@ public class WorkExperienceCreatedDomainEventHandler
 
         var readModel = new WorkExperienceReadModel
         {
+            Version = entity.Version,
             Id = entity.Id,
             CompanyName = entity.CompanyName,
             Position = entity.Position,
@@ -46,9 +50,12 @@ public class WorkExperienceCreatedDomainEventHandler
 
         await _readStore.UpsertAsync(readModel, cancellationToken);
 
-        await _eventBus.PublishAsync(new WorkExperienceCreatedIntegrationEvent(
-            notification.WorkExperienceId,
-            notification.CompanyName,
-            notification.Position));
+        _outbox.Enqueue(
+            new WorkExperienceCreatedIntegrationEvent(
+                notification.WorkExperienceId,
+                notification.CompanyName,
+                notification.Position),
+            AggregateType,
+            notification.WorkExperienceId);
     }
 }

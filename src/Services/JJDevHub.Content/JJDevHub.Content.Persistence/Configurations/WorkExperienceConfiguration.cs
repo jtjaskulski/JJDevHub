@@ -35,6 +35,18 @@ public class WorkExperienceConfiguration : IEntityTypeConfiguration<WorkExperien
         builder.Property(e => e.ModifiedDate)
             .HasColumnName("modified_date");
 
+        builder.Property(e => e.CreatedById)
+            .HasColumnName("created_by_id")
+            .HasMaxLength(256);
+
+        builder.Property(e => e.ModifiedById)
+            .HasColumnName("modified_by_id")
+            .HasMaxLength(256);
+
+        builder.Property(e => e.Version)
+            .HasColumnName("row_version")
+            .IsConcurrencyToken();
+
         builder.OwnsOne(e => e.Period, period =>
         {
             period.Property(p => p.Start)

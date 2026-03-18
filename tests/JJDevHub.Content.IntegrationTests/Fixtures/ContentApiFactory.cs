@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using NSubstitute;
@@ -27,6 +28,16 @@ public class ContentApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Disable the outbox Kafka publisher — no Kafka container in the test setup.
+        // Outbox *writing* is still exercised: domain event handlers call IOutboxWriter.Enqueue,
+        // which inserts rows into content.outbox_messages within the same PG transaction.
+        // Only the background publishing to Kafka is skipped.
+        builder.ConfigureAppConfiguration((_, config) =>
+        {
+            config.AddInMemoryCollection(
+                new Dictionary<string, string?> { ["Outbox:PublisherEnabled"] = "false" });
+        });
+
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<DbContextOptions<ContentDbContext>>();
@@ -42,7 +53,7 @@ public class ContentApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             services.AddSingleton<IWorkExperienceReadStore, MongoWorkExperienceReadStore>();
 
             services.RemoveAll<IEventBus>();
-            services.AddSingleton(Substitute.For<IEventBus>());
+            services.AddSingleton<IEventBus, NoOpEventBus>();
         });
 
         builder.UseEnvironment("Development");

@@ -2,6 +2,7 @@ namespace JJDevHub.Content.Application.ReadModels;
 
 public class WorkExperienceReadModel
 {
+    public long Version { get; set; }
     public Guid Id { get; set; }
     public string CompanyName { get; set; } = null!;
     public string Position { get; set; } = null!;

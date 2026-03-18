@@ -7,20 +7,25 @@ public class AddWorkExperienceCommandValidator : AbstractValidator<AddWorkExperi
     public AddWorkExperienceCommandValidator()
     {
         RuleFor(x => x.CompanyName)
-            .NotEmpty().WithMessage("Company name is required.")
-            .MaximumLength(200).WithMessage("Company name cannot exceed 200 characters.");
+            .NotEmpty()
+            .WithErrorCode("VALIDATION.WORK_EXPERIENCE.COMPANY_NAME_EMPTY")
+            .MaximumLength(200)
+            .WithErrorCode("VALIDATION.WORK_EXPERIENCE.COMPANY_NAME_MAX");
 
         RuleFor(x => x.Position)
-            .NotEmpty().WithMessage("Position is required.")
-            .MaximumLength(200).WithMessage("Position cannot exceed 200 characters.");
+            .NotEmpty()
+            .WithErrorCode("VALIDATION.WORK_EXPERIENCE.POSITION_EMPTY")
+            .MaximumLength(200)
+            .WithErrorCode("VALIDATION.WORK_EXPERIENCE.POSITION_MAX");
 
         RuleFor(x => x.StartDate)
-            .NotEmpty().WithMessage("Start date is required.")
-            .LessThanOrEqualTo(DateTime.UtcNow).WithMessage("Start date cannot be in the future.");
+            .NotEmpty()
+            .LessThanOrEqualTo(DateTime.UtcNow)
+            .WithErrorCode("VALIDATION.WORK_EXPERIENCE.START_DATE_FUTURE");
 
         RuleFor(x => x.EndDate)
             .GreaterThan(x => x.StartDate)
             .When(x => x.EndDate.HasValue)
-            .WithMessage("End date must be after start date.");
+            .WithErrorCode("VALIDATION.WORK_EXPERIENCE.END_BEFORE_START");
     }
 }

@@ -1,5 +1,7 @@
 using JJDevHub.Content.Api.Endpoints;
 using JJDevHub.Content.Api.Middleware;
+using JJDevHub.Content.Api.Services;
+using JJDevHub.Content.Application.Abstractions;
 using JJDevHub.Content.Application;
 using JJDevHub.Content.Infrastructure;
 using JJDevHub.Content.Persistence;
@@ -8,6 +10,9 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUser, HttpContextCurrentUser>();
 
 builder.Services.AddOpenApi();
 

@@ -6,6 +6,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatIconModule } from '@angular/material/icon';
 import { ApiService } from '../../services/api.service';
 import { WorkExperience } from '../../models/work-experience.model';
+import { resolveApiErrorFromHttp } from '../../core/api-error-messages';
 
 @Component({
   selector: 'app-work-experience',
@@ -27,7 +28,9 @@ export class WorkExperiencePage implements OnInit {
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set('Failed to load work experiences. Is the API running?');
+        this.error.set(
+          resolveApiErrorFromHttp(err, 'Failed to load work experiences. Is the API running?'),
+        );
         this.loading.set(false);
         console.error('API error:', err);
       },

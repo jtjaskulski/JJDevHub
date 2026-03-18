@@ -30,4 +30,7 @@ internal class WorkExperienceDocument
 
     [BsonElement("lastModifiedAt")]
     public DateTime LastModifiedAt { get; set; }
+
+    [BsonElement("rowVersion")]
+    public long RowVersion { get; set; } = 1;
 }

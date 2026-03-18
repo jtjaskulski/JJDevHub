@@ -10,4 +10,8 @@
     <PackageReference Include="MediatR" Version="14.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="JJDevHub.Content.Persistence" />
+  </ItemGroup>
+
 </Project>
