@@ -51,7 +51,17 @@ public class WorkExperienceUpdatedDomainEventHandler
         await _readStore.UpsertAsync(readModel, cancellationToken);
 
         _outbox.Enqueue(
-            new WorkExperienceUpdatedIntegrationEvent(notification.WorkExperienceId),
+            new WorkExperienceUpdatedIntegrationEvent(
+                readModel.Id,
+                readModel.Version,
+                readModel.CompanyName,
+                readModel.Position,
+                readModel.StartDate,
+                readModel.EndDate,
+                readModel.IsPublic,
+                readModel.IsCurrent,
+                readModel.DurationInMonths,
+                readModel.LastModifiedAt),
             AggregateType,
             notification.WorkExperienceId);
     }

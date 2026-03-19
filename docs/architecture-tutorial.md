@@ -66,7 +66,7 @@
          ┌───────────┐ ┌──────────┐  ┌───────────┐
          │ PostgreSQL │ │ MongoDB  │  │   Kafka   │
          │ (Write DB) │ │(Read DB) │  │  (Events) │
-         │   :5433    │ │  :27018  │  │   :9092   │
+         │   :5433    │ │  :27018  │  │  :29092   │
          └───────────┘ └──────────┘  └───────────┘
 
 ┌──────────────┐  ┌───────────┐  ┌──────────┐  ┌───────────┐
@@ -1563,7 +1563,7 @@ Odpowiedź:
 | db | postgres:16-alpine | 5433 | 5432 | Write DB (PostgreSQL) |
 | mongodb | mongo:latest | 27018 | 27017 | Read DB (MongoDB) |
 | zookeeper | confluentinc/cp-zookeeper | - | 2181 | Kafka coordination |
-| kafka | confluentinc/cp-kafka | 9092 | 9092 | Message broker |
+| kafka | confluentinc/cp-kafka | 9092, 29092 | 9092, 29092 | Message broker (Docker: `kafka:9092`; host: `localhost:29092`) |
 | sonarqube-db | postgres:16-alpine | - | 5432 | SonarQube DB |
 | sonarqube | sonarqube:lts-community | 9000 | 9000 | Code quality |
 | prometheus | prom/prometheus | 9090 | 9090 | Metrics scraping |
@@ -1710,7 +1710,7 @@ dotnet test JJDevHub.sln --collect:"XPlat Code Coverage"
 
 ### Konfiguracja (`appsettings.json`)
 
-Poniższe wartości dotyczą uruchamiania **z hosta** (`dotnet run`), gdzie porty są mapowane na localhost. Gdy API działa **wewnątrz Docker** (docker-compose), adresy to nazwy kontenerów w sieci Docker (np. `jjdevhub-db:5432`, `jjdevhub-mongo:27017`, `kafka:9092`), ustawiane przez zmienne środowiskowe w `docker-compose.yml`.
+Poniższe wartości dotyczą uruchamiania **z hosta** (`dotnet run`), gdzie porty są mapowane na localhost. Dla Kafka na hoście użyj `localhost:29092` (listener `PLAINTEXT_HOST`); samo `localhost:9092` zwraca w metadanych adres `kafka:9092`, niewidoczny spoza sieci Docker. Gdy API działa **wewnątrz Docker** (docker-compose), adresy to nazwy serwisów w sieci Docker (np. `jjdevhub-db:5432`, `jjdevhub-mongo:27017`, `kafka:9092`), ustawiane przez zmienne środowiskowe w `docker-compose.yml`.
 
 ```json
 {
@@ -1722,7 +1722,7 @@ Poniższe wartości dotyczą uruchamiania **z hosta** (`dotnet run`), gdzie port
     "DatabaseName": "jjdevhub_content_read"
   },
   "Kafka": {
-    "BootstrapServers": "localhost:9092"
+    "BootstrapServers": "localhost:29092"
   }
 }
 ```

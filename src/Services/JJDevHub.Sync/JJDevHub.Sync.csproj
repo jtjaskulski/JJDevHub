@@ -1,13 +1,20 @@
-<Project Sdk="Microsoft.NET.Sdk.Worker">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>dotnet-JJDevHub.Sync-2edde63f-c4d1-4a74-b99a-e69273acaeba</UserSecretsId>
+    <RootNamespace>JJDevHub.Sync</RootNamespace>
+    <AssemblyName>JJDevHub.Sync</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.1" />
+    <PackageReference Include="Confluent.Kafka" Version="2.13.0" />
+    <PackageReference Include="MongoDB.Driver" Version="3.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\JJDevHub.Content\JJDevHub.Content.Infrastructure\JJDevHub.Content.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

@@ -10,9 +10,8 @@ public class MongoWorkExperienceReadStore : IWorkExperienceReadStore
 {
     private readonly IMongoCollection<WorkExperienceDocument> _collection;
 
-    public MongoWorkExperienceReadStore(IOptions<MongoDbSettings> settings)
+    public MongoWorkExperienceReadStore(IMongoClient client, IOptions<MongoDbSettings> settings)
     {
-        var client = new MongoClient(settings.Value.ConnectionString);
         var database = client.GetDatabase(settings.Value.DatabaseName);
         _collection = database.GetCollection<WorkExperienceDocument>("work_experiences");
     }

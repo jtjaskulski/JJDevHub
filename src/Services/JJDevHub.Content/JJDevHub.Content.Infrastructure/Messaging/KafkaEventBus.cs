@@ -15,13 +15,7 @@ public class KafkaEventBus : IEventBus, IDisposable
     {
         _logger = logger;
 
-        var config = new ProducerConfig
-        {
-            BootstrapServers = configuration["Kafka:BootstrapServers"] ?? "localhost:9092",
-            Acks = Acks.All,
-            EnableIdempotence = true
-        };
-
+        var config = KafkaProducerConfiguration.CreateProducerConfig(configuration);
         _producer = new ProducerBuilder<string, string>(config).Build();
     }
 

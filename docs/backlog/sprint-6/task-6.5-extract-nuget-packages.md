@@ -274,7 +274,7 @@ public class KafkaEventBus : IEventBus, IDisposable
         _logger = logger;
         var config = new ProducerConfig
         {
-            BootstrapServers = configuration["Kafka:BootstrapServers"] ?? "localhost:9092",
+            BootstrapServers = configuration["Kafka:BootstrapServers"] ?? "localhost:29092",
             Acks = Acks.All,
             EnableIdempotence = true
         };
@@ -311,7 +311,7 @@ public abstract class KafkaConsumerService<TEvent> : BackgroundService
         _logger = logger;
         var consumerConfig = new ConsumerConfig
         {
-            BootstrapServers = config["Kafka:BootstrapServers"] ?? "localhost:9092",
+            BootstrapServers = config["Kafka:BootstrapServers"] ?? "localhost:29092",
             GroupId = config["Kafka:GroupId"] ?? "default-group",
             AutoOffsetReset = AutoOffsetReset.Earliest,
             EnableAutoCommit = false

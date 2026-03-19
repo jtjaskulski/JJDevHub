@@ -9,13 +9,26 @@ docker compose up -d
 
 Frontend + API przez Nginx: **http://localhost:8081**
 
+## Środowisko ASP.NET w compose
+
+Wszystkie usługi API oraz **sync-worker** (to nadal `WebApplication` z Kestrel — health na `/health`, stąd `ASPNETCORE_ENVIRONMENT`, nie osobny worker host) mają w `docker-compose.yml` ustawione **`Development`**, żeby lokalny stack zachowywał się jak `dotnet run` (m.in. OpenAPI tam, gdzie jest za `IsDevelopment()`, bogatsze logowanie). Na VPS / CI możesz nadpisać na `Production` przez osobny plik compose lub zmienne środowiskowe.
+
+## MongoDB i Kafka: host (`dotnet run`) vs kontener
+
+| Gdzie działa aplikacja | MongoDB | Kafka (bootstrap) | Uwagi |
+|------------------------|---------|-------------------|--------|
+| Na hoście, bazy w Dockerze (porty zmapowane) | `mongodb://localhost:27018` | `localhost:29092` | `27018` i `29092` to porty **hosta** (mapowanie z `27017` / listener `PLAINTEXT_HOST`). |
+| W tej samej sieci co `docker-compose` | `mongodb://mongodb:27017` | `kafka:9092` | Nazwy serwisów z compose; port **wewnętrzny** Mongo to zawsze `27017`. |
+
+W `docker-compose.yml` ustawiane są zmienne `MongoDb__*` i `Kafka__BootstrapServers` dla **content-api** i **sync-worker**, żeby nadpisać domyślne `appsettings.json` (przystosowane do hosta). Lokalne `dotnet run` bez tych zmiennych = wiersz „host”.
+
 ## Checklist „działa u mnie”
 
 1. `docker compose up -d` — wszystkie kontenery `Running`.
 2. **Vault** — po każdym restarcie kontenera (tryb dev) uruchom bootstrap sekretów:
    - Linux/macOS/Git Bash: `./bootstrap-vault.sh`
    - Windows (PowerShell): `.\bootstrap-vault.ps1`
-3. **Kafka** — obrazy `confluentinc/cp-kafka:7.6.1` i `cp-zookeeper:7.6.1` (nie `latest`; `latest` wymaga KRaft).
+3. **Kafka** — obrazy `confluentinc/cp-kafka:7.6.1` i `cp-zookeeper:7.6.1` (nie `latest`; `latest` wymaga KRaft). Z hosta (`dotnet run`): `Kafka:BootstrapServers` = `localhost:29092`. Z kontenera w sieci compose: `kafka:9092`.
 4. **Keycloak** — realm z importu (jeśli używasz JWT).
 5. Dostęp: Vault `8201`, Keycloak `8083`, Jenkins w głównym compose `8082`.
 

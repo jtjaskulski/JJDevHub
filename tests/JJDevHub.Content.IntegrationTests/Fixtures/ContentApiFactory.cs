@@ -9,6 +9,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
+using MongoDB.Driver;
 using NSubstitute;
 using Testcontainers.MongoDb;
 using Testcontainers.PostgreSql;
@@ -35,7 +37,12 @@ public class ContentApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.ConfigureAppConfiguration((_, config) =>
         {
             config.AddInMemoryCollection(
-                new Dictionary<string, string?> { ["Outbox:PublisherEnabled"] = "false" });
+                new Dictionary<string, string?>
+                {
+                    ["Outbox:PublisherEnabled"] = "false",
+                    ["MongoDb:ConnectionString"] = _mongo.GetConnectionString(),
+                    ["MongoDb:DatabaseName"] = "jjdevhub_content_test_read"
+                });
         });
 
         builder.ConfigureTestServices(services =>
@@ -44,12 +51,13 @@ public class ContentApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             services.AddDbContext<ContentDbContext>(options =>
                 options.UseNpgsql(_postgres.GetConnectionString()));
 
-            services.RemoveAll<IWorkExperienceReadStore>();
-            services.Configure<MongoDbSettings>(opts =>
+            services.RemoveAll<IMongoClient>();
+            services.AddSingleton<IMongoClient>(sp =>
             {
-                opts.ConnectionString = _mongo.GetConnectionString();
-                opts.DatabaseName = "jjdevhub_content_test_read";
+                var opts = sp.GetRequiredService<IOptions<MongoDbSettings>>().Value;
+                return new MongoClient(opts.ConnectionString);
             });
+            services.RemoveAll<IWorkExperienceReadStore>();
             services.AddSingleton<IWorkExperienceReadStore, MongoWorkExperienceReadStore>();
 
             services.RemoveAll<IEventBus>();

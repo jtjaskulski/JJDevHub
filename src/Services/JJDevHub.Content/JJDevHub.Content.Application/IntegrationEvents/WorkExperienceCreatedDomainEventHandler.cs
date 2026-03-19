@@ -52,9 +52,16 @@ public class WorkExperienceCreatedDomainEventHandler
 
         _outbox.Enqueue(
             new WorkExperienceCreatedIntegrationEvent(
-                notification.WorkExperienceId,
-                notification.CompanyName,
-                notification.Position),
+                readModel.Id,
+                readModel.Version,
+                readModel.CompanyName,
+                readModel.Position,
+                readModel.StartDate,
+                readModel.EndDate,
+                readModel.IsPublic,
+                readModel.IsCurrent,
+                readModel.DurationInMonths,
+                readModel.LastModifiedAt),
             AggregateType,
             notification.WorkExperienceId);
     }
