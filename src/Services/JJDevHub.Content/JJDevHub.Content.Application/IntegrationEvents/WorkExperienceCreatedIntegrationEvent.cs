@@ -3,6 +3,13 @@ using JJDevHub.Shared.Kernel.Messaging;
 namespace JJDevHub.Content.Application.IntegrationEvents;
 
 public record WorkExperienceCreatedIntegrationEvent(
-    Guid ExperienceId,
+    Guid WorkExperienceId,
+    long Version,
     string CompanyName,
-    string Position) : IntegrationEvent;
+    string Position,
+    DateTime StartDate,
+    DateTime? EndDate,
+    bool IsPublic,
+    bool IsCurrent,
+    int DurationInMonths,
+    DateTime LastModifiedAt) : IntegrationEvent;

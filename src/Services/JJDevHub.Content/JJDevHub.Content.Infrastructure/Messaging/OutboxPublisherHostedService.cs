@@ -37,12 +37,7 @@ public sealed class OutboxPublisherHostedService : BackgroundService
             return;
         }
 
-        var producerConfig = new ProducerConfig
-        {
-            BootstrapServers = _configuration["Kafka:BootstrapServers"] ?? "localhost:9092",
-            Acks = Acks.All,
-            EnableIdempotence = true
-        };
+        var producerConfig = KafkaProducerConfiguration.CreateProducerConfig(_configuration);
         _producer = new ProducerBuilder<string, string>(producerConfig).Build();
 
         var pollMs = _configuration.GetValue("Outbox:PollIntervalMs", 1000);

@@ -90,6 +90,7 @@ services:
       - zookeeper
     ports:
       - "9092:9092"
+      - "29092:29092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -168,6 +169,10 @@ services:
       - jjdevhub-net
 
   # ===================== APPLICATION SERVICES =====================
+  # ASP.NET: Development here matches local `dotnet run` — OpenAPI where gated on
+  # IsDevelopment(), clearer errors, appsettings.Development.json merges. Use
+  # Production in deployment compose or a docker-compose.override.yml when you
+  # need release-like behavior.
 
   # FRONTEND (Angular + Material)
   angular-web:
@@ -186,7 +191,7 @@ services:
       dockerfile: src/Services/JJDevHub.Content/JJDevHub.Content.Api/Dockerfile
     container_name: jjdevhub-content-api
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__ContentDb: "Host=db;Port=5432;Database=jjdevhub_content;Username=postgres;Password=password"
       MongoDb__ConnectionString: "mongodb://mongodb:27017"
       MongoDb__DatabaseName: "jjdevhub_content_read"
@@ -206,7 +211,7 @@ services:
       dockerfile: src/Services/JJDevHub.Analytics/JJDevHub.Analytics.Api/Dockerfile
     container_name: jjdevhub-analytics-api
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: Development
     restart: always
     networks:
       - jjdevhub-net
@@ -218,7 +223,7 @@ services:
       dockerfile: src/Services/JJDevHub.Identity/Dockerfile
     container_name: jjdevhub-identity-api
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: Development
     restart: always
     networks:
       - jjdevhub-net
@@ -230,7 +235,7 @@ services:
       dockerfile: src/Services/JJDevHub.AI.Gateway/JJDevHub.AI.Gateway/Dockerfile
     container_name: jjdevhub-ai-gateway
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: Development
     restart: always
     networks:
       - jjdevhub-net
@@ -242,7 +247,7 @@ services:
       dockerfile: src/Services/JJDevHub.Notification/Dockerfile
     container_name: jjdevhub-notification-api
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: Development
     restart: always
     networks:
       - jjdevhub-net
@@ -254,7 +259,7 @@ services:
       dockerfile: src/Services/JJDevHub.Education/Dockerfile
     container_name: jjdevhub-education-api
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: Development
     restart: always
     networks:
       - jjdevhub-net
@@ -266,8 +271,12 @@ services:
       dockerfile: src/Services/JJDevHub.Sync/Dockerfile
     container_name: jjdevhub-sync-worker
     environment:
-      DOTNET_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: Development
+      MongoDb__ConnectionString: "mongodb://mongodb:27017"
+      MongoDb__DatabaseName: "jjdevhub_content_read"
+      Kafka__BootstrapServers: "kafka:9092"
     depends_on:
+      - mongodb
       - kafka
     restart: always
     networks:

@@ -312,7 +312,7 @@ Na produkcji docker-compose powinien roznic sie od dev:
 
 | Aspekt | Dev | Produkcja |
 |--------|-----|-----------|
-| Porty | Wystawione na hosta (5433, 27018, 9092, etc.) | Brak wystawionych portow (tylko Nginx 443) |
+| Porty | Wystawione na hosta (5433, 27018, 9092/29092 Kafka, etc.) | Brak wystawionych portow (tylko Nginx 443) |
 | Sieci | Jedna `jjdevhub-net` | Trzy: `frontend-net`, `backend-net`, `data-net` |
 | Wolumeny | Named volumes | Bind mounts do /data na hoście |
 | SonarQube | Wlaczony | Wylaczony (uruchamiany tylko na CI/CD) |
