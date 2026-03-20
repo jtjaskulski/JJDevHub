@@ -3,7 +3,7 @@
 | Pole | Wartosc |
 |------|---------|
 | Sprint | 4 - Public Face & Mobile |
-| Status | IN PROGRESS |
+| Status | DONE |
 | Priorytet | High |
 | Estymacja | 5 story points |
 | Powiazane pliki | `src/Services/JJDevHub.Content/JJDevHub.Content.Api/`, `src/Services/JJDevHub.Content/JJDevHub.Content.Application/Queries/` |
@@ -20,26 +20,19 @@ Content.Api to glowny serwis backendowy obslugujacy zapytania publiczne (blog, p
 - OpenTelemetry metrics: AspNetCore, Runtime instrumentation, Prometheus exporter
 - `ExceptionHandlingMiddleware`: ValidationException -> 400, DomainException -> 422, KeyNotFoundException -> 404
 
-**Endpoints (WorkExperienceEndpoints.cs):**
-- Grupa: `/api/content/work-experiences`, tag `WorkExperiences`
-- `GET /` - lista wszystkich (query param `publicOnly`)
-- `GET /{id}` - po Id
-- `POST /` - tworzenie (body: AddWorkExperienceCommand)
-- `PUT /{id}` - aktualizacja (body: UpdateWorkExperienceRequest)
-- `DELETE /{id}` - usuniecie
+**Endpoints (wersjonowane pod `/api/v{apiVersion}/content`):**
+- `WorkExperienceEndpoints`: `/work-experiences` — CRUD + query `publicOnly` na liscie
+- `CurriculumVitaeEndpoints`: `/cv` — GET lista/po id, POST create, PUT personal info, DELETE, POST skills/educations/projects/work-experiences link
 
 **Query Handlers:**
-- `GetWorkExperiencesQueryHandler` - czyta z `IWorkExperienceReadStore` (MongoDB)
-- `GetWorkExperienceByIdQueryHandler` - czyta z `IWorkExperienceReadStore` po Id
+- `GetWorkExperiencesQueryHandler`, `GetWorkExperienceByIdQueryHandler` — MongoDB
+- `GetCurriculumVitaesQueryHandler`, `GetCurriculumVitaeByIdQueryHandler` — MongoDB
+
+**Infra API:** `Asp.Versioning.Http`, `OutputCache` (lista work-experiences), `RateLimiter` (global + polityka `writes`), Swagger UI (dev) + `WithDescription` z przykladami JSON na wybranych operacjach
 
 ### Co pozostalo
 
-- Rozszerzenie API o endpointy dla CurriculumVitae (po Task 2.1)
 - Endpointy dla Blog Posts / Snippets (Content bounded context)
-- API versioning (`/api/v1/content/...`)
-- Response caching dla publicznych endpointow
-- Rate limiting
-- Swagger/OpenAPI documentation z przykladami
 
 ## Kryteria akceptacji
 
@@ -48,31 +41,30 @@ Content.Api to glowny serwis backendowy obslugujacy zapytania publiczne (blog, p
 - [x] ExceptionHandlingMiddleware z proper HTTP status codes
 - [x] Health checks (PostgreSQL + MongoDB)
 - [x] OpenTelemetry metrics z Prometheus exporter
-- [ ] Endpointy dla CurriculumVitae (CRUD + query)
-- [ ] API versioning (`Asp.Versioning`)
-- [ ] Response caching dla GET endpoints (publiczne)
-- [ ] Rate limiting (built-in .NET 10)
-- [ ] Swagger UI z przykladami request/response
+- [x] Endpointy dla CurriculumVitae (CRUD + query)
+- [x] API versioning (`Asp.Versioning`)
+- [x] Response caching dla GET endpoints (publiczne)
+- [x] Rate limiting (built-in .NET 10)
+- [x] Swagger UI z przykladami request/response
 
 ## Wymagane pakiety NuGet
 
 | Pakiet | Wersja | Projekt docelowy | Uzasadnienie |
 |--------|--------|-----------------|--------------|
 | `Microsoft.AspNetCore.OpenApi` | 10.0.1 | JJDevHub.Content.Api | Juz zainstalowany - OpenAPI/Swagger |
-| `Asp.Versioning.Http` | latest | JJDevHub.Content.Api | NOWY - wersjonowanie API (URL segment lub header) |
+| `Asp.Versioning.Http` | 8.1.1 | JJDevHub.Content.Api | Wersjonowanie API (URL segment) |
+| `Swashbuckle.AspNetCore` | 10.x | JJDevHub.Content.Api | Swagger UI (Development) |
 | `Microsoft.AspNetCore.RateLimiting` | built-in | JJDevHub.Content.Api | Built-in w .NET 10 - rate limiting per endpoint |
 
 ## Architektura endpointow
 
 ```
 Nginx (:8081)
-    └── /api/content/ → Content.Api (:8080)
-            ├── /work-experiences          GET (list, publicOnly filter)
-            ├── /work-experiences/{id}     GET (single)
-            ├── /work-experiences          POST (create, Owner only)
-            ├── /work-experiences/{id}     PUT (update, Owner only)
-            ├── /work-experiences/{id}     DELETE (delete, Owner only)
-            ├── /cv                        [TODO] CRUD for CurriculumVitae
+    ├── /api/v1/content/ → Content.Api (:8080)
+    └── /api/content/    → rewrite → /api/v1/content/ (legacy)
+Content.Api
+            ├── /work-experiences          GET (list, publicOnly), GET {id}, POST, PUT, DELETE
+            ├── /cv                        GET /, GET /{id}, POST, PUT /{id}, DELETE /{id}, subpaths skills/educations/projects/work-experiences
             ├── /health                    GET (health checks)
             └── /metrics                   GET (Prometheus)
 ```

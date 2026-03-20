@@ -20,6 +20,7 @@ public static class DependencyInjection
             return new MongoClient(settings.ConnectionString);
         });
         services.AddSingleton<IWorkExperienceReadStore, MongoWorkExperienceReadStore>();
+        services.AddSingleton<ICurriculumVitaeReadStore, MongoCurriculumVitaeReadStore>();
 
         services.AddSingleton<IEventBus, KafkaEventBus>();
         services.AddHostedService<OutboxPublisherHostedService>();

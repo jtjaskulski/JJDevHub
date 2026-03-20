@@ -23,6 +23,148 @@ namespace JJDevHub.Content.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("JJDevHub.Content.Core.Entities.CurriculumVitae", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CreatedById")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("created_by_id");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_date");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("ModifiedById")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("modified_by_id");
+
+                    b.Property<DateTime?>("ModifiedDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_date");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_version");
+
+                    b.Property<string>("_workExperienceIds")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("work_experience_ids");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("curriculum_vitae", "content");
+                });
+
+            modelBuilder.Entity("JJDevHub.Content.Core.Entities.CvEducation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CurriculumVitaeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("curriculum_vitae_id");
+
+                    b.Property<int>("Degree")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FieldOfStudy")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("Institution")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CurriculumVitaeId");
+
+                    b.ToTable("cv_educations", "content");
+                });
+
+            modelBuilder.Entity("JJDevHub.Content.Core.Entities.CvProject", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CurriculumVitaeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("curriculum_vitae_id");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Url")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("_technologies")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("technologies");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CurriculumVitaeId");
+
+                    b.ToTable("cv_projects", "content");
+                });
+
+            modelBuilder.Entity("JJDevHub.Content.Core.Entities.CvSkill", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("CurriculumVitaeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("curriculum_vitae_id");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("integer")
+                        .HasColumnName("skill_level");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CurriculumVitaeId");
+
+                    b.ToTable("cv_skills", "content");
+                });
+
             modelBuilder.Entity("JJDevHub.Content.Core.Entities.WorkExperience", b =>
                 {
                     b.Property<Guid>("Id")
@@ -131,6 +273,133 @@ namespace JJDevHub.Content.Persistence.Migrations
                     b.ToTable("outbox_messages", "content");
                 });
 
+            modelBuilder.Entity("JJDevHub.Content.Core.Entities.CurriculumVitae", b =>
+                {
+                    b.OwnsOne("JJDevHub.Content.Core.ValueObjects.PersonalInfo", "PersonalInfo", b1 =>
+                        {
+                            b1.Property<Guid>("CurriculumVitaeId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("Bio")
+                                .HasMaxLength(4000)
+                                .HasColumnType("character varying(4000)")
+                                .HasColumnName("bio");
+
+                            b1.Property<string>("Email")
+                                .IsRequired()
+                                .HasMaxLength(320)
+                                .HasColumnType("character varying(320)")
+                                .HasColumnName("email");
+
+                            b1.Property<string>("FirstName")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)")
+                                .HasColumnName("first_name");
+
+                            b1.Property<string>("LastName")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("character varying(100)")
+                                .HasColumnName("last_name");
+
+                            b1.Property<string>("Location")
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("location");
+
+                            b1.Property<string>("Phone")
+                                .HasMaxLength(50)
+                                .HasColumnType("character varying(50)")
+                                .HasColumnName("phone");
+
+                            b1.HasKey("CurriculumVitaeId");
+
+                            b1.ToTable("curriculum_vitae", "content");
+
+                            b1.WithOwner()
+                                .HasForeignKey("CurriculumVitaeId");
+                        });
+
+                    b.Navigation("PersonalInfo")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("JJDevHub.Content.Core.Entities.CvEducation", b =>
+                {
+                    b.HasOne("JJDevHub.Content.Core.Entities.CurriculumVitae", null)
+                        .WithMany("_educations")
+                        .HasForeignKey("CurriculumVitaeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsOne("JJDevHub.Content.Core.ValueObjects.DateRange", "Period", b1 =>
+                        {
+                            b1.Property<Guid>("CvEducationId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<DateTime?>("End")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("period_end");
+
+                            b1.Property<DateTime>("Start")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("period_start");
+
+                            b1.HasKey("CvEducationId");
+
+                            b1.ToTable("cv_educations", "content");
+
+                            b1.WithOwner()
+                                .HasForeignKey("CvEducationId");
+                        });
+
+                    b.Navigation("Period")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("JJDevHub.Content.Core.Entities.CvProject", b =>
+                {
+                    b.HasOne("JJDevHub.Content.Core.Entities.CurriculumVitae", null)
+                        .WithMany("_projects")
+                        .HasForeignKey("CurriculumVitaeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.OwnsOne("JJDevHub.Content.Core.ValueObjects.DateRange", "Period", b1 =>
+                        {
+                            b1.Property<Guid>("CvProjectId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<DateTime?>("End")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("period_end");
+
+                            b1.Property<DateTime>("Start")
+                                .HasColumnType("timestamp with time zone")
+                                .HasColumnName("period_start");
+
+                            b1.HasKey("CvProjectId");
+
+                            b1.ToTable("cv_projects", "content");
+
+                            b1.WithOwner()
+                                .HasForeignKey("CvProjectId");
+                        });
+
+                    b.Navigation("Period")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("JJDevHub.Content.Core.Entities.CvSkill", b =>
+                {
+                    b.HasOne("JJDevHub.Content.Core.Entities.CurriculumVitae", null)
+                        .WithMany("_skills")
+                        .HasForeignKey("CurriculumVitaeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("JJDevHub.Content.Core.Entities.WorkExperience", b =>
                 {
                     b.OwnsOne("JJDevHub.Content.Core.ValueObjects.DateRange", "Period", b1 =>
@@ -156,6 +425,15 @@ namespace JJDevHub.Content.Persistence.Migrations
 
                     b.Navigation("Period")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("JJDevHub.Content.Core.Entities.CurriculumVitae", b =>
+                {
+                    b.Navigation("_educations");
+
+                    b.Navigation("_projects");
+
+                    b.Navigation("_skills");
                 });
 #pragma warning restore 612, 618
         }

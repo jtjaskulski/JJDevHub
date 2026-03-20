@@ -19,5 +19,6 @@ public static class DatabaseFixture
         var mongoClient = new MongoClient(mongoOpts.Value.ConnectionString);
         var db = mongoClient.GetDatabase(mongoOpts.Value.DatabaseName);
         await db.DropCollectionAsync("work_experiences");
+        await db.DropCollectionAsync("curriculum_vitae");
     }
 }

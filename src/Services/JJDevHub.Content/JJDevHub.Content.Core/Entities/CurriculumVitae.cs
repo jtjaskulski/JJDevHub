@@ -18,7 +18,7 @@ public class CurriculumVitae : AuditableAggregateRoot
     private readonly List<CvProject> _projects = new();
     public IReadOnlyList<CvProject> Projects => _projects.AsReadOnly();
 
-    private readonly List<Guid> _workExperienceIds = new();
+    private List<Guid> _workExperienceIds = new();
     public IReadOnlyList<Guid> WorkExperienceIds => _workExperienceIds.AsReadOnly();
 
     private CurriculumVitae() { }
@@ -34,16 +34,24 @@ public class CurriculumVitae : AuditableAggregateRoot
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Skill name is required.", nameof(name));
-        var skill = new CvSkill(name, category, level);
+        var skill = new CvSkill(name, category, level) { CurriculumVitaeId = Id };
         _skills.Add(skill);
         AddDomainEvent(new CurriculumVitaeSkillAddedDomainEvent(Id, skill.Id));
     }
 
-    public bool RemoveSkill(Guid skillId) => _skills.RemoveAll(s => s.Id == skillId) > 0;
+    public bool RemoveSkill(Guid skillId)
+    {
+        var removed = _skills.RemoveAll(s => s.Id == skillId) > 0;
+        if (removed)
+            AddDomainEvent(new CurriculumVitaeUpdatedDomainEvent(Id));
+        return removed;
+    }
 
     public void AddEducation(string institution, string fieldOfStudy, EducationDegree degree, DateRange period)
     {
-        _educations.Add(new CvEducation(institution, fieldOfStudy, degree, period));
+        var education = new CvEducation(institution, fieldOfStudy, degree, period) { CurriculumVitaeId = Id };
+        _educations.Add(education);
+        AddDomainEvent(new CurriculumVitaeUpdatedDomainEvent(Id));
     }
 
     public void AddProject(
@@ -53,14 +61,31 @@ public class CurriculumVitae : AuditableAggregateRoot
         IReadOnlyList<string> technologies,
         DateRange period)
     {
-        _projects.Add(new CvProject(name, description, url, technologies, period));
+        var project = new CvProject(name, description, url, technologies, period) { CurriculumVitaeId = Id };
+        _projects.Add(project);
+        AddDomainEvent(new CurriculumVitaeUpdatedDomainEvent(Id));
     }
 
-    public void LinkWorkExperience(Guid workExperienceId)
+    public bool LinkWorkExperience(Guid workExperienceId)
     {
         if (workExperienceId == Guid.Empty)
             throw new ArgumentException("Invalid work experience id.", nameof(workExperienceId));
-        if (!_workExperienceIds.Contains(workExperienceId))
-            _workExperienceIds.Add(workExperienceId);
+        if (_workExperienceIds.Contains(workExperienceId))
+            return false;
+        _workExperienceIds = new List<Guid>(_workExperienceIds) { workExperienceId };
+        AddDomainEvent(new CurriculumVitaeUpdatedDomainEvent(Id));
+        return true;
+    }
+
+    public void UpdatePersonalInfo(PersonalInfo personalInfo)
+    {
+        PersonalInfo = personalInfo;
+        AddDomainEvent(new CurriculumVitaeUpdatedDomainEvent(Id));
+    }
+
+    public void MarkAsDeleted()
+    {
+        Deactivate();
+        AddDomainEvent(new CurriculumVitaeDeletedDomainEvent(Id));
     }
 }

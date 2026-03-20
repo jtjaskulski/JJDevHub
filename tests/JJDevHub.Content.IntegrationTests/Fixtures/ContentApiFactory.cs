@@ -59,6 +59,8 @@ public class ContentApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
             });
             services.RemoveAll<IWorkExperienceReadStore>();
             services.AddSingleton<IWorkExperienceReadStore, MongoWorkExperienceReadStore>();
+            services.RemoveAll<ICurriculumVitaeReadStore>();
+            services.AddSingleton<ICurriculumVitaeReadStore, MongoCurriculumVitaeReadStore>();
 
             services.RemoveAll<IEventBus>();
             services.AddSingleton<IEventBus, NoOpEventBus>();
