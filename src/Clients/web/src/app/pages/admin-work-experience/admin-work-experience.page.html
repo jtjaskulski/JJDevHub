@@ -1,0 +1,106 @@
+<div class="admin-we">
+  <div class="page-head">
+    <h1>Work experience — admin</h1>
+    <button mat-flat-button color="primary" type="button" (click)="startCreate()" [disabled]="loading() || editingId() !== null">
+      <mat-icon>add</mat-icon>
+      Nowy wpis
+    </button>
+  </div>
+
+  @if (loading()) {
+    <div class="spinner-wrap">
+      <mat-progress-spinner mode="indeterminate" diameter="48" />
+    </div>
+  } @else if (error(); as err) {
+    <mat-card appearance="outlined" class="error-card">
+      <mat-card-content>{{ err }}</mat-card-content>
+      <mat-card-actions>
+        <button mat-button type="button" (click)="reload()">Spróbuj ponownie</button>
+      </mat-card-actions>
+    </mat-card>
+  } @else {
+    <div class="table-wrap mat-elevation-z1">
+      <table mat-table [dataSource]="items()" class="we-table">
+        <ng-container matColumnDef="companyName">
+          <th mat-header-cell *matHeaderCellDef>Firma</th>
+          <td mat-cell *matCellDef="let row">{{ row.companyName }}</td>
+        </ng-container>
+        <ng-container matColumnDef="position">
+          <th mat-header-cell *matHeaderCellDef>Stanowisko</th>
+          <td mat-cell *matCellDef="let row">{{ row.position }}</td>
+        </ng-container>
+        <ng-container matColumnDef="period">
+          <th mat-header-cell *matHeaderCellDef>Okres</th>
+          <td mat-cell *matCellDef="let row">{{ formatPeriod(row) }}</td>
+        </ng-container>
+        <ng-container matColumnDef="isPublic">
+          <th mat-header-cell *matHeaderCellDef>Publiczny</th>
+          <td mat-cell *matCellDef="let row">{{ row.isPublic ? 'Tak' : 'Nie' }}</td>
+        </ng-container>
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef class="col-actions"></th>
+          <td mat-cell *matCellDef="let row" class="col-actions">
+            <button mat-icon-button type="button" (click)="startEdit(row)" [disabled]="editingId() !== null" aria-label="Edytuj">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button type="button" (click)="deleteRow(row)" color="warn" aria-label="Usuń">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+      </table>
+    </div>
+  }
+
+  @if (editingId(); as eid) {
+    <mat-card appearance="outlined" class="form-card">
+      <mat-card-header>
+        <mat-card-title>{{ eid === 'new' ? 'Nowe doświadczenie' : 'Edycja' }}</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <form [formGroup]="form" (ngSubmit)="submit()" class="we-form">
+          <mat-form-field appearance="outline">
+            <mat-label>Firma</mat-label>
+            <input matInput formControlName="companyName" autocomplete="organization" />
+            @if (form.controls.companyName.hasError('required') && form.controls.companyName.touched) {
+              <mat-error>Wymagane</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Stanowisko</mat-label>
+            <input matInput formControlName="position" />
+            @if (form.controls.position.hasError('required') && form.controls.position.touched) {
+              <mat-error>Wymagane</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Start</mat-label>
+            <input matInput type="date" formControlName="startDate" />
+            @if (form.controls.startDate.hasError('required') && form.controls.startDate.touched) {
+              <mat-error>Wymagane</mat-error>
+            }
+          </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Koniec (opcjonalnie)</mat-label>
+            <input matInput type="date" formControlName="endDate" />
+          </mat-form-field>
+          <div class="toggle-row">
+            <mat-slide-toggle formControlName="isPublic">Publiczny</mat-slide-toggle>
+          </div>
+          <div class="form-actions">
+            <button mat-stroked-button type="button" (click)="cancelForm()" [disabled]="saving()">Anuluj</button>
+            <button mat-flat-button color="primary" type="submit" [disabled]="saving()">
+              @if (saving()) {
+                Zapisuję…
+              } @else {
+                Zapisz
+              }
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+  }
+</div>

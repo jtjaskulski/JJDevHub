@@ -1,0 +1,24 @@
+.blog-list {
+  h1 {
+    font-weight: 400;
+    margin: 0 0 8px;
+    font-size: clamp(1.5rem, 4vw, 2rem);
+  }
+
+  .lede {
+    margin: 0 0 24px;
+    opacity: 0.85;
+    max-width: 52rem;
+    line-height: 1.5;
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 20px;
+}
+
+.post-card mat-card-title {
+  font-size: 1.1rem;
+}

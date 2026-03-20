@@ -6,12 +6,12 @@ import { environment } from '../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
-  private readonly baseUrl = environment.apiBaseUrl;
+  private readonly contentUrl = environment.contentApiUrl;
 
   constructor(private http: HttpClient) {}
 
   getWorkExperiences(publicOnly = false): Observable<WorkExperience[]> {
-    const url = `${this.baseUrl}/api/content/work-experiences`;
+    const url = `${this.contentUrl}/work-experiences`;
     if (publicOnly) {
       return this.http.get<WorkExperience[]>(url, { params: { publicOnly: 'true' } });
     }
@@ -19,7 +19,7 @@ export class ApiService {
   }
 
   getWorkExperience(id: string): Observable<WorkExperience> {
-    return this.http.get<WorkExperience>(`${this.baseUrl}/api/content/work-experiences/${id}`);
+    return this.http.get<WorkExperience>(`${this.contentUrl}/work-experiences/${id}`);
   }
 
   createWorkExperience(body: {
@@ -29,7 +29,7 @@ export class ApiService {
     endDate: string | null;
     isPublic: boolean;
   }): Observable<{ id: string }> {
-    return this.http.post<{ id: string }>(`${this.baseUrl}/api/content/work-experiences`, body);
+    return this.http.post<{ id: string }>(`${this.contentUrl}/work-experiences`, body);
   }
 
   /** Body musi zawierać version (optymistyczna współbieżność). */
@@ -44,10 +44,10 @@ export class ApiService {
       isPublic: boolean;
     },
   ): Observable<void> {
-    return this.http.put<void>(`${this.baseUrl}/api/content/work-experiences/${id}`, body);
+    return this.http.put<void>(`${this.contentUrl}/work-experiences/${id}`, body);
   }
 
   deleteWorkExperience(id: string): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/api/content/work-experiences/${id}`);
+    return this.http.delete<void>(`${this.contentUrl}/work-experiences/${id}`);
   }
 }

@@ -20,6 +20,10 @@
     "@angular/material": "^21.2.1",
     "@angular/platform-browser": "^21.2.0",
     "@angular/router": "^21.2.0",
+    "highlight.js": "^11.11.1",
+    "keycloak-angular": "^21.0.0",
+    "keycloak-js": "^26.2.3",
+    "ngx-highlightjs": "^14.0.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },

@@ -1,0 +1,13 @@
+@if (post(); as p) {
+  <article class="blog-post">
+    <a mat-button routerLink="/blog" class="back">
+      <mat-icon>arrow_back</mat-icon>
+      Lista wpisów
+    </a>
+    <h1>{{ p.title }}</h1>
+    <p class="intro">{{ p.intro }}</p>
+    <section class="code-section" aria-label="Fragment kodu">
+      <pre class="hljs-wrap"><code [highlight]="p.codeSample" [language]="p.codeLanguage"></code></pre>
+    </section>
+  </article>
+}

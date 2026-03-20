@@ -2,6 +2,8 @@
   h2 {
     font-weight: 400;
     margin: 0 0 24px;
+    font-size: clamp(1.35rem, 3vw, 1.75rem);
+    line-height: 1.25;
   }
 }
 
@@ -25,6 +27,8 @@
 }
 
 .experience-card {
+  overflow-wrap: anywhere;
+
   .period {
     display: flex;
     align-items: center;

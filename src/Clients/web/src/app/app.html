@@ -5,6 +5,9 @@
   <span class="toolbar-title">JJDevHub</span>
   <span class="spacer"></span>
   <nav class="desktop-nav">
+    <a mat-button routerLink="/blog" routerLinkActive="active-link">
+      <mat-icon>article</mat-icon> Blog
+    </a>
     <a mat-button routerLink="/" routerLinkActive="active-link" [routerLinkActiveOptions]="{ exact: true }">
       <mat-icon>home</mat-icon> Home
     </a>
@@ -14,6 +17,24 @@
     <a mat-button routerLink="/about" routerLinkActive="active-link">
       <mat-icon>info</mat-icon> About
     </a>
+    @if (auth.keycloakConfigured) {
+      @if (auth.isLoggedIn()) {
+        <a mat-button routerLink="/admin/work-experience" routerLinkActive="active-link">
+          <mat-icon>admin_panel_settings</mat-icon> Admin
+        </a>
+        <button mat-button type="button" (click)="auth.logout()">
+          <mat-icon>logout</mat-icon> Log out
+        </button>
+      } @else {
+        <button mat-button type="button" (click)="auth.login()">
+          <mat-icon>login</mat-icon> Log in
+        </button>
+      }
+    } @else {
+      <a mat-button routerLink="/admin/work-experience" routerLinkActive="active-link">
+        <mat-icon>admin_panel_settings</mat-icon> Admin
+      </a>
+    }
   </nav>
 </mat-toolbar>
 
@@ -35,6 +56,35 @@
         <mat-icon matListItemIcon>info</mat-icon>
         <span matListItemTitle>About</span>
       </a>
+      <a mat-list-item routerLink="/blog" (click)="sidenav.close()"
+         routerLinkActive="active-link">
+        <mat-icon matListItemIcon>article</mat-icon>
+        <span matListItemTitle>Blog</span>
+      </a>
+      @if (auth.keycloakConfigured) {
+        @if (auth.isLoggedIn()) {
+          <a mat-list-item routerLink="/admin/work-experience" (click)="sidenav.close()"
+             routerLinkActive="active-link">
+            <mat-icon matListItemIcon>admin_panel_settings</mat-icon>
+            <span matListItemTitle>Admin</span>
+          </a>
+          <a mat-list-item (click)="auth.logout(); sidenav.close()">
+            <mat-icon matListItemIcon>logout</mat-icon>
+            <span matListItemTitle>Log out</span>
+          </a>
+        } @else {
+          <a mat-list-item (click)="auth.login(); sidenav.close()">
+            <mat-icon matListItemIcon>login</mat-icon>
+            <span matListItemTitle>Log in</span>
+          </a>
+        }
+      } @else {
+        <a mat-list-item routerLink="/admin/work-experience" (click)="sidenav.close()"
+           routerLinkActive="active-link">
+          <mat-icon matListItemIcon>admin_panel_settings</mat-icon>
+          <span matListItemTitle>Admin</span>
+        </a>
+      }
     </mat-nav-list>
   </mat-sidenav>
 

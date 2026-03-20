@@ -42,7 +42,7 @@
 }
 
 .content {
-  padding: 24px;
+  padding: clamp(12px, 3vw, 24px);
   max-width: 1200px;
   margin: 0 auto;
   width: 100%;

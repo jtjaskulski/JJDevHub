@@ -24,7 +24,8 @@ Nginx sluzy jako centralny punkt wejscia (reverse proxy) dla calego systemu. Kie
 
 | Location | Upstream | Serwis |
 |----------|----------|--------|
-| `/api/content/` | `jjdevhub-content-api:8080` | Content API |
+| `/api/v1/content/` | `jjdevhub-content-api:8080` | Content API (kanoniczna sciezka, zgodna z wersjonowaniem API) |
+| `/api/content/` | `jjdevhub-content-api:8080` | Content API (legacy; `rewrite` do `/api/v1/content/...` przed proxy) |
 | `/api/analytics/` | `jjdevhub-analytics-api:8080` | Analytics API |
 | `/api/identity/` | `jjdevhub-identity-api:8080` | Identity API |
 | `/api/ai/` | `jjdevhub-ai-gateway:8080` | AI Gateway |
@@ -58,19 +59,21 @@ Brak - to jest zadanie infrastrukturalne (Nginx + Docker).
         |
         v
 [Nginx :8081/:444]
-    ├── /                    → Angular SPA (:80)
-    ├── /api/content/        → Content API (:8080)
-    ├── /api/analytics/      → Analytics API (:8080)
-    ├── /api/identity/       → Identity API (:8080)
-    ├── /api/ai/             → AI Gateway (:8080)
-    ├── /api/notification/   → Notification API (:8080)
-    ├── /api/education/      → Education API (:8080)
-    └── /jenkins/            → Jenkins (:8080)
+    ├── /                         → Angular SPA (:80)
+    ├── /api/v1/content/          → Content API (:8080)
+    ├── /api/content/             → Content API (:8080), rewrite → /api/v1/content/
+    ├── /api/analytics/           → Analytics API (:8080)
+    ├── /api/identity/            → Identity API (:8080)
+    ├── /api/ai/                  → AI Gateway (:8080)
+    ├── /api/notification/        → Notification API (:8080)
+    ├── /api/education/           → Education API (:8080)
+    └── /jenkins/                 → Jenkins (:8080)
 ```
 
 ## Zaleznosci
 
 - **Wymaga:** Wszystkie mikroserwisy uruchomione w Docker (chociaz Nginx startuje niezaleznie)
+- **Powiazane:** Task 4.1 ([task-4.1-content-api-queries.md](task-4.1-content-api-queries.md)) — wersjonowanie Content API (`/api/v{version}/content/`) i opis endpointow
 - **Blokuje:** Task 4.3 (Angular laczy sie przez Nginx), hosting-cloudflare (Nginx za Cloudflare)
 
 ## Notatki techniczne
