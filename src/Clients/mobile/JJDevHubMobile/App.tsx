@@ -11,6 +11,7 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import {HomeScreen} from './src/screens/HomeScreen';
 import {WorkExperienceScreen} from './src/screens/WorkExperienceScreen';
+import {BlogStackNavigator} from './src/navigation/BlogStack';
 
 const Tab = createBottomTabNavigator();
 
@@ -37,6 +38,7 @@ function App() {
                 const icons: Record<string, string> = {
                   Home: 'home',
                   'Work Experience': 'work',
+                  Blog: 'article',
                 };
                 return (
                   <MaterialIcons
@@ -51,6 +53,11 @@ function App() {
             <Tab.Screen
               name="Work Experience"
               component={WorkExperienceScreen}
+            />
+            <Tab.Screen
+              name="Blog"
+              component={BlogStackNavigator}
+              options={{headerShown: false}}
             />
           </Tab.Navigator>
         </NavigationContainer>

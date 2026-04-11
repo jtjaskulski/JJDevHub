@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useState} from 'react';
-import {FlatList, StyleSheet, View} from 'react-native';
+import {FlatList, RefreshControl, StyleSheet, View} from 'react-native';
 import {
   ActivityIndicator,
   Card,
@@ -19,11 +19,16 @@ export function WorkExperienceScreen() {
   const theme = useTheme();
   const [experiences, setExperiences] = useState<WorkExperience[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
       const data = await getWorkExperiences(true);
       setExperiences(data);
@@ -32,6 +37,7 @@ export function WorkExperienceScreen() {
       console.error('API error:', err);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
@@ -64,6 +70,12 @@ export function WorkExperienceScreen() {
       contentContainerStyle={styles.list}
       data={experiences}
       keyExtractor={item => item.id}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => void loadData(true)}
+        />
+      }
       ListEmptyComponent={
         <Card mode="outlined">
           <Card.Content>

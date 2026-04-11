@@ -15,6 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\JJDevHub.Content\JJDevHub.Content.Application\JJDevHub.Content.Application.csproj" />
     <ProjectReference Include="..\JJDevHub.Content\JJDevHub.Content.Infrastructure\JJDevHub.Content.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

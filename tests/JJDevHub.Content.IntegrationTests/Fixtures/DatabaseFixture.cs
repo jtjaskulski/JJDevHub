@@ -20,5 +20,7 @@ public static class DatabaseFixture
         var db = mongoClient.GetDatabase(mongoOpts.Value.DatabaseName);
         await db.DropCollectionAsync("work_experiences");
         await db.DropCollectionAsync("curriculum_vitae");
+        await db.DropCollectionAsync("job_applications");
+        await db.DropCollectionAsync("cv_pdf_blobs");
     }
 }

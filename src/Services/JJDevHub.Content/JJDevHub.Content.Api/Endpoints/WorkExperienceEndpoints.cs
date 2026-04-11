@@ -15,18 +15,24 @@ public static class WorkExperienceEndpoints
             .WithTags("WorkExperiences");
 
         group.MapGet("/", GetAll)
+            .AllowAnonymous()
             .CacheOutput("PublicWorkExperiences")
             .WithDescription(
                 "List work experiences. Query publicOnly=true for public entries only. " +
                 "Example: GET .../work-experiences?publicOnly=true");
-        group.MapGet("/{id:guid}", GetById);
+        group.MapGet("/{id:guid}", GetById).AllowAnonymous();
         group.MapPost("/", Create)
+            .RequireAuthorization("OwnerOnly")
             .RequireRateLimiting("writes")
             .WithDescription(
                 "Example body: {\"companyName\":\"Contoso\",\"position\":\"Engineer\"," +
                 "\"startDate\":\"2022-01-01T00:00:00Z\",\"endDate\":null,\"isPublic\":true}");
-        group.MapPut("/{id:guid}", Update).RequireRateLimiting("writes");
-        group.MapDelete("/{id:guid}", Delete).RequireRateLimiting("writes");
+        group.MapPut("/{id:guid}", Update)
+            .RequireAuthorization("OwnerOnly")
+            .RequireRateLimiting("writes");
+        group.MapDelete("/{id:guid}", Delete)
+            .RequireAuthorization("OwnerOnly")
+            .RequireRateLimiting("writes");
 
         return group;
     }
@@ -57,7 +63,7 @@ public static class WorkExperienceEndpoints
         CancellationToken cancellationToken)
     {
         var id = await mediator.Send(command, cancellationToken);
-        return Results.Created($"/api/content/work-experiences/{id}", new { id });
+        return Results.Created($"/api/v1/content/work-experiences/{id}", new { id });
     }
 
     private static async Task<IResult> Update(

@@ -60,6 +60,10 @@ public class ExceptionHandlingMiddleware
                 HttpStatusCode.Conflict,
                 new ErrorResponse("CONTENT.CURRICULUM_VITAE.CONCURRENCY_MISMATCH", exception.Message)),
 
+            JobApplicationConcurrencyException => (
+                HttpStatusCode.Conflict,
+                new ErrorResponse("CONTENT.JOB_APPLICATION.CONCURRENCY_MISMATCH", exception.Message)),
+
             DbUpdateConcurrencyException => (
                 HttpStatusCode.Conflict,
                 new ErrorResponse(

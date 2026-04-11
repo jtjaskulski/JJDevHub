@@ -1,0 +1,58 @@
+<div class="page">
+  <mat-card appearance="outlined">
+    <mat-card-header>
+      <mat-card-title>CV Manager</mat-card-title>
+      <mat-card-subtitle>Generowanie PDF (QuestPDF) — opcjonalnie z kontekstem aplikacji z trackera</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content [formGroup]="jobForm" class="hint">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="job-field">
+        <mat-label>ID aplikacji (JobApplication) — opcjonalnie</mat-label>
+        <input matInput formControlName="jobApplicationId" placeholder="uuid z Application Tracker" />
+      </mat-form-field>
+      <p class="muted">
+        Jeśli podasz ID, w PDF pojawi się sekcja wymagań z trackera dopasowana do tej firmy.
+      </p>
+    </mat-card-content>
+  </mat-card>
+
+  @if (loading()) {
+    <div class="center">
+      <mat-progress-spinner mode="indeterminate" diameter="40" />
+    </div>
+  } @else if (error()) {
+    <p class="error">{{ error() }}</p>
+  } @else {
+    <div class="table-wrap">
+      <table mat-table [dataSource]="items()" class="mat-elevation-z0">
+        <ng-container matColumnDef="name">
+          <th mat-header-cell *matHeaderCellDef>Imię i nazwisko</th>
+          <td mat-cell *matCellDef="let row">{{ displayName(row) }}</td>
+        </ng-container>
+        <ng-container matColumnDef="email">
+          <th mat-header-cell *matHeaderCellDef>E-mail</th>
+          <td mat-cell *matCellDef="let row">{{ row.personalInfo.email }}</td>
+        </ng-container>
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let row">
+            <button
+              mat-flat-button
+              color="primary"
+              type="button"
+              [disabled]="generatingId() === row.id"
+              (click)="generatePdf(row)"
+            >
+              @if (generatingId() === row.id) {
+                Generuję…
+              } @else {
+                Generuj PDF
+              }
+            </button>
+          </td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+      </table>
+    </div>
+  }
+</div>

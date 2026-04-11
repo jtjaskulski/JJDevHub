@@ -19,9 +19,17 @@
     </a>
     @if (auth.keycloakConfigured) {
       @if (auth.isLoggedIn()) {
-        <a mat-button routerLink="/admin/work-experience" routerLinkActive="active-link">
-          <mat-icon>admin_panel_settings</mat-icon> Admin
-        </a>
+        @if (auth.isOwner()) {
+          <a mat-button routerLink="/admin/work-experience" routerLinkActive="active-link">
+            <mat-icon>work</mat-icon> Admin WE
+          </a>
+          <a mat-button routerLink="/admin/cv" routerLinkActive="active-link">
+            <mat-icon>badge</mat-icon> CV
+          </a>
+          <a mat-button routerLink="/admin/tracker" routerLinkActive="active-link">
+            <mat-icon>track_changes</mat-icon> Tracker
+          </a>
+        }
         <button mat-button type="button" (click)="auth.logout()">
           <mat-icon>logout</mat-icon> Log out
         </button>
@@ -32,7 +40,13 @@
       }
     } @else {
       <a mat-button routerLink="/admin/work-experience" routerLinkActive="active-link">
-        <mat-icon>admin_panel_settings</mat-icon> Admin
+        <mat-icon>work</mat-icon> Admin WE
+      </a>
+      <a mat-button routerLink="/admin/cv" routerLinkActive="active-link">
+        <mat-icon>badge</mat-icon> CV
+      </a>
+      <a mat-button routerLink="/admin/tracker" routerLinkActive="active-link">
+        <mat-icon>track_changes</mat-icon> Tracker
       </a>
     }
   </nav>
@@ -63,11 +77,23 @@
       </a>
       @if (auth.keycloakConfigured) {
         @if (auth.isLoggedIn()) {
-          <a mat-list-item routerLink="/admin/work-experience" (click)="sidenav.close()"
-             routerLinkActive="active-link">
-            <mat-icon matListItemIcon>admin_panel_settings</mat-icon>
-            <span matListItemTitle>Admin</span>
-          </a>
+          @if (auth.isOwner()) {
+            <a mat-list-item routerLink="/admin/work-experience" (click)="sidenav.close()"
+               routerLinkActive="active-link">
+              <mat-icon matListItemIcon>work</mat-icon>
+              <span matListItemTitle>Admin WE</span>
+            </a>
+            <a mat-list-item routerLink="/admin/cv" (click)="sidenav.close()"
+               routerLinkActive="active-link">
+              <mat-icon matListItemIcon>badge</mat-icon>
+              <span matListItemTitle>CV</span>
+            </a>
+            <a mat-list-item routerLink="/admin/tracker" (click)="sidenav.close()"
+               routerLinkActive="active-link">
+              <mat-icon matListItemIcon>track_changes</mat-icon>
+              <span matListItemTitle>Tracker</span>
+            </a>
+          }
           <a mat-list-item (click)="auth.logout(); sidenav.close()">
             <mat-icon matListItemIcon>logout</mat-icon>
             <span matListItemTitle>Log out</span>
@@ -81,8 +107,18 @@
       } @else {
         <a mat-list-item routerLink="/admin/work-experience" (click)="sidenav.close()"
            routerLinkActive="active-link">
-          <mat-icon matListItemIcon>admin_panel_settings</mat-icon>
-          <span matListItemTitle>Admin</span>
+          <mat-icon matListItemIcon>work</mat-icon>
+          <span matListItemTitle>Admin WE</span>
+        </a>
+        <a mat-list-item routerLink="/admin/cv" (click)="sidenav.close()"
+           routerLinkActive="active-link">
+          <mat-icon matListItemIcon>badge</mat-icon>
+          <span matListItemTitle>CV</span>
+        </a>
+        <a mat-list-item routerLink="/admin/tracker" (click)="sidenav.close()"
+           routerLinkActive="active-link">
+          <mat-icon matListItemIcon>track_changes</mat-icon>
+          <span matListItemTitle>Tracker</span>
         </a>
       }
     </mat-nav-list>

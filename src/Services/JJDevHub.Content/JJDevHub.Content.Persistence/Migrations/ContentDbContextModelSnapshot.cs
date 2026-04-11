@@ -23,6 +23,69 @@ namespace JJDevHub.Content.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("JJDevHub.Content.Core.Entities.ApplicationNote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasMaxLength(8000)
+                        .HasColumnType("character varying(8000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("JobApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("NoteType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobApplicationId");
+
+                    b.ToTable("job_application_notes", "content");
+                });
+
+            modelBuilder.Entity("JJDevHub.Content.Core.Entities.CompanyRequirement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<bool>("IsMet")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("JobApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobApplicationId");
+
+                    b.ToTable("job_application_requirements", "content");
+                });
+
             modelBuilder.Entity("JJDevHub.Content.Core.Entities.CurriculumVitae", b =>
                 {
                     b.Property<Guid>("Id")
@@ -165,6 +228,97 @@ namespace JJDevHub.Content.Persistence.Migrations
                     b.ToTable("cv_skills", "content");
                 });
 
+            modelBuilder.Entity("JJDevHub.Content.Core.Entities.InterviewStage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Feedback")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<Guid>("JobApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ScheduledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("StageName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobApplicationId");
+
+                    b.ToTable("job_application_interview_stages", "content");
+                });
+
+            modelBuilder.Entity("JJDevHub.Content.Core.Entities.JobApplication", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("AppliedDate")
+                        .HasColumnType("date")
+                        .HasColumnName("applied_date");
+
+                    b.Property<string>("CreatedById")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("created_by_id");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_date");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<Guid?>("LinkedCurriculumVitaeId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("linked_curriculum_vitae_id");
+
+                    b.Property<string>("ModifiedById")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("modified_by_id");
+
+                    b.Property<DateTime?>("ModifiedDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("modified_date");
+
+                    b.Property<string>("Position")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<long>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_version");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("job_applications", "content");
+                });
+
             modelBuilder.Entity("JJDevHub.Content.Core.Entities.WorkExperience", b =>
                 {
                     b.Property<Guid>("Id")
@@ -271,6 +425,24 @@ namespace JJDevHub.Content.Persistence.Migrations
                     b.HasIndex("ProcessedUtc", "CreatedUtc");
 
                     b.ToTable("outbox_messages", "content");
+                });
+
+            modelBuilder.Entity("JJDevHub.Content.Core.Entities.ApplicationNote", b =>
+                {
+                    b.HasOne("JJDevHub.Content.Core.Entities.JobApplication", null)
+                        .WithMany("_notes")
+                        .HasForeignKey("JobApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("JJDevHub.Content.Core.Entities.CompanyRequirement", b =>
+                {
+                    b.HasOne("JJDevHub.Content.Core.Entities.JobApplication", null)
+                        .WithMany("_requirements")
+                        .HasForeignKey("JobApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("JJDevHub.Content.Core.Entities.CurriculumVitae", b =>
@@ -400,6 +572,55 @@ namespace JJDevHub.Content.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("JJDevHub.Content.Core.Entities.InterviewStage", b =>
+                {
+                    b.HasOne("JJDevHub.Content.Core.Entities.JobApplication", null)
+                        .WithMany("_interviewStages")
+                        .HasForeignKey("JobApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("JJDevHub.Content.Core.Entities.JobApplication", b =>
+                {
+                    b.OwnsOne("JJDevHub.Content.Core.ValueObjects.CompanyInfo", "Company", b1 =>
+                        {
+                            b1.Property<Guid>("JobApplicationId")
+                                .HasColumnType("uuid");
+
+                            b1.Property<string>("CompanyName")
+                                .IsRequired()
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("company_name");
+
+                            b1.Property<string>("Industry")
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("company_industry");
+
+                            b1.Property<string>("Location")
+                                .HasMaxLength(200)
+                                .HasColumnType("character varying(200)")
+                                .HasColumnName("company_location");
+
+                            b1.Property<string>("WebsiteUrl")
+                                .HasMaxLength(500)
+                                .HasColumnType("character varying(500)")
+                                .HasColumnName("company_website_url");
+
+                            b1.HasKey("JobApplicationId");
+
+                            b1.ToTable("job_applications", "content");
+
+                            b1.WithOwner()
+                                .HasForeignKey("JobApplicationId");
+                        });
+
+                    b.Navigation("Company")
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("JJDevHub.Content.Core.Entities.WorkExperience", b =>
                 {
                     b.OwnsOne("JJDevHub.Content.Core.ValueObjects.DateRange", "Period", b1 =>
@@ -434,6 +655,15 @@ namespace JJDevHub.Content.Persistence.Migrations
                     b.Navigation("_projects");
 
                     b.Navigation("_skills");
+                });
+
+            modelBuilder.Entity("JJDevHub.Content.Core.Entities.JobApplication", b =>
+                {
+                    b.Navigation("_interviewStages");
+
+                    b.Navigation("_notes");
+
+                    b.Navigation("_requirements");
                 });
 #pragma warning restore 612, 618
         }
