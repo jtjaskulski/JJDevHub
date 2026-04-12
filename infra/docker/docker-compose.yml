@@ -223,13 +223,13 @@ services:
       Kafka__BootstrapServers: "kafka:9092"
       Vault__Enabled: "false"
       Vault__Address: "http://jjdevhub-vault:8200"
-      Vault__Token: "jjdevhub-root-token"
+      Vault__Token: "${VAULT_TOKEN:?Set VAULT_TOKEN in your environment or an uncommitted .env file}"
       Keycloak__realm: "jjdevhub"
       Keycloak__auth-server-url: "http://jjdevhub-keycloak:8080/"
       Keycloak__ssl-required: "none"
       Keycloak__resource: "jjdevhub-api"
       Keycloak__verify-token-audience: "false"
-      Keycloak__credentials__secret: "jjdevhub-api-dev-secret"
+      Keycloak__credentials__secret: "${KEYCLOAK_CLIENT_SECRET:?Set KEYCLOAK_CLIENT_SECRET in your environment or an uncommitted .env file}"
       OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
     depends_on:
       - db
