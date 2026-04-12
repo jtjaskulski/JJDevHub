@@ -58,12 +58,18 @@ if (keycloakEnabled)
     });
     builder.Services.AddKeycloakAuthorization(builder.Configuration);
 }
-else
+else if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddAuthorization(options =>
     {
         options.AddPolicy("OwnerOnly", policy => policy.RequireAssertion(_ => true));
     });
+}
+else
+{
+    throw new InvalidOperationException(
+        "Keycloak:auth-server-url must be configured in non-Development environments. " +
+        "Authentication cannot be bypassed outside of Development.");
 }
 
 builder.Services.AddEndpointsApiExplorer();
