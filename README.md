@@ -22,6 +22,7 @@ The system is built using an Event-Driven Microservices architecture, demonstrat
 | CI/CD | Jenkins (Multibranch Pipeline) | 9-stage automated pipeline |
 | Code Quality | SonarQube | Static analysis + coverage gates |
 | Monitoring | Prometheus + Grafana (OpenTelemetry) | Metrics, dashboards |
+| Tracing | Jaeger (OTLP gRPC) | Distributed tracing |
 | Secrets | HashiCorp Vault | Dynamic secret injection |
 | Reverse Proxy | Nginx | Routing, SSL termination |
 | Edge / Network | Cloudflare (DNS/WAF) | DDoS protection, CDN (production) |
@@ -81,7 +82,8 @@ JJDevHub/
 │       ├── nginx/                      # Reverse proxy config
 │       └── monitoring/                 # Prometheus + Grafana
 ├── docs/
-│   ├── architecture-tutorial.md        # Full architecture guide
+│   ├── architecture-tutorial.md        # Full architecture guide (EN)
+│   ├── jjdevhub-przewodnik-kompleksowy.md # Comprehensive guide (PL)
 │   ├── jenkins_tutorial.md             # Jenkins setup guide
 │   └── backlog/                        # Sprint task descriptions
 ├── Jenkinsfile                         # CI/CD pipeline definition
@@ -103,6 +105,8 @@ Services will be available at:
 - **SonarQube:** http://localhost:9000
 - **Jenkins:** http://localhost:8082
 - **Vault:** http://localhost:8201
+- **Keycloak:** http://localhost:8083 (admin/admin)
+- **Jaeger:** http://localhost:16686
 
 ## Documentation
 

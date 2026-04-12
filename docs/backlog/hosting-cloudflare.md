@@ -33,7 +33,7 @@ Cloudflare sluzy **wylacznie jako warstwa sieciowa i ochronna** przed serwerem -
 [Nginx Reverse Proxy]
     |
     ├── /                    → Angular SPA (:80)
-    ├── /api/content/        → Content API (:8080)
+    ├── /api/v1/content/     → Content API (:8080)
     ├── /api/analytics/      → Analytics API (:8080)
     ├── /api/identity/       → Identity API (:8080)
     ├── /api/ai/             → AI Gateway (:8080)
@@ -285,7 +285,7 @@ server {
     }
 
     # API routes
-    location /api/content/ {
+    location /api/v1/content/ {
         proxy_pass http://content-api:8080;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -414,8 +414,8 @@ db:
 Powiazane pliki: [docker-compose.yml](../../infra/docker/docker-compose.yml), [nginx.conf](../../infra/docker/nginx/nginx.conf), [Jenkinsfile](../../Jenkinsfile).
 
 - [ ] `docker compose` produkcyjny: sieci `frontend-net` / `backend-net` / `data-net`, brak wystawionych portow na hosta (procz 443)
-- [ ] Nginx: `location /api/v1/content/` i rewrite legacy `/api/content/` (dev juz w repo)
-- [ ] Keycloak: realm `jjdevhub`, klienci `jjdevhub-web` / `jjdevhub-api` (import z [keycloak/jjdevhub-realm.json](../../infra/docker/keycloak/jjdevhub-realm.json))
-- [ ] Vault: `bootstrap-vault.sh` po starcie; `Vault__Enabled=true` w API gdy sekrety maja zastapic env
+- [x] Nginx: `location /api/v1/content/` i rewrite legacy `/api/content/` (zaimplementowane w dev compose)
+- [x] Keycloak: realm `jjdevhub`, klienci `jjdevhub-web` / `jjdevhub-api` (import z [keycloak/jjdevhub-realm.json](../../infra/docker/keycloak/jjdevhub-realm.json))
+- [x] Vault: `bootstrap-vault.sh` po starcie; `Vault__Enabled=true` w API gdy sekrety maja zastapic env
 - [ ] Backup: cron `pg_dump` / `mongodump` + off-site
 - [ ] Registry obrazow + Jenkins deploy SSH na VPS

@@ -30,7 +30,7 @@ React Native 0.84 aplikacja mobilna sluzy jako natywny klient na iOS i Android. 
 - `WorkExperienceScreen` - FlatList z doswiadczeniami, loading indicator, error handling, formatowanie dat
 
 **Serwisy:**
-- `api.ts` - `getWorkExperiences(publicOnly)`: GET `/api/content/work-experiences`
+- `api.ts` - `getWorkExperiences(publicOnly)`: GET `/api/v1/content/work-experiences`
 - Base URL: dev `http://10.0.2.2:8081` (Android emulator), prod `https://jjdevhub.com`
 
 **Modele:**

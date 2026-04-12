@@ -58,7 +58,7 @@ Brak - to jest zadanie infrastrukturalne (Nginx + Docker).
 [Klient / Przegladarka]
         |
         v
-[Nginx :8081/:444]
+[Nginx :8081/:443]
     ├── /                         → Angular SPA (:80)
     ├── /api/v1/content/          → Content API (:8080)
     ├── /api/content/             → Content API (:8080), rewrite → /api/v1/content/

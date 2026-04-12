@@ -70,7 +70,7 @@ Warstwa Application implementuje CQRS pattern uzywajac MediatR jako mediatora. K
 
 ### Command Flow (zapis)
 ```
-[API Endpoint] → POST /api/content/work-experiences
+[API Endpoint] → POST /api/v1/content/work-experiences
     → MediatR.Send(AddWorkExperienceCommand)
         → ValidationBehavior → FluentValidation
         → AddWorkExperienceCommandHandler
@@ -86,7 +86,7 @@ Warstwa Application implementuje CQRS pattern uzywajac MediatR jako mediatora. K
 
 ### Query Flow (odczyt)
 ```
-[API Endpoint] → GET /api/content/work-experiences?publicOnly=true
+[API Endpoint] → GET /api/v1/content/work-experiences?publicOnly=true
     → MediatR.Send(GetWorkExperiencesQuery)
         → GetWorkExperiencesQueryHandler
             → IWorkExperienceReadStore.GetPublicAsync() [MongoDB]

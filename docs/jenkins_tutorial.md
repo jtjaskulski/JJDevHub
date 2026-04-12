@@ -131,7 +131,7 @@ The `Jenkinsfile` has 9 stages:
 *   **"dotnet command not found"**: The standard Jenkins image doesn't have .NET installed. You either need to:
     *   Use a Jenkins agent that has .NET.
     *   Or install .NET in the Jenkins container (Dockerfile approach).
-    *   Or run the build steps inside Docker containers (e.g., `agent { docker { image 'mcr.microsoft.com/dotnet/sdk:8.0' } }`). **<-- Recommended for your setup.**
+    *   Or run the build steps inside Docker containers (e.g., `agent { docker { image 'mcr.microsoft.com/dotnet/sdk:10.0' } }`). **<-- Recommended for your setup.**
 
 ### Updating Jenkinsfile for Docker Agents
 
@@ -144,7 +144,7 @@ pipeline {
     stages {
         stage('Build Backend') {
             agent {
-                docker { image 'mcr.microsoft.com/dotnet/sdk:8.0' }
+                docker { image 'mcr.microsoft.com/dotnet/sdk:10.0' }
             }
             steps {
                 sh 'dotnet build ...'
