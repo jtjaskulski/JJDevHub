@@ -11,6 +11,7 @@ using JJDevHub.Content.Application;
 using JJDevHub.Content.Infrastructure;
 using JJDevHub.Content.Persistence;
 using Keycloak.AuthServices.Authentication;
+using Microsoft.EntityFrameworkCore;
 using Keycloak.AuthServices.Authorization;
 using MongoDB.Driver;
 using OpenTelemetry.Exporter;
@@ -165,6 +166,13 @@ builder.Services.AddOpenTelemetry()
     });
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<ContentDbContext>();
+    db.Database.Migrate();
+}
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 

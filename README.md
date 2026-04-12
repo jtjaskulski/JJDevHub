@@ -97,7 +97,7 @@ docker-compose up -d
 
 Services will be available at:
 - **Web App:** http://localhost:8081
-- **Content API:** http://localhost:8081/api/content/
+- **Content API:** http://localhost:8081/api/v1/content/ (legacy `/api/content/` → rewrite do v1)
 - **Grafana:** http://localhost:3000 (admin/admin)
 - **Prometheus:** http://localhost:9090
 - **SonarQube:** http://localhost:9000
@@ -107,6 +107,7 @@ Services will be available at:
 ## Documentation
 
 - [Architecture Tutorial](docs/architecture-tutorial.md) - Full DDD/CQRS architecture guide
+- [JJDevHub — przewodnik kompleksowy (PL)](docs/jjdevhub-przewodnik-kompleksowy.md) - Mapa systemu, E2E, playbook, nauka, FAQ
 - [Jenkins Tutorial](docs/jenkins_tutorial.md) - CI/CD pipeline setup
 - [Backlog & Roadmap](docs/backlog/README.md) - Sprint tasks and implementation plan
 - [NuGet Reference](docs/backlog/nuget-reference.md) - Package dependencies
