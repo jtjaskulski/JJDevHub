@@ -7,7 +7,7 @@ const API_BASE_URL = __DEV__
 export async function getWorkExperiences(
   publicOnly = false,
 ): Promise<WorkExperience[]> {
-  const url = new URL(`${API_BASE_URL}/api/content/work-experiences`);
+  const url = new URL(`${API_BASE_URL}/api/v1/content/work-experiences`);
   if (publicOnly) {
     url.searchParams.set('publicOnly', 'true');
   }

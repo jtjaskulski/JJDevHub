@@ -17,6 +17,8 @@ public class ContentDbContext : DbContext, IUnitOfWork
 
     public DbSet<CurriculumVitae> CurriculumVitaes => Set<CurriculumVitae>();
 
+    public DbSet<JobApplication> JobApplications => Set<JobApplication>();
+
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     public ContentDbContext(

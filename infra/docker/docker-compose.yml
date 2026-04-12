@@ -34,6 +34,20 @@ services:
     networks:
       - jjdevhub-net
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: jjdevhub-keycloak
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "8083:8080"
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import
+    networks:
+      - jjdevhub-net
+
   # CI/CD
   jenkins:
     image: jenkins/jenkins:lts-jdk17
@@ -168,6 +182,17 @@ services:
     networks:
       - jjdevhub-net
 
+  # OpenTelemetry traces (Jaeger UI :16686; OTLP gRPC :4317)
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    container_name: jjdevhub-jaeger
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+    restart: always
+    networks:
+      - jjdevhub-net
+
   # ===================== APPLICATION SERVICES =====================
   # ASP.NET: Development here matches local `dotnet run` — OpenAPI where gated on
   # IsDevelopment(), clearer errors, appsettings.Development.json merges. Use
@@ -196,10 +221,22 @@ services:
       MongoDb__ConnectionString: "mongodb://mongodb:27017"
       MongoDb__DatabaseName: "jjdevhub_content_read"
       Kafka__BootstrapServers: "kafka:9092"
+      Vault__Enabled: "false"
+      Vault__Address: "http://jjdevhub-vault:8200"
+      Vault__Token: "${VAULT_TOKEN:?Set VAULT_TOKEN in your environment or an uncommitted .env file}"
+      Keycloak__realm: "jjdevhub"
+      Keycloak__auth-server-url: "http://jjdevhub-keycloak:8080/"
+      Keycloak__ssl-required: "none"
+      Keycloak__resource: "jjdevhub-api"
+      Keycloak__verify-token-audience: "false"
+      Keycloak__credentials__secret: "${KEYCLOAK_CLIENT_SECRET:?Set KEYCLOAK_CLIENT_SECRET in your environment or an uncommitted .env file}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
     depends_on:
       - db
       - mongodb
       - kafka
+      - keycloak
+      - jaeger
     restart: always
     networks:
       - jjdevhub-net

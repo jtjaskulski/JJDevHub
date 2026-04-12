@@ -1,0 +1,167 @@
+<div class="page">
+  <mat-card appearance="outlined" class="header-card">
+    <mat-card-header>
+      <mat-card-title>Application Tracker</mat-card-title>
+      <mat-card-subtitle>Task 5.2 — śledzenie aplikacji (Owner)</mat-card-subtitle>
+    </mat-card-header>
+    <mat-card-content>
+      @if (dashboard(); as dash) {
+        <div class="dash">
+          <span class="dash-total">Łącznie: {{ dash.total }}</span>
+          <mat-chip-set aria-label="Statusy">
+            @for (e of dashboardEntries(); track e.key) {
+              <mat-chip>{{ e.label }}: {{ e.count }}</mat-chip>
+            }
+          </mat-chip-set>
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card appearance="outlined" class="filters">
+    <mat-card-content class="filters-row">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Status</mat-label>
+        <mat-select
+          [value]="filterStatus()"
+          (selectionChange)="onStatusFilterChange($event)"
+        >
+          <mat-option value="">(wszystkie)</mat-option>
+          @for (s of statusOptions; track s) {
+            <mat-option [value]="s">{{ s }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      <mat-form-field appearance="outline" class="grow" subscriptSizing="dynamic">
+        <mat-label>Firma zawiera</mat-label>
+        <input
+          matInput
+          [value]="filterCompany()"
+          (input)="filterCompany.set($any($event.target).value)"
+          (keyup.enter)="applyFilters()"
+        />
+      </mat-form-field>
+      <button mat-stroked-button type="button" (click)="applyFilters()">Filtruj</button>
+      <button mat-button type="button" (click)="clearFilters()">Wyczyść</button>
+    </mat-card-content>
+  </mat-card>
+
+  @if (editingId()) {
+    <mat-card appearance="outlined" class="form-card">
+      <mat-card-header>
+        <mat-card-title>{{ editingId() === 'new' ? 'Nowa aplikacja' : 'Edycja' }}</mat-card-title>
+      </mat-card-header>
+      <mat-card-content [formGroup]="form" class="form-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Firma</mat-label>
+          <input matInput formControlName="companyName" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Stanowisko</mat-label>
+          <input matInput formControlName="position" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Lokalizacja</mat-label>
+          <input matInput formControlName="location" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Status</mat-label>
+          <mat-select formControlName="status">
+            @for (s of statusOptions; track s) {
+              <mat-option [value]="s">{{ s }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Data aplikacji</mat-label>
+          <input matInput type="date" formControlName="appliedDate" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>URL www</mat-label>
+          <input matInput formControlName="websiteUrl" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Branża</mat-label>
+          <input matInput formControlName="industry" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="span-2">
+          <mat-label>ID CV (opcjonalnie)</mat-label>
+          <input matInput formControlName="linkedCurriculumVitaeId" />
+        </mat-form-field>
+        <div class="form-actions span-2">
+          <button mat-flat-button color="primary" type="button" [disabled]="saving() || form.invalid" (click)="save()">
+            Zapisz
+          </button>
+          <button mat-button type="button" (click)="cancelEdit()">Anuluj</button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  <div class="toolbar">
+    <button mat-flat-button color="primary" type="button" (click)="startCreate()" [disabled]="!!editingId()">
+      <mat-icon>add</mat-icon>
+      Dodaj aplikację
+    </button>
+    <button mat-icon-button type="button" (click)="reload()" aria-label="Odśwież">
+      <mat-icon>refresh</mat-icon>
+    </button>
+  </div>
+
+  @if (loading()) {
+    <div class="center">
+      <mat-progress-spinner mode="indeterminate" diameter="40" />
+    </div>
+  } @else if (error()) {
+    <p class="error">{{ error() }}</p>
+  } @else {
+    <div class="table-wrap">
+      <table mat-table [dataSource]="items()" class="mat-elevation-z0">
+        <ng-container matColumnDef="company">
+          <th mat-header-cell *matHeaderCellDef>Firma</th>
+          <td mat-cell *matCellDef="let row">{{ row.companyName }}</td>
+        </ng-container>
+        <ng-container matColumnDef="position">
+          <th mat-header-cell *matHeaderCellDef>Stanowisko</th>
+          <td mat-cell *matCellDef="let row">{{ row.position }}</td>
+        </ng-container>
+        <ng-container matColumnDef="status">
+          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <td mat-cell *matCellDef="let row">{{ row.status }}</td>
+        </ng-container>
+        <ng-container matColumnDef="applied">
+          <th mat-header-cell *matHeaderCellDef>Data</th>
+          <td mat-cell *matCellDef="let row">{{ row.appliedDate }}</td>
+        </ng-container>
+        <ng-container matColumnDef="actions">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let row">
+            <button mat-icon-button type="button" (click)="startEdit(row)" aria-label="Edytuj">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button type="button" (click)="deleteRow(row)" aria-label="Usuń">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </td>
+        </ng-container>
+        <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+      </table>
+    </div>
+
+    @if (items().length > 0) {
+      <mat-accordion class="detail-acc">
+        @for (row of items(); track row.id) {
+          <mat-expansion-panel>
+            <mat-expansion-panel-header>
+              <mat-panel-title>{{ row.companyName }} — {{ row.position }}</mat-panel-title>
+            </mat-expansion-panel-header>
+            <p><strong>Wymagania:</strong> {{ row.requirements.length }}</p>
+            <p><strong>Notatki:</strong> {{ row.notes.length }}</p>
+            <p><strong>Etapów rozmów:</strong> {{ row.interviewStages.length }}</p>
+          </mat-expansion-panel>
+        }
+      </mat-accordion>
+    }
+  }
+</div>

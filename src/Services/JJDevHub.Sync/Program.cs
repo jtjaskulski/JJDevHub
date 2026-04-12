@@ -3,7 +3,12 @@ using JJDevHub.Content.Application.Interfaces;
 using JJDevHub.Content.Infrastructure.ReadStore;
 using JJDevHub.Sync;
 using Microsoft.Extensions.Options;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Driver;
+
+BsonSerializer.TryRegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +21,7 @@ builder.Services.AddSingleton<IMongoClient>(sp =>
     return new MongoClient(settings.ConnectionString);
 });
 builder.Services.AddSingleton<IWorkExperienceReadStore, MongoWorkExperienceReadStore>();
+builder.Services.AddSingleton<IJobApplicationReadStore, MongoJobApplicationReadStore>();
 builder.Services.AddSingleton<KafkaConsumerHealthState>();
 builder.Services.AddSingleton<IProducer<string, string>>(sp =>
 {

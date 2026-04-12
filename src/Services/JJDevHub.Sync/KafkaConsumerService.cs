@@ -22,6 +22,7 @@ public sealed class KafkaConsumerService : BackgroundService
     };
 
     private readonly IWorkExperienceReadStore _readStore;
+    private readonly IJobApplicationReadStore _jobApplicationReadStore;
     private readonly IProducer<string, string> _producer;
     private readonly IConfiguration _configuration;
     private readonly ILogger<KafkaConsumerService> _logger;
@@ -30,6 +31,7 @@ public sealed class KafkaConsumerService : BackgroundService
 
     public KafkaConsumerService(
         IWorkExperienceReadStore readStore,
+        IJobApplicationReadStore jobApplicationReadStore,
         IProducer<string, string> producer,
         IConfiguration configuration,
         ILogger<KafkaConsumerService> logger,
@@ -37,6 +39,7 @@ public sealed class KafkaConsumerService : BackgroundService
         IOptions<SyncOptions> syncOptions)
     {
         _readStore = readStore;
+        _jobApplicationReadStore = jobApplicationReadStore;
         _producer = producer;
         _configuration = configuration;
         _logger = logger;
@@ -60,7 +63,10 @@ public sealed class KafkaConsumerService : BackgroundService
         {
             nameof(WorkExperienceCreatedIntegrationEvent),
             nameof(WorkExperienceUpdatedIntegrationEvent),
-            nameof(WorkExperienceDeletedIntegrationEvent)
+            nameof(WorkExperienceDeletedIntegrationEvent),
+            nameof(JobApplicationCreatedIntegrationEvent),
+            nameof(JobApplicationUpdatedIntegrationEvent),
+            nameof(JobApplicationDeletedIntegrationEvent)
         });
 
         stoppingToken.Register(() =>
@@ -250,6 +256,15 @@ public sealed class KafkaConsumerService : BackgroundService
             nameof(WorkExperienceDeletedIntegrationEvent) => CreateDeleteOperation(
                 JsonSerializer.Deserialize<WorkExperienceDeletedIntegrationEvent>(json, JsonOptions)),
 
+            nameof(JobApplicationCreatedIntegrationEvent) => CreateJobApplicationUpsertOperation(
+                JsonSerializer.Deserialize<JobApplicationCreatedIntegrationEvent>(json, JsonOptions)),
+
+            nameof(JobApplicationUpdatedIntegrationEvent) => CreateJobApplicationUpsertOperation(
+                JsonSerializer.Deserialize<JobApplicationUpdatedIntegrationEvent>(json, JsonOptions)),
+
+            nameof(JobApplicationDeletedIntegrationEvent) => CreateJobApplicationDeleteOperation(
+                JsonSerializer.Deserialize<JobApplicationDeletedIntegrationEvent>(json, JsonOptions)),
+
             _ => throw new InvalidOperationException($"Unexpected topic: {consumeResult.Topic}")
         };
     }
@@ -310,5 +325,29 @@ public sealed class KafkaConsumerService : BackgroundService
     {
         var seconds = Math.Pow(2, zeroBasedAttempt);
         return TimeSpan.FromSeconds(Math.Min(30, seconds));
+    }
+
+    private Func<CancellationToken, Task> CreateJobApplicationUpsertOperation(JobApplicationCreatedIntegrationEvent? e)
+    {
+        if (e is null)
+            throw new JsonException("Could not deserialize job application created event.");
+        var model = JobApplicationIntegrationEventMapper.ToReadModel(e);
+        return ct => _jobApplicationReadStore.UpsertAsync(model, ct);
+    }
+
+    private Func<CancellationToken, Task> CreateJobApplicationUpsertOperation(JobApplicationUpdatedIntegrationEvent? e)
+    {
+        if (e is null)
+            throw new JsonException("Could not deserialize job application updated event.");
+        var model = JobApplicationIntegrationEventMapper.ToReadModel(e);
+        return ct => _jobApplicationReadStore.UpsertAsync(model, ct);
+    }
+
+    private Func<CancellationToken, Task> CreateJobApplicationDeleteOperation(JobApplicationDeletedIntegrationEvent? e)
+    {
+        if (e is null)
+            throw new JsonException("Could not deserialize job application deleted event.");
+        var id = e.JobApplicationId;
+        return ct => _jobApplicationReadStore.DeleteAsync(id, ct);
     }
 }

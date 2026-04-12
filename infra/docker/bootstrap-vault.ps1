@@ -9,12 +9,12 @@ $null = & docker exec @vaultEnv $container vault secrets enable -path=secret kv-
 if ($LASTEXITCODE -ne 0) { Write-Host "(Mount 'secret' juz istnieje OK)" }
 
 & docker exec @vaultEnv $container vault kv put secret/database/postgres `
-    ContentDb="Host=jjdevhub-db;Port=5432;Database=jjdevhub_content;Username=postgres;Password=password"
+    ConnectionStrings__ContentDb="Host=jjdevhub-db;Port=5432;Database=jjdevhub_content;Username=postgres;Password=password"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 & docker exec @vaultEnv $container vault kv put secret/database/mongodb `
-    ConnectionString="mongodb://jjdevhub-mongo:27017" `
-    DatabaseName="jjdevhub_content_read"
+    MongoDb__ConnectionString="mongodb://jjdevhub-mongo:27017" `
+    MongoDb__DatabaseName="jjdevhub_content_read"
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 $recruiterKey = if ($env:RECRUITER_ACCESS_KEY) { $env:RECRUITER_ACCESS_KEY } else { "CHANGE_ME_BEFORE_USE" }

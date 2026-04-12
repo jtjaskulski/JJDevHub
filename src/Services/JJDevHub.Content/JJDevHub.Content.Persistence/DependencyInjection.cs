@@ -20,6 +20,7 @@ public static class DependencyInjection
 
         services.AddScoped<IWorkExperienceRepository, WorkExperienceRepository>();
         services.AddScoped<ICurriculumVitaeRepository, CurriculumVitaeRepository>();
+        services.AddScoped<IJobApplicationRepository, JobApplicationRepository>();
         services.AddScoped<IOutboxWriter, OutboxWriter>();
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ContentDbContext>());
 

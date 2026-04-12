@@ -1,3 +1,4 @@
+using JJDevHub.Content.Api.Services;
 using JJDevHub.Content.Application.Commands.AddCurriculumVitaeEducation;
 using JJDevHub.Content.Application.Commands.AddCurriculumVitaeProject;
 using JJDevHub.Content.Application.Commands.AddCurriculumVitaeSkill;
@@ -6,8 +7,10 @@ using JJDevHub.Content.Application.Commands.DeleteCurriculumVitae;
 using JJDevHub.Content.Application.Commands.LinkCurriculumVitaeWorkExperience;
 using JJDevHub.Content.Application.Commands.RemoveCurriculumVitaeSkill;
 using JJDevHub.Content.Application.Commands.UpdateCurriculumVitaePersonalInfo;
+using JJDevHub.Content.Application.Interfaces;
 using JJDevHub.Content.Application.Queries.GetCurriculumVitaeById;
 using JJDevHub.Content.Application.Queries.GetCurriculumVitaes;
+using JJDevHub.Content.Application.ReadModels;
 using JJDevHub.Content.Core.Enums;
 using JJDevHub.Content.Api.Middleware;
 using MediatR;
@@ -21,20 +24,40 @@ public static class CurriculumVitaeEndpoints
         var group = app.MapGroup("/cv")
             .WithTags("CurriculumVitae");
 
-        group.MapGet("/", GetAll);
-        group.MapGet("/{id:guid}", GetById);
+        group.MapGet("/", GetAll).AllowAnonymous();
+        group.MapGet("/{id:guid}", GetById).AllowAnonymous();
         group.MapPost("/", Create)
+            .RequireAuthorization("OwnerOnly")
             .RequireRateLimiting("writes")
             .WithDescription(
                 "Example body: {\"firstName\":\"Jan\",\"lastName\":\"Kowalski\"," +
                 "\"email\":\"jan@example.com\",\"phone\":\"+48111222333\",\"location\":\"Warsaw\",\"bio\":\"...\"}");
-        group.MapPut("/{id:guid}", UpdatePersonalInfo).RequireRateLimiting("writes");
-        group.MapDelete("/{id:guid}", Delete).RequireRateLimiting("writes");
-        group.MapPost("/{id:guid}/skills", AddSkill).RequireRateLimiting("writes");
-        group.MapDelete("/{id:guid}/skills/{skillId:guid}", RemoveSkill).RequireRateLimiting("writes");
-        group.MapPost("/{id:guid}/educations", AddEducation).RequireRateLimiting("writes");
-        group.MapPost("/{id:guid}/projects", AddProject).RequireRateLimiting("writes");
-        group.MapPost("/{id:guid}/work-experiences", LinkWorkExperience).RequireRateLimiting("writes");
+        group.MapPut("/{id:guid}", UpdatePersonalInfo)
+            .RequireAuthorization("OwnerOnly")
+            .RequireRateLimiting("writes");
+        group.MapDelete("/{id:guid}", Delete)
+            .RequireAuthorization("OwnerOnly")
+            .RequireRateLimiting("writes");
+        group.MapPost("/{id:guid}/skills", AddSkill)
+            .RequireAuthorization("OwnerOnly")
+            .RequireRateLimiting("writes");
+        group.MapDelete("/{id:guid}/skills/{skillId:guid}", RemoveSkill)
+            .RequireAuthorization("OwnerOnly")
+            .RequireRateLimiting("writes");
+        group.MapPost("/{id:guid}/educations", AddEducation)
+            .RequireAuthorization("OwnerOnly")
+            .RequireRateLimiting("writes");
+        group.MapPost("/{id:guid}/projects", AddProject)
+            .RequireAuthorization("OwnerOnly")
+            .RequireRateLimiting("writes");
+        group.MapPost("/{id:guid}/work-experiences", LinkWorkExperience)
+            .RequireAuthorization("OwnerOnly")
+            .RequireRateLimiting("writes");
+        group.MapPost("/{id:guid}/pdf", GeneratePdf)
+            .RequireAuthorization("OwnerOnly")
+            .RequireRateLimiting("writes");
+        group.MapGet("/pdf-download/{fileId:guid}", DownloadPdf)
+            .RequireAuthorization("OwnerOnly");
 
         return group;
     }
@@ -189,7 +212,55 @@ public static class CurriculumVitaeEndpoints
             cancellationToken);
         return Results.NoContent();
     }
+
+    private static async Task<IResult> GeneratePdf(
+        Guid id,
+        GenerateCvPdfRequest? body,
+        IMediator mediator,
+        IJobApplicationReadStore jobApplications,
+        ICvPdfBlobStore pdfStore,
+        CancellationToken cancellationToken)
+    {
+        var cv = await mediator.Send(new GetCurriculumVitaeByIdQuery(id), cancellationToken);
+        if (cv is null)
+            return Results.NotFound();
+
+        JobApplicationReadModel? job = null;
+        if (body?.JobApplicationId is { } jobId)
+        {
+            job = await jobApplications.GetByIdAsync(jobId, cancellationToken);
+            if (job is null)
+                return Results.BadRequest(new ErrorResponse(
+                    "CONTENT.JOB_APPLICATION.NOT_FOUND",
+                    $"Job application with id '{jobId}' was not found."));
+        }
+
+        var bytes = CurriculumVitaePdfComposer.Compose(cv, job);
+        var fileName = $"cv-{cv.PersonalInfo.LastName}-{cv.Id:N}.pdf".ToLowerInvariant();
+        var fileId = await pdfStore.SaveAsync(id, body?.JobApplicationId, fileName, bytes, cancellationToken);
+
+        return Results.Ok(new GenerateCvPdfResponse(
+            fileId,
+            $"/api/v1/content/cv/pdf-download/{fileId}"));
+    }
+
+    private static async Task<IResult> DownloadPdf(
+        Guid fileId,
+        ICvPdfBlobStore pdfStore,
+        CancellationToken cancellationToken)
+    {
+        var blob = await pdfStore.GetAsync(fileId, cancellationToken);
+        if (blob is null)
+            return Results.NotFound();
+
+        var (content, fileName) = blob.Value;
+        return Results.File(content, "application/pdf", fileName);
+    }
 }
+
+public record GenerateCvPdfRequest(Guid? JobApplicationId);
+
+public record GenerateCvPdfResponse(Guid FileId, string DownloadPath);
 
 public record CreateCurriculumVitaeRequest(
     string FirstName,

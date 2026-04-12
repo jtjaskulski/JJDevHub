@@ -16,7 +16,6 @@ function authenticatedFromKeycloakEvent(ev: KeycloakEvent): boolean {
     case KeycloakEventType.AuthRefreshSuccess:
       return true;
     case KeycloakEventType.TokenExpired:
-      // Wygasły token — nie uznajemy sesji za ważną do czasu udanego odświeżenia (AuthRefreshSuccess).
       return false;
     case KeycloakEventType.AuthLogout:
     case KeycloakEventType.AuthError:
@@ -30,6 +29,13 @@ function authenticatedFromKeycloakEvent(ev: KeycloakEvent): boolean {
   }
 }
 
+function realmRolesFromKeycloak(kc: Keycloak | null): string[] {
+  if (!kc?.tokenParsed) return [];
+  const tp = kc.tokenParsed as Record<string, unknown>;
+  const ra = tp['realm_access'] as { roles?: string[] } | undefined;
+  return ra?.roles ?? [];
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly injector = inject(Injector);
@@ -38,10 +44,6 @@ export class AuthService {
   /** Keycloak jest skonfigurowany w `environment.keycloak.url`. */
   readonly keycloakConfigured = environment.keycloak.url.length > 0;
 
-  /**
-   * Reaktywny stan sesji — oparty o `KEYCLOAK_EVENT_SIGNAL` z keycloak-angular,
-   * więc UI aktualizuje się po asynchronicznym `init` (w przeciwieństwie do samego `kc.authenticated`).
-   */
   readonly isLoggedIn = computed(() => {
     if (!this.keycloakConfigured) return false;
     const sig = this.keycloakEvent;
@@ -50,9 +52,17 @@ export class AuthService {
   });
 
   /**
-   * Instancja keycloak-js rejestrowana przez `provideKeycloak` pod tokenem klasy `Keycloak`.
-   * Pobieranie przez `Injector.get` zapewnia ten sam mechanizm co wewnątrz biblioteki (interceptory).
+   * Role realm z JWT (odświeżane przy zdarzeniach Keycloak).
    */
+  readonly userRoles = computed(() => {
+    if (!this.keycloakConfigured) return [] as string[];
+    const sig = this.keycloakEvent;
+    void sig?.();
+    return realmRolesFromKeycloak(this.getKeycloak());
+  });
+
+  readonly isOwner = computed(() => this.userRoles().includes('Owner'));
+
   private getKeycloak(): Keycloak | null {
     return this.injector.get(Keycloak, null, { optional: true });
   }

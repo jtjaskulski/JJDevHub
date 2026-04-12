@@ -31,4 +31,15 @@ export const routes: Routes = [
         (m) => m.AdminWorkExperiencePage,
       ),
   },
+  {
+    path: 'admin/cv',
+    canActivate: [adminAuthGuard],
+    loadComponent: () => import('./pages/admin-cv/admin-cv.page').then((m) => m.AdminCvPage),
+  },
+  {
+    path: 'admin/tracker',
+    canActivate: [adminAuthGuard],
+    loadComponent: () =>
+      import('./pages/admin-tracker/admin-tracker.page').then((m) => m.AdminTrackerPage),
+  },
 ];

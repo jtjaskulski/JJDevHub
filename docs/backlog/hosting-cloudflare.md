@@ -406,3 +406,16 @@ db:
 - [ ] Monitoring: Prometheus scrapuje metryki, Grafana dashboardy dzialaja
 - [ ] Jenkins: pipeline wdraza na VPS przez SSH
 - [ ] Test: HTTPS dziala, WAF blokuje podejrzany ruch, API odpowiada
+
+---
+
+## Implementacja w repozytorium (Task „Production Readiness”)
+
+Powiazane pliki: [docker-compose.yml](../../infra/docker/docker-compose.yml), [nginx.conf](../../infra/docker/nginx/nginx.conf), [Jenkinsfile](../../Jenkinsfile).
+
+- [ ] `docker compose` produkcyjny: sieci `frontend-net` / `backend-net` / `data-net`, brak wystawionych portow na hosta (procz 443)
+- [ ] Nginx: `location /api/v1/content/` i rewrite legacy `/api/content/` (dev juz w repo)
+- [ ] Keycloak: realm `jjdevhub`, klienci `jjdevhub-web` / `jjdevhub-api` (import z [keycloak/jjdevhub-realm.json](../../infra/docker/keycloak/jjdevhub-realm.json))
+- [ ] Vault: `bootstrap-vault.sh` po starcie; `Vault__Enabled=true` w API gdy sekrety maja zastapic env
+- [ ] Backup: cron `pg_dump` / `mongodump` + off-site
+- [ ] Registry obrazow + Jenkins deploy SSH na VPS

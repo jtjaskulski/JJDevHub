@@ -22,16 +22,20 @@ echo "--- Initializing JJDevHub Vault Secrets ---"
 vault_in_container vault secrets enable -path=secret kv-v2 2>/dev/null || \
     echo "(Mount 'secret' już istnieje — OK)"
 
-# 2. PostgreSQL (klucz ContentDb pod integrację .NET ConnectionStrings:ContentDb)
+# 2. PostgreSQL — flat keys dla IConfiguration (ConnectionStrings__ContentDb)
 vault_in_container vault kv put secret/database/postgres \
-    ContentDb="Host=jjdevhub-db;Port=5432;Database=jjdevhub_content;Username=postgres;Password=password"
+    ConnectionStrings__ContentDb="Host=jjdevhub-db;Port=5432;Database=jjdevhub_content;Username=postgres;Password=password"
 
 # 3. MongoDB
 vault_in_container vault kv put secret/database/mongodb \
-    ConnectionString="mongodb://jjdevhub-mongo:27017" \
-    DatabaseName="jjdevhub_content_read"
+    MongoDb__ConnectionString="mongodb://jjdevhub-mongo:27017" \
+    MongoDb__DatabaseName="jjdevhub_content_read"
 
-# 4. Identity tokens
+# 4. Keycloak (client secret dla jjdevhub-api — opcjonalnie)
+vault_in_container vault kv put secret/keycloak/clients \
+    jjdevhub-api-secret="jjdevhub-api-dev-secret" || true
+
+# 5. Identity tokens
 RECRUITER_KEY="${RECRUITER_ACCESS_KEY:-CHANGE_ME_BEFORE_USE}"
 vault_in_container vault kv put secret/identity/tokens \
     recruiter-access-key="$RECRUITER_KEY"

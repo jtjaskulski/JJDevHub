@@ -40,6 +40,8 @@ public class ContentApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 new Dictionary<string, string?>
                 {
                     ["Outbox:PublisherEnabled"] = "false",
+                    ["Vault:Enabled"] = "false",
+                    ["Keycloak:auth-server-url"] = "",
                     ["MongoDb:ConnectionString"] = _mongo.GetConnectionString(),
                     ["MongoDb:DatabaseName"] = "jjdevhub_content_test_read"
                 });
