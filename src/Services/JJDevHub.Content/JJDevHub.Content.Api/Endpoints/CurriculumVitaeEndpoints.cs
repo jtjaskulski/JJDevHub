@@ -9,6 +9,7 @@ using JJDevHub.Content.Application.Commands.UpdateCurriculumVitaePersonalInfo;
 using JJDevHub.Content.Application.Queries.GetCurriculumVitaeById;
 using JJDevHub.Content.Application.Queries.GetCurriculumVitaes;
 using JJDevHub.Content.Core.Enums;
+using JJDevHub.Content.Api.Middleware;
 using MediatR;
 
 namespace JJDevHub.Content.Api.Endpoints;
@@ -119,15 +120,18 @@ public static class CurriculumVitaeEndpoints
     private static async Task<IResult> RemoveSkill(
         Guid id,
         Guid skillId,
-        HttpRequest httpRequest,
+        long? version,
         IMediator mediator,
         CancellationToken cancellationToken)
     {
-        if (!long.TryParse(httpRequest.Query["version"], out var version))
-            return Results.BadRequest("Query parameter 'version' is required.");
+        if (version is null)
+            return Results.BadRequest(new ErrorResponse(
+                "VALIDATION.FAILED",
+                null,
+                new[] { new ValidationErrorItem("version", "VALIDATION.REQUIRED", "Query parameter 'version' is required.") }));
 
         await mediator.Send(
-            new RemoveCurriculumVitaeSkillCommand(id, version, skillId),
+            new RemoveCurriculumVitaeSkillCommand(id, version.Value, skillId),
             cancellationToken);
         return Results.NoContent();
     }
