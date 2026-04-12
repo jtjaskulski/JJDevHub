@@ -230,7 +230,9 @@ public static class CurriculumVitaeEndpoints
         {
             job = await jobApplications.GetByIdAsync(jobId, cancellationToken);
             if (job is null)
-                return Results.BadRequest("Job application not found.");
+                return Results.BadRequest(new ErrorResponse(
+                    "CONTENT.JOB_APPLICATION.NOT_FOUND",
+                    $"Job application with id '{jobId}' was not found."));
         }
 
         var bytes = CurriculumVitaePdfComposer.Compose(cv, job);
