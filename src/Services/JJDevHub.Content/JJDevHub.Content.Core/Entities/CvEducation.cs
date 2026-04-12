@@ -6,6 +6,8 @@ namespace JJDevHub.Content.Core.Entities;
 
 public class CvEducation : Entity
 {
+    public Guid CurriculumVitaeId { get; internal set; }
+
     public string Institution { get; private set; } = null!;
     public string FieldOfStudy { get; private set; } = null!;
     public EducationDegree Degree { get; private set; }

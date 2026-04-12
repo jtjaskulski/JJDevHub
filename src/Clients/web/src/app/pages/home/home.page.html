@@ -21,6 +21,20 @@
 
     <mat-card appearance="outlined">
       <mat-card-header>
+        <mat-icon mat-card-avatar>article</mat-icon>
+        <mat-card-title>Blog</mat-card-title>
+        <mat-card-subtitle>Notes & code snippets</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <p>Short posts and syntax-highlighted examples (mock data until Content API exposes posts).</p>
+      </mat-card-content>
+      <mat-card-actions>
+        <a mat-button routerLink="/blog" color="primary">Open blog</a>
+      </mat-card-actions>
+    </mat-card>
+
+    <mat-card appearance="outlined">
+      <mat-card-header>
         <mat-icon mat-card-avatar>info</mat-icon>
         <mat-card-title>About</mat-card-title>
         <mat-card-subtitle>Architecture & stack</mat-card-subtitle>

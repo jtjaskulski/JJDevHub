@@ -6,6 +6,8 @@ namespace JJDevHub.Content.Core.Repositories;
 public interface ICurriculumVitaeRepository : IRepository<CurriculumVitae>
 {
     Task<CurriculumVitae?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<CurriculumVitae>> GetAllAsync(CancellationToken cancellationToken = default);
     Task AddAsync(CurriculumVitae curriculumVitae, CancellationToken cancellationToken = default);
     void Update(CurriculumVitae curriculumVitae);
+    void Delete(CurriculumVitae curriculumVitae);
 }

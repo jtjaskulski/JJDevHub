@@ -1,0 +1,35 @@
+.blog-post {
+  max-width: 52rem;
+
+  .back {
+    margin-bottom: 16px;
+  }
+
+  h1 {
+    font-weight: 400;
+    font-size: clamp(1.35rem, 3.5vw, 1.85rem);
+    margin: 0 0 16px;
+    line-height: 1.25;
+  }
+
+  .intro {
+    line-height: 1.6;
+    margin: 0 0 24px;
+    opacity: 0.9;
+  }
+}
+
+.code-section {
+  border-radius: 8px;
+  overflow: auto;
+  max-width: 100%;
+  border: 1px solid color-mix(in srgb, var(--mat-sys-outline) 40%, transparent);
+}
+
+.hljs-wrap {
+  margin: 0;
+  padding: 16px;
+  overflow-x: auto;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}

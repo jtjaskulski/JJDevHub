@@ -19,6 +19,7 @@ public static class DependencyInjection
                 npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "content")));
 
         services.AddScoped<IWorkExperienceRepository, WorkExperienceRepository>();
+        services.AddScoped<ICurriculumVitaeRepository, CurriculumVitaeRepository>();
         services.AddScoped<IOutboxWriter, OutboxWriter>();
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<ContentDbContext>());
 

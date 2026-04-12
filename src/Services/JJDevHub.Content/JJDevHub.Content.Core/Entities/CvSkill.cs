@@ -5,6 +5,8 @@ namespace JJDevHub.Content.Core.Entities;
 
 public class CvSkill : Entity
 {
+    public Guid CurriculumVitaeId { get; internal set; }
+
     public string Name { get; private set; } = null!;
     public string Category { get; private set; } = null!;
     public SkillLevel Level { get; private set; }

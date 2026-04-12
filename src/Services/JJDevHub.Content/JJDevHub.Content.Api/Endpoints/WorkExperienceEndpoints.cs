@@ -9,18 +9,26 @@ namespace JJDevHub.Content.Api.Endpoints;
 
 public static class WorkExperienceEndpoints
 {
-    public static IEndpointRouteBuilder MapWorkExperienceEndpoints(this IEndpointRouteBuilder app)
+    public static RouteGroupBuilder MapWorkExperienceEndpoints(this RouteGroupBuilder app)
     {
-        var group = app.MapGroup("/api/content/work-experiences")
+        var group = app.MapGroup("/work-experiences")
             .WithTags("WorkExperiences");
 
-        group.MapGet("/", GetAll);
+        group.MapGet("/", GetAll)
+            .CacheOutput("PublicWorkExperiences")
+            .WithDescription(
+                "List work experiences. Query publicOnly=true for public entries only. " +
+                "Example: GET .../work-experiences?publicOnly=true");
         group.MapGet("/{id:guid}", GetById);
-        group.MapPost("/", Create);
-        group.MapPut("/{id:guid}", Update);
-        group.MapDelete("/{id:guid}", Delete);
+        group.MapPost("/", Create)
+            .RequireRateLimiting("writes")
+            .WithDescription(
+                "Example body: {\"companyName\":\"Contoso\",\"position\":\"Engineer\"," +
+                "\"startDate\":\"2022-01-01T00:00:00Z\",\"endDate\":null,\"isPublic\":true}");
+        group.MapPut("/{id:guid}", Update).RequireRateLimiting("writes");
+        group.MapDelete("/{id:guid}", Delete).RequireRateLimiting("writes");
 
-        return app;
+        return group;
     }
 
     private static async Task<IResult> GetAll(
