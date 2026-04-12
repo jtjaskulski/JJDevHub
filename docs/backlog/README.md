@@ -25,25 +25,25 @@ gantt
     Database Infrastructure  :done, s1t4, 2026-01-01, 14d
 
     section Sprint2
-    Domain Aggregates        :active, s2t1, 2026-01-15, 14d
+    Domain Aggregates        :done, s2t1, 2026-01-15, 14d
     EF Core Configuration    :done, s2t2, 2026-01-15, 14d
     Command Handlers         :done, s2t3, 2026-01-15, 14d
 
     section Sprint3
     Kafka Docker Setup       :done, s3t1, 2026-02-01, 14d
     Kafka Event Bus          :done, s3t2, 2026-02-01, 14d
-    Consumer and MongoDB     :active, s3t3, 2026-02-01, 14d
+    Consumer and MongoDB     :done, s3t3, 2026-02-01, 14d
 
     section Sprint4
     Content API Queries      :done, s4t1, 2026-02-15, 14d
     Nginx Reverse Proxy      :done, s4t2, 2026-02-15, 14d
     Angular Web App          :done, s4t3, 2026-02-15, 14d
-    React Native Mobile      :active, s4t4, 2026-02-15, 14d
+    React Native Mobile      :done, s4t4, 2026-02-15, 14d
 
     section Sprint5
-    Angular RBAC             :s5t1, 2026-03-15, 14d
-    Application Tracker      :s5t2, 2026-03-15, 14d
-    CV Generation Engine     :s5t3, 2026-03-15, 14d
+    Angular RBAC             :done, s5t1, 2026-03-15, 14d
+    Application Tracker      :done, s5t2, 2026-03-15, 14d
+    CV Generation Engine     :done, s5t3, 2026-03-15, 14d
 
     section Sprint6
     SonarQube Quality Gate   :active, s6t1, 2026-04-01, 14d
@@ -93,7 +93,7 @@ gantt
 |------|-------|--------|------|
 | 4.1 | [Content API Queries](sprint-4/task-4.1-content-api-queries.md) | DONE | Content API v1, CV/WE, caching, rate limit, Swagger |
 | 4.2 | [Nginx Reverse Proxy](sprint-4/task-4.2-nginx-reverse-proxy.md) | DONE | Routing do wszystkich serwisow |
-| 4.3 | [Angular Web App](sprint-4/task-4.3-angular-web-app.md) | DONE | Blog mock, Admin WE, Keycloak-ready, Material |
+| 4.3 | [Angular Web App](sprint-4/task-4.3-angular-web-app.md) | DONE | Blog mock, Admin WE/CV/Tracker, Keycloak-ready, Material |
 | 4.4 | [React Native Mobile](sprint-4/task-4.4-react-native-mobile.md) | DONE | Blog stack, mock, pull-to-refresh, AsyncStorage cache |
 
 ### Sprint 5: The Secret Feature (Narzedzie dla Ciebie)
@@ -103,8 +103,8 @@ gantt
 | Task | Nazwa | Status | Plik |
 |------|-------|--------|------|
 | 5.1 | [Angular RBAC](sprint-5/task-5.1-angular-rbac.md) | DONE | isOwner, Owner guard, silent SSO, admin/cv + admin/tracker |
-| 5.2 | [Application Tracker](sprint-5/task-5.2-application-tracker.md) | IN PROGRESS | Placeholder UI — pelny bounded context w kolejnych iteracjach |
-| 5.3 | [CV Generation Engine](sprint-5/task-5.3-cv-generation-engine.md) | IN PROGRESS | Placeholder UI — QuestPDF/API w kolejnych iteracjach |
+| 5.2 | [Application Tracker](sprint-5/task-5.2-application-tracker.md) | DONE | JobApplication, API `/applications`, Mongo/Kafka, Angular admin-tracker |
+| 5.3 | [CV Generation Engine](sprint-5/task-5.3-cv-generation-engine.md) | DONE | QuestPDF, `POST .../cv/{id}/pdf`, Mongo `cv_pdf_blobs`, admin-cv |
 
 ### Sprint 6: Observability & DevOps (Jakosc)
 
@@ -114,7 +114,7 @@ gantt
 |------|-------|--------|------|
 | 6.1 | [SonarQube Quality Gate](sprint-6/task-6.1-sonarqube-quality-gate.md) | IN PROGRESS | sonar-project.properties; Quality Gate w UI SonarQube |
 | 6.2 | [Jenkinsfile Pipeline](sprint-6/task-6.2-jenkinsfile-pipeline.md) | DONE | Pelny 9-stage pipeline |
-| 6.3 | [OpenTelemetry Setup](sprint-6/task-6.3-opentelemetry-setup.md) | IN PROGRESS | Content.Api ma Prometheus metrics |
+| 6.3 | [OpenTelemetry Setup](sprint-6/task-6.3-opentelemetry-setup.md) | IN PROGRESS | Prometheus `/metrics` + tracing OTLP gRPC → Jaeger (compose) |
 | 6.4 | [Grafana Dashboards](sprint-6/task-6.4-grafana-dashboards.md) | IN PROGRESS | content-api + infrastructure-overview.json |
 | 6.5 | [Ekstrakcja NuGet Packages](sprint-6/task-6.5-extract-nuget-packages.md) | TODO | Plan: [packages-extraction-plan.md](packages-extraction-plan.md) |
 
@@ -128,8 +128,8 @@ gantt
 
 | Status | Liczba taskow |
 |--------|---------------|
-| DONE | 16 |
-| IN PROGRESS | 5 |
+| DONE | 18 |
+| IN PROGRESS | 3 |
 | TODO | 1 |
 | **Razem** | **22** |
 

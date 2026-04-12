@@ -6,7 +6,7 @@
 | Status | IN PROGRESS |
 | Priorytet | Medium |
 | Estymacja | 8 story points |
-| Powiazane pliki | `src/Services/JJDevHub.Content/JJDevHub.Content.Api/Program.cs`, `infra/docker/monitoring/prometheus/prometheus.yml` |
+| Powiazane pliki | `JJDevHub.Content.Api/Program.cs`, `infra/docker/monitoring/prometheus/prometheus.yml`, `infra/docker/docker-compose.yml` (serwis `jaeger`, zmienna `OTEL_EXPORTER_OTLP_ENDPOINT`) |
 
 ## Opis
 
@@ -20,6 +20,7 @@ OpenTelemetry to standard observability obejmujacy metryki, tracing i logowanie.
   - `AddRuntimeInstrumentation()` - metryki .NET runtime (GC, thread pool, memory)
   - `AddPrometheusExporter()` - eksport na `/metrics`
 - Endpoint: `app.MapPrometheusScrapingEndpoint()` -> `/metrics`
+- Distributed tracing (OTLP gRPC): `AddOtlpExporter` z `OtlpExportProtocol.Grpc`, instrumentacja ASP.NET Core; w Dockerze eksport do `jaeger:4317` (Jaeger all-in-one, UI `:16686`)
 
 **Prometheus (prometheus.yml):**
 - Job `jjdevhub-content-api`:
@@ -36,17 +37,17 @@ OpenTelemetry to standard observability obejmujacy metryki, tracing i logowanie.
 - `OpenTelemetry.Extensions.Hosting` 1.15.0
 - `OpenTelemetry.Instrumentation.AspNetCore` 1.12.0
 - `OpenTelemetry.Instrumentation.Runtime` 1.12.0
+- `OpenTelemetry.Exporter.OpenTelemetryProtocol` (OTLP do Jaeger)
 
 ### Co pozostalo
 
-- Distributed Tracing (sledzenie requestow przez caly stack)
+- Rozszerzenie trace przez Nginx i pozostale serwisy (wspolny trace context)
 - Structured Logging z Serilog + OpenTelemetry
 - Metryki customowe (biznesowe: ile CV wygenerowano, ile aplikacji dodano)
 - Instrumentacja HTTP client (outgoing calls do innych serwisow)
 - Instrumentacja EF Core (query duration, connection pool)
 - Instrumentacja Kafka (produce/consume latency)
 - Dodanie OpenTelemetry do pozostalych serwisow (Analytics, Identity, etc.)
-- OTLP Exporter (alternatywa/uzupelnienie dla Prometheus)
 
 ## Kryteria akceptacji
 

@@ -64,7 +64,8 @@ Nginx (:8081)
     └── /api/content/    → rewrite → /api/v1/content/ (legacy)
 Content.Api
             ├── /work-experiences          GET (list, publicOnly), GET {id}, POST, PUT, DELETE
-            ├── /cv                        GET /, GET /{id}, POST, PUT /{id}, DELETE /{id}, subpaths skills/educations/projects/work-experiences
+            ├── /cv                        GET /, GET /{id}, POST, PUT /{id}, DELETE /{id}, subpaths skills/educations/projects/work-experiences; POST {id}/pdf, GET pdf-download/{fileId} (Owner)
+            ├── /applications              GET /, GET /dashboard, GET /{id}, CRUD + requirements/notes/interview-stages (Owner) — Task 5.2
             ├── /health                    GET (health checks)
             └── /metrics                   GET (Prometheus)
 ```
