@@ -1,4 +1,6 @@
 # Production overrides — merge with base:
+#   Requires Docker Compose v2.24.4+ because this file uses `!override`
+#   to replace inherited lists such as `ports`.
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 #
 # Key differences from dev:
