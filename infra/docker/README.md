@@ -30,7 +30,8 @@ W `docker-compose.yml` ustawiane są zmienne `MongoDb__*` i `Kafka__BootstrapSer
    - Windows (PowerShell): `.\bootstrap-vault.ps1`
 3. **Kafka** — obrazy `confluentinc/cp-kafka:7.6.1` i `cp-zookeeper:7.6.1` (nie `latest`; `latest` wymaga KRaft). Z hosta (`dotnet run`): `Kafka:BootstrapServers` = `localhost:29092`. Z kontenera w sieci compose: `kafka:9092`.
 4. **Keycloak** — realm z importu (jeśli używasz JWT).
-5. Dostęp: Vault `8201`, Keycloak `8083`, Jenkins w głównym compose `8082`.
+5. **Jaeger** — `http://localhost:16686` — UI do distributed tracing (OTLP gRPC na 4317).
+6. Dostęp: Vault `8201`, Keycloak admin `8083`, Jenkins w głównym compose `8082`, Jaeger `16686`.
 
 ## Jenkins: który plik?
 
@@ -46,9 +47,16 @@ Nie uruchamiaj dwóch Jenkinsów na tym samym wolumenie `jenkins_home` bez zmian
 Pełna ścieżka wdrożenia: **[docs/backlog/hosting-cloudflare.md](../../docs/backlog/hosting-cloudflare.md)**  
 (VPS, Nginx, SSL, Cloudflare DNS/WAF, zasoby, hardening.)
 
+## Auto-migracje EF Core (Development)
+
+Gdy `ASPNETCORE_ENVIRONMENT=Development` (domyślnie w compose), Content API wywołuje `db.Database.Migrate()` przy starcie — tabele PG tworzą się automatycznie bez ręcznego `dotnet ef database update`.
+
 ## Pliki
 
-- `docker-compose.yml` — główny stack.
+- `docker-compose.yml` — główny stack (20 serwisów).
 - `bootstrap-vault.sh` / `bootstrap-vault.ps1` — sekrety KV (token przekazywany w `docker exec`).
 - `jenkins-compose.yml` — izolowany Jenkins pod CI z Dockerem.
-- `keycloak/realm-export.json` — import realmu (jeśli skonfigurowany w compose).
+- `keycloak/jjdevhub-realm.json` — import realmu (mount w compose, `--import-realm`).
+- `nginx/nginx.conf` — routing reverse proxy (API v1, rewrite legacy, Keycloak, Jenkins).
+- `monitoring/prometheus/prometheus.yml` — scrape targets.
+- `monitoring/grafana/provisioning/` — datasources + dashboards auto-provisioning.

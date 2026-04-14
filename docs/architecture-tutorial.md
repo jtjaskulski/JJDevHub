@@ -35,7 +35,9 @@
 | CI/CD | Jenkins | Automatyzacja buildów |
 | Code Quality | SonarQube | Analiza statyczna + pokrycie testami |
 | Monitoring | Prometheus + Grafana | Metryki, dashboardy |
+| Tracing | Jaeger (OpenTelemetry) | Distributed tracing (OTLP gRPC) |
 | Secrets | HashiCorp Vault | Zarządzanie sekretami |
+| IAM | Keycloak (OIDC) | Tożsamość, role, JWT |
 | Reverse Proxy | Nginx | Routing, SSL termination |
 | Konteneryzacja | Docker + Docker Compose | Orkiestracja serwisów |
 
@@ -44,14 +46,14 @@
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              NGINX (reverse proxy)                          │
-│                         :8081 (HTTP) / :444 (HTTPS)                         │
+│              :8081 (HTTP) / :444 (HTTPS dev, container :443)               │
 └──┬──────────────┬──────────────────────────────────────────────┬────────────┘
    │              │                                              │
    ▼              ▼                                              ▼
 ┌──────────┐  ┌──────────────────────────────────────────┐  ┌──────────┐
 │ Angular  │  │           Backend Services               │  │ Jenkins  │
 │ Web :80  │  │                                          │  │  :8082   │
-└──────────┘  │  /api/content/      → Content API :8080  │  └──────────┘
+└──────────┘  │  /api/v1/content/   → Content API :8080  │  └──────────┘
               │  /api/analytics/    → Analytics API       │
    ┌────────┐ │  /api/identity/     → Identity API       │
    │ React  │ │  /api/ai/           → AI Gateway         │
@@ -130,6 +132,8 @@ JJDevHub/
 ├── Jenkinsfile                         # CI/CD pipeline (9 stage'ów)
 ├── sonar-project.properties            # SonarQube config
 └── JJDevHub.sln                        # Solution file
+
+> **Powiązane przewodniki:** [JJDevHub — przewodnik kompleksowy (PL)](jjdevhub-przewodnik-kompleksowy.md) — mapa systemu, E2E, playbook, tutoriale technologii, FAQ.
 ```
 
 ---
@@ -913,7 +917,7 @@ public static class WorkExperienceEndpoints
 {
     public static IEndpointRouteBuilder MapWorkExperienceEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/content/work-experiences")
+        var group = app.MapGroup("/api/v1/content/work-experiences")
             .WithTags("WorkExperiences");
 
         group.MapGet("/", GetAll);
@@ -931,7 +935,7 @@ public static class WorkExperienceEndpoints
         CancellationToken ct)
     {
         var id = await mediator.Send(command, ct);
-        return Results.Created($"/api/content/work-experiences/{id}", new { id });
+        return Results.Created($"/api/v1/content/work-experiences/{id}", new { id });
     }
 
     // ... reszta endpointów
@@ -1195,7 +1199,7 @@ public class WorkExperienceEndpointsTests : IClassFixture<ContentApiFactory>, IA
             "Integration Corp", "Test Engineer", ...);
 
         var response = await _client.PostAsJsonAsync(
-            "/api/content/work-experiences", command);
+            "/api/v1/content/work-experiences", command);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
     }
@@ -1204,14 +1208,14 @@ public class WorkExperienceEndpointsTests : IClassFixture<ContentApiFactory>, IA
     public async Task GetWorkExperiences_PublicOnly_ShouldFilterCorrectly()
     {
         // Create public + private
-        await _client.PostAsJsonAsync("/api/content/work-experiences",
+        await _client.PostAsJsonAsync("/api/v1/content/work-experiences",
             new AddWorkExperienceCommand("Public Corp", ..., isPublic: true));
-        await _client.PostAsJsonAsync("/api/content/work-experiences",
+        await _client.PostAsJsonAsync("/api/v1/content/work-experiences",
             new AddWorkExperienceCommand("Private Corp", ..., isPublic: false));
 
         // Query with filter - reads from MongoDB!
         var response = await _client.GetAsync(
-            "/api/content/work-experiences?publicOnly=true");
+            "/api/v1/content/work-experiences?publicOnly=true");
         var experiences = await response.Content
             .ReadFromJsonAsync<List<WorkExperienceDto>>();
 
@@ -1568,6 +1572,8 @@ Odpowiedź:
 | sonarqube | sonarqube:lts-community | 9000 | 9000 | Code quality |
 | prometheus | prom/prometheus | 9090 | 9090 | Metrics scraping |
 | grafana | grafana/grafana | 3000 | 3000 | Dashboards |
+| jaeger | jaegertracing/all-in-one | 16686, 4317 | 16686, 4317 | Distributed tracing (OTLP gRPC) |
+| keycloak | quay.io/keycloak/keycloak | 8083 | 8080 | IAM (OIDC, JWT, RBAC) |
 
 **Serwisy aplikacyjne (budowane z Dockerfile):**
 
@@ -1628,12 +1634,14 @@ Wszystkie serwisy w jednej sieci Docker bridge `jjdevhub-net`. Komunikują się 
 Nginx routuje requesty na podstawie path prefix do odpowiedniego serwisu:
 
 ```nginx
-location /api/content/      { proxy_pass http://jjdevhub-content-api:8080;      }
+location /api/v1/content/   { proxy_pass http://jjdevhub-content-api:8080;      }
+location /api/content/      { rewrite ^/api/content/(.*)$ /api/v1/content/$1 last; } # legacy
 location /api/analytics/    { proxy_pass http://jjdevhub-analytics-api:8080;    }
 location /api/identity/     { proxy_pass http://jjdevhub-identity-api:8080;     }
 location /api/ai/           { proxy_pass http://jjdevhub-ai-gateway:8080;       }
 location /api/notification/ { proxy_pass http://jjdevhub-notification-api:8080; }
 location /api/education/    { proxy_pass http://jjdevhub-education-api:8080;    }
+location /auth/             { proxy_pass http://jjdevhub-keycloak:8080;         }
 location /jenkins/          { proxy_pass http://jjdevhub-jenkins:8080;          }
 location /                  { proxy_pass http://jjdevhub-angular:80;            } # catch-all
 ```
@@ -1688,12 +1696,14 @@ Buduje i uruchamia **wszystkie** serwisy (8 backendów + Angular + infra). Potem
 | URL | Serwis |
 |-----|--------|
 | http://localhost:8081 | Aplikacja (Angular przez Nginx) |
-| http://localhost:8081/api/content/work-experiences | Content API |
+| http://localhost:8081/api/v1/content/work-experiences | Content API |
 | http://localhost:9000 | SonarQube |
 | http://localhost:3000 | Grafana |
 | http://localhost:9090 | Prometheus |
 | http://localhost:8082 | Jenkins |
 | http://localhost:8201 | Vault |
+| http://localhost:8083 | Keycloak (admin/admin) |
+| http://localhost:16686 | Jaeger |
 
 ### Uruchamianie testów
 
@@ -1755,9 +1765,14 @@ docker-compose -f infra/docker/docker-compose.yml logs -f angular-web
 docker-compose -f infra/docker/docker-compose.yml restart grafana
 
 # Health check serwisów (po uruchomieniu Docker)
-curl http://localhost:8081/api/content/health
-curl http://localhost:8081/api/analytics/health
-curl http://localhost:8081/api/identity/health
+# Content API mapuje health endpoint na /health, więc sprawdzaj go bezpośrednio w kontenerze:
+docker-compose -f infra/docker/docker-compose.yml exec content-api curl http://127.0.0.1:8080/health
+
+# Analogicznie sprawdzaj pozostałe API wewnątrz ich kontenerów:
+docker-compose -f infra/docker/docker-compose.yml exec analytics-api curl http://127.0.0.1:8080/health
+docker-compose -f infra/docker/docker-compose.yml exec identity-api curl http://127.0.0.1:8080/health
+
+# Jeśli chcesz udostępnić /health przez localhost:8081, dodaj jawny location /health w konfiguracji Nginx.
 ```
 
 ---

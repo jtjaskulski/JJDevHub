@@ -69,7 +69,7 @@ Warstwa infrastruktury (Kafka, MongoDB).
 | `Microsoft.Extensions.Logging.Abstractions` | 10.0.0 | Zainstalowany | ILogger |
 | `Microsoft.Extensions.Options` | 10.0.0 | Zainstalowany | Options pattern (MongoDbSettings) |
 | `Microsoft.Extensions.Options.ConfigurationExtensions` | 10.0.0 | Zainstalowany | Bind configuration sections to options |
-| `QuestPDF` | latest | Do dodania | Generowanie CV do PDF (Sprint 5.3) - fluent API, MIT license |
+| `QuestPDF` | 2024.12.3 | Zainstalowany | Generowanie CV do PDF - fluent API, Community license |
 
 ---
 
@@ -86,18 +86,18 @@ Warstwa prezentacji (Minimal API + observability).
 | `OpenTelemetry.Extensions.Hosting` | 1.15.0 | Zainstalowany | OpenTelemetry hosting integration |
 | `OpenTelemetry.Instrumentation.AspNetCore` | 1.12.0 | Zainstalowany | HTTP server metrics (request rate, latency) |
 | `OpenTelemetry.Instrumentation.Runtime` | 1.12.0 | Zainstalowany | .NET runtime metrics (GC, memory, threads) |
-| `Keycloak.AuthServices.Authentication` | latest | Do dodania | Integracja OIDC z Keycloak (Sprint 1.1) |
-| `Keycloak.AuthServices.Authorization` | latest | Do dodania | Polityki autoryzacji na bazie Keycloak roles (Sprint 1.1) |
-| `Microsoft.AspNetCore.Authentication.JwtBearer` | 10.0.x | Do dodania | JWT Bearer middleware (zaleznosc Keycloak.AuthServices) |
-| `VaultSharp` | latest | Do dodania | Klient HashiCorp Vault (Sprint 1.2) |
-| `VaultSharp.Extensions.Configuration` | latest | Do dodania | Vault jako .NET Configuration Provider (Sprint 1.2) |
-| `OpenTelemetry.Instrumentation.Http` | latest | Do dodania | Instrumentacja HttpClient outgoing calls (Sprint 6.3) |
-| `OpenTelemetry.Instrumentation.EntityFrameworkCore` | latest | Do dodania | Instrumentacja EF Core queries (Sprint 6.3) |
-| `OpenTelemetry.Exporter.OpenTelemetryProtocol` | latest | Do dodania | OTLP exporter do Jaeger/Tempo (Sprint 6.3) |
-| `Serilog.AspNetCore` | latest | Do dodania | Strukturalne logowanie (Sprint 6.3) |
-| `Serilog.Sinks.Console` | latest | Do dodania | Log output do konsoli/Docker logs (Sprint 6.3) |
-| `Serilog.Enrichers.OpenTelemetry` | latest | Do dodania | Trace ID w logach Serilog (Sprint 6.3) |
-| `Asp.Versioning.Http` | latest | Do dodania | API versioning - URL segment lub header (cross-cutting) |
+| `Keycloak.AuthServices.Authentication` | 2.8.0 | Zainstalowany | Integracja OIDC z Keycloak |
+| `Keycloak.AuthServices.Authorization` | 2.8.0 | Zainstalowany | Polityki autoryzacji na bazie Keycloak roles |
+| `VaultSharp` | 1.17.5.1 | Zainstalowany | Klient HashiCorp Vault |
+| `VaultSharp.Extensions.Configuration` | 1.1.4 | Zainstalowany | Vault jako .NET Configuration Provider |
+| `OpenTelemetry.Exporter.OpenTelemetryProtocol` | 1.12.0 | Zainstalowany | OTLP exporter do Jaeger (gRPC) |
+| `Asp.Versioning.Http` | 8.1.1 | Zainstalowany | API versioning - URL segment `/api/v{version}/...` |
+| `Swashbuckle.AspNetCore` | 10.1.5 | Zainstalowany | Swagger UI / OpenAPI generation |
+| `OpenTelemetry.Instrumentation.Http` | latest | Do dodania | Instrumentacja HttpClient outgoing calls |
+| `OpenTelemetry.Instrumentation.EntityFrameworkCore` | latest | Do dodania | Instrumentacja EF Core queries |
+| `Serilog.AspNetCore` | latest | Do dodania | Strukturalne logowanie |
+| `Serilog.Sinks.Console` | latest | Do dodania | Log output do konsoli/Docker logs |
+| `Serilog.Enrichers.OpenTelemetry` | latest | Do dodania | Trace ID w logach Serilog |
 
 ---
 
@@ -108,8 +108,8 @@ Background worker - Kafka consumer.
 | Pakiet | Wersja | Status | Uzasadnienie |
 |--------|--------|--------|--------------|
 | `Microsoft.Extensions.Hosting` | 10.0.1 | Zainstalowany | BackgroundService hosting |
-| `Confluent.Kafka` | 2.13.0 | Do dodania | Kafka consumer do odbioru Integration Events (Sprint 3.3) |
-| `MongoDB.Driver` | 3.6.0 | Do dodania | MongoDB upsert read models (Sprint 3.3) |
+| `Confluent.Kafka` | 2.13.0 | Zainstalowany | Kafka consumer do odbioru Integration Events |
+| `MongoDB.Driver` | 3.6.0 | Zainstalowany | MongoDB upsert read models |
 
 ---
 
@@ -176,10 +176,10 @@ Pakiety ktore moga byc dodane do wielu serwisow:
 | Kategoria | Zainstalowane | Do dodania |
 |-----------|---------------|------------|
 | Shared.Kernel | 1 | 0 |
-| Content (Core + Application + Persistence + Infrastructure + Api) | 17 | 12 |
-| Sync Worker | 1 | 2 |
+| Content (Core + Application + Persistence + Infrastructure + Api) | 25 | 5 |
+| Sync Worker | 3 | 0 |
 | Stub Services (5x) | 5 | 0 |
 | Unit Tests | 6 | 0 |
 | Integration Tests | 9 | 1 |
 | Cross-cutting | 0 | 5 |
-| **Razem** | **39** | **20** |
+| **Razem** | **49** | **11** |

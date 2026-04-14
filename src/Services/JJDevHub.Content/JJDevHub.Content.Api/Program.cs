@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.RateLimiting;
 using Asp.Versioning;
 using Asp.Versioning.Builder;
@@ -11,6 +12,7 @@ using JJDevHub.Content.Application;
 using JJDevHub.Content.Infrastructure;
 using JJDevHub.Content.Persistence;
 using Keycloak.AuthServices.Authentication;
+using Microsoft.EntityFrameworkCore;
 using Keycloak.AuthServices.Authorization;
 using MongoDB.Driver;
 using OpenTelemetry.Exporter;
@@ -165,6 +167,35 @@ builder.Services.AddOpenTelemetry()
     });
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<ContentDbContext>();
+    var cancellationToken = app.Lifetime.ApplicationStopping;
+    var maxAttempts = 5;
+
+    for (var attempt = 1; attempt <= maxAttempts; attempt++)
+    {
+        try
+        {
+            await db.Database.MigrateAsync(cancellationToken);
+            break;
+        }
+        catch (Exception ex) when (attempt < maxAttempts && !cancellationToken.IsCancellationRequested)
+        {
+            var delay = TimeSpan.FromSeconds(attempt * 2);
+            app.Logger.LogWarning(
+                ex,
+                "Failed to apply database migrations on startup (attempt {Attempt}/{MaxAttempts}). Retrying in {DelaySeconds} seconds.",
+                attempt,
+                maxAttempts,
+                delay.TotalSeconds);
+
+            await Task.Delay(delay, cancellationToken);
+        }
+    }
+}
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 

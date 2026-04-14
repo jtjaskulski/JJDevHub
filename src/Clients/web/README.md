@@ -1,16 +1,26 @@
-# Web
+# JJDevHub — Angular Web Client
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.1.
+Angular 21 SPA with Angular Material, serving as the public-facing blog and hidden CV management panel.
+
+## JJDevHub Configuration
+
+API and authentication settings are in `src/environments/environment.ts`:
+
+- **`contentApiUrl`** — defaults to `http://localhost:8081/api/v1/content` (through Nginx reverse proxy)
+- **Keycloak** — OIDC auth via `keycloak-angular`. Set `keycloak.url` to enable; leave empty to bypass auth in dev
+
+Key pages: Home (blog), Work Experience timeline, About, Admin (CV manager, Application Tracker — Owner role only).
 
 ## Development server
 
-To start a local development server, run:
-
 ```bash
-ng serve
+npm install
+npm start
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Open `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+
+When running against Docker backend, make sure `infra/docker/docker-compose.yml` is up (`docker compose up -d`).
 
 ## Code scaffolding
 

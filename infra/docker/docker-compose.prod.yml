@@ -1,0 +1,287 @@
+# Production overrides — merge with base:
+#   Requires Docker Compose v2.24.4+ because this file uses `!override`
+#   to replace inherited lists such as `ports`.
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Key differences from dev:
+#   - HTTPS (443) via Cloudflare Origin CA on Nginx
+#   - Three isolated networks (frontend / backend / data)
+#   - No host-exposed ports except Nginx 443 (cloudflared connects here)
+#   - Production ASP.NET environment, stronger secrets via .env
+#   - SonarQube / Jenkins excluded (run on a separate CI VM)
+#   - Resource limits per container
+#   - restart: unless-stopped everywhere
+
+services:
+  # ── REVERSE PROXY ──────────────────────────────────────────────
+  nginx:
+    ports: !override
+      - "443:443"
+    volumes:
+      - ./nginx/nginx-prod.conf:/etc/nginx/nginx.conf:ro
+      - ${SSL_CERT_DIR:-/etc/ssl/cloudflare}:/etc/ssl/cloudflare:ro
+    restart: unless-stopped
+    networks:
+      - frontend-net
+      - backend-net
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # ── SECRETS ────────────────────────────────────────────────────
+  vault:
+    ports: !override []
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ""
+      VAULT_ADDR: "http://0.0.0.0:8200"
+      VAULT_LOCAL_CONFIG: '{"storage":{"file":{"path":"/vault/data"}},"listener":{"tcp":{"address":"0.0.0.0:8200","tls_disable":"true"}}}'
+    command: server
+    volumes:
+      - vault_data:/vault/data
+    restart: unless-stopped
+    networks:
+      - backend-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  keycloak:
+    command: start --import-realm --hostname-strict=false
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: "${KC_ADMIN_USER:-admin}"
+      KC_BOOTSTRAP_ADMIN_PASSWORD: "${KC_ADMIN_PASSWORD:?Set KC_ADMIN_PASSWORD in .env}"
+      KC_DB: postgres
+      KC_DB_URL: "jdbc:postgresql://db:5432/keycloak"
+      KC_DB_USERNAME: "${DB_USER:-postgres}"
+      KC_DB_PASSWORD: "${DB_PASSWORD:?Set DB_PASSWORD in .env}"
+    ports: !override []
+    restart: unless-stopped
+    networks:
+      - backend-net
+      - data-net
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  # ── CI/CD — disabled in prod (use separate VM) ────────────────
+  jenkins:
+    profiles: ["ci"]
+
+  sonarqube-db:
+    profiles: ["ci"]
+
+  sonarqube:
+    profiles: ["ci"]
+
+  # ── DATABASES ──────────────────────────────────────────────────
+  db:
+    environment:
+      POSTGRES_USER: "${DB_USER:-postgres}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?Set DB_PASSWORD in .env}"
+      POSTGRES_DB: jjdevhub_content
+    ports: !override []
+    volumes:
+      - /data/postgres:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - data-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  mongodb:
+    ports: !override []
+    volumes:
+      - /data/mongo:/data/db
+    restart: unless-stopped
+    networks:
+      - data-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ── MESSAGING ──────────────────────────────────────────────────
+  zookeeper:
+    restart: unless-stopped
+    networks:
+      - data-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  kafka:
+    ports: !override []
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+    restart: unless-stopped
+    networks:
+      - data-net
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  # ── OBSERVABILITY ──────────────────────────────────────────────
+  prometheus:
+    ports: !override []
+    restart: unless-stopped
+    networks:
+      - backend-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  grafana:
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}"
+      GF_SERVER_ROOT_URL: "https://${DOMAIN:-jjdevhub.pl}/grafana/"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+    ports: !override []
+    restart: unless-stopped
+    networks:
+      - backend-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  jaeger:
+    ports: !override []
+    restart: unless-stopped
+    networks:
+      - backend-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ── APPLICATION SERVICES ───────────────────────────────────────
+  angular-web:
+    restart: unless-stopped
+    networks:
+      - frontend-net
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  content-api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__ContentDb: "Host=db;Port=5432;Database=jjdevhub_content;Username=${DB_USER:-postgres};Password=${DB_PASSWORD:?err}"
+      MongoDb__ConnectionString: "mongodb://mongodb:27017"
+      Kafka__BootstrapServers: "kafka:9092"
+      Vault__Enabled: "${VAULT_ENABLED:-false}"
+      Vault__Token: "${VAULT_TOKEN}"
+      Keycloak__auth-server-url: "http://jjdevhub-keycloak:8080/"
+      Keycloak__credentials__secret: "${KEYCLOAK_CLIENT_SECRET:?Set KEYCLOAK_CLIENT_SECRET in .env}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
+    restart: unless-stopped
+    networks:
+      - backend-net
+      - data-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  analytics-api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    restart: unless-stopped
+    networks:
+      - backend-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  identity-api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    restart: unless-stopped
+    networks:
+      - backend-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  ai-gateway:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    restart: unless-stopped
+    networks:
+      - backend-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  notification-api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    restart: unless-stopped
+    networks:
+      - backend-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  education-api:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    restart: unless-stopped
+    networks:
+      - backend-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  sync-worker:
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      MongoDb__ConnectionString: "mongodb://mongodb:27017"
+      Kafka__BootstrapServers: "kafka:9092"
+    restart: unless-stopped
+    networks:
+      - backend-net
+      - data-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+# ── NETWORKS ───────────────────────────────────────────────────
+networks:
+  frontend-net:
+    driver: bridge
+  backend-net:
+    driver: bridge
+  data-net:
+    driver: bridge
+    internal: true
+
+# ── ADDITIONAL VOLUMES ─────────────────────────────────────────
+volumes:
+  vault_data:

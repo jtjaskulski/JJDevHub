@@ -28,7 +28,7 @@ Rozszerzenie write modelu o agregat **CurriculumVitae** (lub root CV z kolekcjam
 
 ### API
 
-- Endpointy minimal API lub kontrolery pod `/api/content/cv` (lub wersjonowane).
+- Endpointy minimal API pod `/api/v1/content/cv`.
 
 ## Kryteria akceptacji (szkic)
 

@@ -46,10 +46,10 @@ gantt
     CV Generation Engine     :done, s5t3, 2026-03-15, 14d
 
     section Sprint6
-    SonarQube Quality Gate   :active, s6t1, 2026-04-01, 14d
+    SonarQube Quality Gate   :done, s6t1, 2026-04-01, 14d
     Jenkinsfile Pipeline     :done, s6t2, 2026-04-01, 14d
-    OpenTelemetry Setup      :active, s6t3, 2026-04-01, 14d
-    Grafana Dashboards       :active, s6t4, 2026-04-01, 14d
+    OpenTelemetry Setup      :done, s6t3, 2026-04-01, 14d
+    Grafana Dashboards       :done, s6t4, 2026-04-01, 14d
 ```
 
 ## Przeglad sprintow
@@ -112,10 +112,10 @@ gantt
 
 | Task | Nazwa | Status | Plik |
 |------|-------|--------|------|
-| 6.1 | [SonarQube Quality Gate](sprint-6/task-6.1-sonarqube-quality-gate.md) | IN PROGRESS | sonar-project.properties; Quality Gate w UI SonarQube |
+| 6.1 | [SonarQube Quality Gate](sprint-6/task-6.1-sonarqube-quality-gate.md) | DONE | sonar-project.properties; Quality Gate w pipeline Jenkins |
 | 6.2 | [Jenkinsfile Pipeline](sprint-6/task-6.2-jenkinsfile-pipeline.md) | DONE | Pelny 9-stage pipeline |
-| 6.3 | [OpenTelemetry Setup](sprint-6/task-6.3-opentelemetry-setup.md) | IN PROGRESS | Prometheus `/metrics` + tracing OTLP gRPC → Jaeger (compose) |
-| 6.4 | [Grafana Dashboards](sprint-6/task-6.4-grafana-dashboards.md) | IN PROGRESS | content-api + infrastructure-overview.json |
+| 6.3 | [OpenTelemetry Setup](sprint-6/task-6.3-opentelemetry-setup.md) | DONE | Prometheus `/metrics` + tracing OTLP gRPC → Jaeger (compose) |
+| 6.4 | [Grafana Dashboards](sprint-6/task-6.4-grafana-dashboards.md) | DONE | content-api dashboard + auto-provisioning datasource |
 | 6.5 | [Ekstrakcja NuGet Packages](sprint-6/task-6.5-extract-nuget-packages.md) | TODO | Plan: [packages-extraction-plan.md](packages-extraction-plan.md) |
 
 ## Dodatkowe dokumenty
@@ -128,9 +128,14 @@ gantt
 
 | Status | Liczba taskow |
 |--------|---------------|
-| DONE | 18 |
-| IN PROGRESS | 3 |
+| DONE | 21 |
+| IN PROGRESS | 0 |
 | TODO | 1 |
 | **Razem** | **22** |
 
 Uwaga: Task **6.5** pozostaje **TODO** (ekstrakcja kodu); dostepny jest plan w [packages-extraction-plan.md](packages-extraction-plan.md).
+
+## Dokumentacja
+
+- [Przewodnik kompleksowy (PL)](../jjdevhub-przewodnik-kompleksowy.md) — mapa systemu, E2E, playbook, tutoriale technologii, FAQ
+- [Architecture Tutorial (EN)](../architecture-tutorial.md) — pelny tutorial DDD/CQRS/Clean Architecture
