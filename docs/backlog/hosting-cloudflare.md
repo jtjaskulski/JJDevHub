@@ -1,6 +1,6 @@
 # JJDevHub - Hosting & Cloudflare Production Deployment
 
-> Architektura wdrozenia produkcyjnego: VPS + Cloudflare jako warstwa DNS/WAF.
+> Architektura wdrozenia produkcyjnego: VPS lub Proxmox (home lab) + Cloudflare jako warstwa DNS/WAF/Tunnel.
 
 ## Kluczowa zasada
 
@@ -409,13 +409,66 @@ db:
 
 ---
 
+## Alternatywa: Proxmox + Starlink + Cloudflare Tunnel (home lab)
+
+Jesli zamiast VPS wolisz hostowac na wlasnym sprzecie (np. PC pod Proxmoxem na Starlink Residential), schemat z rekordami A **nie zadziala** — Starlink uzywa CGNAT i nie przydziela publicznego IP.
+
+### Cloudflare Tunnel — jak to dziala
+
+`cloudflared` to lekki daemon, ktory nawiazuje **polaczenie wychodzace** do Cloudflare Edge. Ruch od uzytkownikow przechodzi przez Cloudflare i dociera do tunelu — nie potrzebujesz publicznego IP, otwartych portow na firewallu ani przekierowania portow na routerze.
+
+```
+[Uzytkownik] → HTTPS → [Cloudflare Edge] → tunel (wychodzacy) → [cloudflared → Nginx → Docker]
+```
+
+### Roznice vs VPS
+
+| Aspekt | VPS (sekcje 1-8 powyzej) | Proxmox + Starlink |
+|--------|-------------------------|--------------------|
+| Siec | Publiczny IP, rekordy A | CGNAT, Cloudflare Tunnel |
+| Firewall | UFW: port 443 tylko Cloudflare IPs | Nie trzeba — brak otwartych portow |
+| DNS | Rekordy A wskazujace na IP VPS | Rekordy CNAME zarzadzane przez tunel |
+| Koszt | ~7-12 EUR/mies. VPS | 0 EUR (wlasny hardware) |
+| Uptime | 99.9%+ (datacenter) | Zalezny od Starlink + zasilania |
+| Latency | ~10-30 ms (EU datacenter) | ~40-80 ms (Starlink satelitarny) |
+
+### Szybki start (Cloudflare Tunnel)
+
+1. **Cloudflare Dashboard** → Zero Trust → Networks → Tunnels → Create a tunnel
+2. Nazwa: `jjdevhub-proxmox`, connector: Cloudflared
+3. Skopiuj token instalacyjny, nastepnie na VM:
+   ```bash
+   curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o cloudflared.deb
+   sudo dpkg -i cloudflared.deb
+   sudo cloudflared service install <TOKEN>
+   ```
+4. W sekcji **Public Hostnames** dodaj routingi (np. `@ → https://localhost:443`, `grafana → http://localhost:3000`)
+5. Wlacz **Cloudflare Access** dla paneli administracyjnych (Grafana, Jenkins, Keycloak)
+
+Pelna instrukcja krok po kroku: [deployment-proxmox-starlink.md](../deployment-proxmox-starlink.md)
+
+### Pliki produkcyjne
+
+Gotowe pliki infrastrukturalne dla obu wariantow (VPS i Proxmox):
+
+| Plik | Opis |
+|------|------|
+| [`docker-compose.prod.yml`](../../infra/docker/docker-compose.prod.yml) | Override produkcyjny (sieci, porty, restart, env) |
+| [`nginx-prod.conf`](../../infra/docker/nginx/nginx-prod.conf) | Nginx z SSL Origin CA, gzip, security headers |
+| [`.env.prod.example`](../../infra/docker/.env.prod.example) | Template zmiennych produkcyjnych |
+| [`backup.sh`](../../infra/docker/backup.sh) | Skrypt pg_dump + mongodump + upload (rclone) |
+
+---
+
 ## Implementacja w repozytorium (Task „Production Readiness”)
 
 Powiazane pliki: [docker-compose.yml](../../infra/docker/docker-compose.yml), [nginx.conf](../../infra/docker/nginx/nginx.conf), [Jenkinsfile](../../Jenkinsfile).
 
-- [ ] `docker compose` produkcyjny: sieci `frontend-net` / `backend-net` / `data-net`, brak wystawionych portow na hosta (procz 443)
+- [x] `docker-compose.prod.yml`: sieci `frontend-net` / `backend-net` / `data-net`, brak wystawionych portow na hosta, resource limits
+- [x] `nginx-prod.conf`: SSL Origin CA, gzip, security headers, rate limiting, Cloudflare real IP
+- [x] `.env.prod.example`: template zmiennych produkcyjnych (DB, Keycloak, Grafana, SSL)
+- [x] `backup.sh`: pg_dump + mongodump + kompresja + opcjonalny upload (rclone)
 - [x] Nginx: `location /api/v1/content/` i rewrite legacy `/api/content/` (zaimplementowane w dev compose)
 - [x] Keycloak: realm `jjdevhub`, klienci `jjdevhub-web` / `jjdevhub-api` (import z [keycloak/jjdevhub-realm.json](../../infra/docker/keycloak/jjdevhub-realm.json))
 - [x] Vault: `bootstrap-vault.sh` po starcie; `Vault__Enabled=true` w API gdy sekrety maja zastapic env
-- [ ] Backup: cron `pg_dump` / `mongodump` + off-site
 - [ ] Registry obrazow + Jenkins deploy SSH na VPS
