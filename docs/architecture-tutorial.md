@@ -1765,9 +1765,14 @@ docker-compose -f infra/docker/docker-compose.yml logs -f angular-web
 docker-compose -f infra/docker/docker-compose.yml restart grafana
 
 # Health check serwisów (po uruchomieniu Docker)
-curl http://localhost:8081/api/v1/content/health
-curl http://localhost:8081/api/analytics/health
-curl http://localhost:8081/api/identity/health
+# Content API mapuje health endpoint na /health, więc sprawdzaj go bezpośrednio w kontenerze:
+docker-compose -f infra/docker/docker-compose.yml exec content-api curl http://127.0.0.1:8080/health
+
+# Analogicznie sprawdzaj pozostałe API wewnątrz ich kontenerów:
+docker-compose -f infra/docker/docker-compose.yml exec analytics-api curl http://127.0.0.1:8080/health
+docker-compose -f infra/docker/docker-compose.yml exec identity-api curl http://127.0.0.1:8080/health
+
+# Jeśli chcesz udostępnić /health przez localhost:8081, dodaj jawny location /health w konfiguracji Nginx.
 ```
 
 ---
