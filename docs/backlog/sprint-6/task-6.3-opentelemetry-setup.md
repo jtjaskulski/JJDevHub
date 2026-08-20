@@ -44,7 +44,6 @@ OpenTelemetry to standard observability obejmujacy metryki, tracing i logowanie.
 - Rozszerzenie trace przez Nginx i pozostale serwisy (wspolny trace context)
 - Structured Logging z Serilog + OpenTelemetry
 - Metryki customowe (biznesowe: ile CV wygenerowano, ile aplikacji dodano)
-- Instrumentacja HTTP client (outgoing calls do innych serwisow)
 - Instrumentacja EF Core (query duration, connection pool)
 - Instrumentacja Kafka (produce/consume latency)
 - Dodanie OpenTelemetry do pozostalych serwisow (Analytics, Identity, etc.)
@@ -54,8 +53,8 @@ OpenTelemetry to standard observability obejmujacy metryki, tracing i logowanie.
 - [x] OpenTelemetry Metrics w Content.Api (AspNetCore + Runtime)
 - [x] Prometheus exporter na `/metrics`
 - [x] Prometheus scrapuje metryki z Content.Api
-- [ ] Distributed Tracing: trace ID propagowany przez HTTP headers
-- [ ] HTTP Client instrumentation (outgoing calls)
+- [x] Distributed Tracing: trace ID propagowany przez HTTP headers (ASP.NET Core + HttpClient → OTLP gdy endpoint ustawiony)
+- [x] HTTP Client instrumentation (outgoing calls)
 - [ ] EF Core instrumentation (query metrics)
 - [ ] Serilog z OpenTelemetry enricher (trace ID w logach)
 - [ ] Custom business metrics (cv_generated_total, applications_created_total)

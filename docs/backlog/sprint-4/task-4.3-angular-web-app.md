@@ -3,7 +3,7 @@
 | Pole | Wartosc |
 |------|---------|
 | Sprint | 4 - Public Face & Mobile |
-| Status | DONE |
+| Status | IN PROGRESS |
 | Priorytet | High |
 | Estymacja | 13 story points |
 | Powiazane pliki | `src/Clients/web/` |
@@ -49,9 +49,7 @@ Angular 21 SPA (Single Page Application) sluzy jako glowny interfejs webowy JJDe
 
 ### Co pozostalo
 
-- **Blog:** podłączenie listy i treści do Content API (read), zamiast `BlogService` mock
-- **RBAC / Owner:** odkrywanie modułów admin i guardy oparte o role — Sprint 5 ([task-5.1-angular-rbac.md](../sprint-5/task-5.1-angular-rbac.md))
-- **Keycloak w Docker / JWT na Content.Api:** Task 1.1 — do pełnego E2E zabezpieczeń zapisów
+- **Blog (blokuje DONE):** podłączenie listy i treści do Content API (read), zamiast `BlogService` mock
 - **PWA** (`@angular/pwa`) — poza checklistą akceptacji Task 4.3
 - **SEO / SSR lub prerendering** — osobny zakres
 

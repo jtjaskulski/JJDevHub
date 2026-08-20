@@ -78,6 +78,11 @@ export class AdminTrackerPage implements OnInit {
 
   editingId = signal<string | null>(null);
 
+  readonly requirementCategories = ['Backend', 'Frontend', 'DevOps', 'Soft', 'Other'] as const;
+  readonly requirementPriorities = ['MustHave', 'NiceToHave'] as const;
+  readonly noteTypes = ['General', 'Interview', 'Feedback'] as const;
+  readonly interviewStatuses = ['Scheduled', 'Completed', 'Cancelled'] as const;
+
   form = this.fb.nonNullable.group({
     companyName: ['', Validators.required],
     location: [''],
@@ -88,6 +93,25 @@ export class AdminTrackerPage implements OnInit {
     appliedDate: ['', Validators.required],
     linkedCurriculumVitaeId: [''],
     version: [0],
+  });
+
+  requirementForm = this.fb.nonNullable.group({
+    description: ['', Validators.required],
+    category: ['Backend' as (typeof this.requirementCategories)[number], Validators.required],
+    priority: ['MustHave' as (typeof this.requirementPriorities)[number], Validators.required],
+    isMet: [false],
+  });
+
+  noteForm = this.fb.nonNullable.group({
+    content: ['', Validators.required],
+    noteType: ['General' as (typeof this.noteTypes)[number], Validators.required],
+  });
+
+  stageForm = this.fb.nonNullable.group({
+    stageName: ['', Validators.required],
+    scheduledAt: ['', Validators.required],
+    status: ['Scheduled' as (typeof this.interviewStatuses)[number], Validators.required],
+    feedback: [''],
   });
 
   ngOnInit(): void {
@@ -248,5 +272,80 @@ export class AdminTrackerPage implements OnInit {
       label: key,
       count,
     }));
+  }
+
+  addRequirement(row: JobApplication): void {
+    if (this.requirementForm.invalid) return;
+    const v = this.requirementForm.getRawValue();
+    this.api
+      .addJobApplicationRequirement(row.id, {
+        version: row.version,
+        description: v.description.trim(),
+        category: v.category,
+        priority: v.priority,
+        isMet: v.isMet,
+      })
+      .subscribe({
+        next: () => {
+          this.requirementForm.reset({
+            description: '',
+            category: 'Backend',
+            priority: 'MustHave',
+            isMet: false,
+          });
+          this.snack.open('Dodano wymaganie', 'OK', { duration: 3000 });
+          this.reload();
+        },
+        error: (err) =>
+          this.snack.open(resolveApiErrorFromHttp(err, 'Błąd'), 'Zamknij', { duration: 6000 }),
+      });
+  }
+
+  addNote(row: JobApplication): void {
+    if (this.noteForm.invalid) return;
+    const v = this.noteForm.getRawValue();
+    this.api
+      .addJobApplicationNote(row.id, {
+        version: row.version,
+        content: v.content.trim(),
+        noteType: v.noteType,
+        createdAt: new Date().toISOString(),
+      })
+      .subscribe({
+        next: () => {
+          this.noteForm.reset({ content: '', noteType: 'General' });
+          this.snack.open('Dodano notatkę', 'OK', { duration: 3000 });
+          this.reload();
+        },
+        error: (err) =>
+          this.snack.open(resolveApiErrorFromHttp(err, 'Błąd'), 'Zamknij', { duration: 6000 }),
+      });
+  }
+
+  addInterviewStage(row: JobApplication): void {
+    if (this.stageForm.invalid) return;
+    const v = this.stageForm.getRawValue();
+    this.api
+      .addJobApplicationInterviewStage(row.id, {
+        version: row.version,
+        stageName: v.stageName.trim(),
+        scheduledAt: v.scheduledAt,
+        status: v.status,
+        feedback: v.feedback.trim() || null,
+      })
+      .subscribe({
+        next: () => {
+          this.stageForm.reset({
+            stageName: '',
+            scheduledAt: '',
+            status: 'Scheduled',
+            feedback: '',
+          });
+          this.snack.open('Dodano etap rozmowy', 'OK', { duration: 3000 });
+          this.reload();
+        },
+        error: (err) =>
+          this.snack.open(resolveApiErrorFromHttp(err, 'Błąd'), 'Zamknij', { duration: 6000 }),
+      });
   }
 }

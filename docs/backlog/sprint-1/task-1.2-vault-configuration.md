@@ -3,7 +3,7 @@
 | Pole | Wartosc |
 |------|---------|
 | Sprint | 1 - Identity & Foundation |
-| Status | IN PROGRESS |
+| Status | DONE |
 | Priorytet | High |
 | Estymacja | 5 story points |
 | Powiazane pliki | `infra/docker/docker-compose.yml`, `infra/docker/bootstrap-vault.sh`, `src/Services/JJDevHub.Content/JJDevHub.Content.Api/Program.cs` |
@@ -24,9 +24,9 @@ HashiCorp Vault sluzy do bezpiecznego zarzadzania sekretami (connection stringi,
 
 ### Co pozostalo
 
-- Integracja `VaultSharp` w serwisach .NET do dynamicznego pobierania sekretow
-- Zamiana hardcoded connection stringow w appsettings na Vault lookups
-- Konfiguracja Vault policies i AppRole auth dla produkcji
+- Vault wlacza sie tylko przy `Vault:Enabled=true` (compose: `Vault__Enabled=false`)
+- AppRole / policies produkcyjne — poza MVP
+- Integracja Vault w pozostalych mikroserwisach (obecnie tylko Content.Api)
 
 ## Kryteria akceptacji
 

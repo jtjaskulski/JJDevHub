@@ -2,7 +2,7 @@
   <mat-card appearance="outlined">
     <mat-card-header>
       <mat-card-title>CV Manager</mat-card-title>
-      <mat-card-subtitle>Generowanie PDF (QuestPDF) — opcjonalnie z kontekstem aplikacji z trackera</mat-card-subtitle>
+      <mat-card-subtitle>CRUD + generowanie PDF (QuestPDF)</mat-card-subtitle>
     </mat-card-header>
     <mat-card-content [formGroup]="jobForm" class="hint">
       <mat-form-field appearance="outline" subscriptSizing="dynamic" class="job-field">
@@ -14,6 +14,56 @@
       </p>
     </mat-card-content>
   </mat-card>
+
+  <div class="toolbar">
+    <button mat-flat-button color="primary" type="button" (click)="startCreate()" [disabled]="!!editingId()">
+      <mat-icon>add</mat-icon>
+      Nowe CV
+    </button>
+    <button mat-icon-button type="button" (click)="reload()" aria-label="Odśwież">
+      <mat-icon>refresh</mat-icon>
+    </button>
+  </div>
+
+  @if (editingId()) {
+    <mat-card appearance="outlined">
+      <mat-card-header>
+        <mat-card-title>{{ editingId() === 'new' ? 'Nowe CV' : 'Edycja danych osobowych' }}</mat-card-title>
+      </mat-card-header>
+      <mat-card-content [formGroup]="personalForm" class="form-grid">
+        <mat-form-field appearance="outline">
+          <mat-label>Imię</mat-label>
+          <input matInput formControlName="firstName" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Nazwisko</mat-label>
+          <input matInput formControlName="lastName" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>E-mail</mat-label>
+          <input matInput formControlName="email" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Telefon</mat-label>
+          <input matInput formControlName="phone" />
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Lokalizacja</mat-label>
+          <input matInput formControlName="location" />
+        </mat-form-field>
+        <mat-form-field appearance="outline" class="span-2">
+          <mat-label>Bio</mat-label>
+          <textarea matInput rows="3" formControlName="bio"></textarea>
+        </mat-form-field>
+        <div class="form-actions span-2">
+          <button mat-flat-button color="primary" type="button" [disabled]="saving() || personalForm.invalid" (click)="savePersonal()">
+            Zapisz
+          </button>
+          <button mat-button type="button" (click)="cancelEdit()">Anuluj</button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  }
 
   @if (loading()) {
     <div class="center">
@@ -35,6 +85,12 @@
         <ng-container matColumnDef="actions">
           <th mat-header-cell *matHeaderCellDef></th>
           <td mat-cell *matCellDef="let row">
+            <button mat-icon-button type="button" (click)="startEdit(row)" aria-label="Edytuj">
+              <mat-icon>edit</mat-icon>
+            </button>
+            <button mat-icon-button type="button" (click)="deleteRow(row)" aria-label="Usuń">
+              <mat-icon>delete</mat-icon>
+            </button>
             <button
               mat-flat-button
               color="primary"
@@ -54,5 +110,133 @@
         <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
       </table>
     </div>
+
+    @if (items().length > 0) {
+      <mat-accordion class="detail-acc">
+        @for (row of items(); track row.id) {
+          <mat-expansion-panel>
+            <mat-expansion-panel-header>
+              <mat-panel-title>{{ displayName(row) }}</mat-panel-title>
+              <mat-panel-description>{{ row.skills.length }} skills · {{ row.educations.length }} edu</mat-panel-description>
+            </mat-expansion-panel-header>
+
+            <h4>Umiejętności</h4>
+            <ul>
+              @for (s of row.skills; track s.id) {
+                <li>
+                  {{ s.name }} ({{ s.category }}) — {{ s.level }}
+                  <button mat-button type="button" (click)="removeSkill(row, s.id)">Usuń</button>
+                </li>
+              }
+            </ul>
+            <div class="mini-form" [formGroup]="skillForm">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Nazwa</mat-label>
+                <input matInput formControlName="name" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Kategoria</mat-label>
+                <input matInput formControlName="category" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Poziom</mat-label>
+                <mat-select formControlName="level">
+                  @for (l of skillLevels; track l) {
+                    <mat-option [value]="l">{{ l }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <button mat-stroked-button type="button" [disabled]="skillForm.invalid" (click)="addSkill(row)">Dodaj</button>
+            </div>
+
+            <h4>Wykształcenie</h4>
+            <ul>
+              @for (e of row.educations; track e.id) {
+                <li>{{ e.institution }} — {{ e.fieldOfStudy }} ({{ e.degree }})</li>
+              }
+            </ul>
+            <div class="mini-form" [formGroup]="educationForm">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Uczelnia</mat-label>
+                <input matInput formControlName="institution" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Kierunek</mat-label>
+                <input matInput formControlName="fieldOfStudy" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Stopień</mat-label>
+                <mat-select formControlName="degree">
+                  @for (d of degrees; track d) {
+                    <mat-option [value]="d">{{ d }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Od</mat-label>
+                <input matInput type="date" formControlName="periodStart" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Do</mat-label>
+                <input matInput type="date" formControlName="periodEnd" />
+              </mat-form-field>
+              <button mat-stroked-button type="button" [disabled]="educationForm.invalid" (click)="addEducation(row)">Dodaj</button>
+            </div>
+
+            <h4>Projekty</h4>
+            <ul>
+              @for (p of row.projects; track p.id) {
+                <li>{{ p.name }} — {{ p.description }}</li>
+              }
+            </ul>
+            <div class="mini-form" [formGroup]="projectForm">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Nazwa</mat-label>
+                <input matInput formControlName="name" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Opis</mat-label>
+                <input matInput formControlName="description" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>URL</mat-label>
+                <input matInput formControlName="url" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Technologie (przecinki)</mat-label>
+                <input matInput formControlName="technologies" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Od</mat-label>
+                <input matInput type="date" formControlName="periodStart" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Do</mat-label>
+                <input matInput type="date" formControlName="periodEnd" />
+              </mat-form-field>
+              <button mat-stroked-button type="button" [disabled]="projectForm.invalid" (click)="addProject(row)">Dodaj</button>
+            </div>
+
+            <h4>Doświadczenie (powiązane)</h4>
+            <ul>
+              @for (wid of row.workExperienceIds; track wid) {
+                <li>{{ workExperienceLabel(wid) }}</li>
+              }
+            </ul>
+            <div class="mini-form" [formGroup]="linkWeForm">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Work experience</mat-label>
+                <mat-select formControlName="workExperienceId">
+                  @for (we of workExperiences(); track we.id) {
+                    <mat-option [value]="we.id">{{ we.position }} @ {{ we.companyName }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <button mat-stroked-button type="button" [disabled]="linkWeForm.invalid" (click)="linkWorkExperience(row)">Powiąż</button>
+            </div>
+          </mat-expansion-panel>
+        }
+      </mat-accordion>
+    }
   }
 </div>

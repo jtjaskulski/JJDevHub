@@ -8,13 +8,21 @@ namespace JJDevHub.Content.Api.Services;
 
 public static class CurriculumVitaePdfComposer
 {
-    public static byte[] Compose(CurriculumVitaeDto cv, JobApplicationReadModel? job)
+    public static byte[] Compose(
+        CurriculumVitaeDto cv,
+        IReadOnlyList<WorkExperienceDto> workExperiences,
+        JobApplicationReadModel? job)
     {
         var pi = cv.PersonalInfo;
         var title = $"{pi.FirstName} {pi.LastName}".Trim();
         var jobLine = job is not null
             ? $"Target role: {job.Position} at {job.CompanyName}"
             : null;
+
+        var orderedWe = workExperiences
+            .OrderByDescending(w => w.IsCurrent)
+            .ThenByDescending(w => w.StartDate)
+            .ToList();
 
         return Document.Create(container =>
         {
@@ -38,6 +46,21 @@ public static class CurriculumVitaePdfComposer
                     {
                         col.Item().Text("Profile").SemiBold().FontSize(13);
                         col.Item().PaddingTop(4).Text(pi.Bio!);
+                        col.Item().PaddingTop(12);
+                    }
+
+                    if (orderedWe.Count > 0)
+                    {
+                        col.Item().Text("Work experience").SemiBold().FontSize(13);
+                        foreach (var we in orderedWe)
+                        {
+                            col.Item().PaddingTop(4).Text($"{we.Position} — {we.CompanyName}").SemiBold();
+                            col.Item()
+                                .Text($"{we.StartDate:yyyy-MM} — {(we.EndDate?.ToString("yyyy-MM") ?? "present")}")
+                                .FontSize(9)
+                                .FontColor(Colors.Grey.Medium);
+                        }
+
                         col.Item().PaddingTop(12);
                     }
 

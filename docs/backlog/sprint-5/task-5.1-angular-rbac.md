@@ -3,7 +3,7 @@
 | Pole | Wartosc |
 |------|---------|
 | Sprint | 5 - The Secret Feature |
-| Status | TODO |
+| Status | DONE |
 | Priorytet | High |
 | Estymacja | 8 story points |
 | Powiazane pliki | `src/Clients/web/src/app/` |
@@ -14,24 +14,19 @@ Implementacja Role-Based Access Control (RBAC) w Angular SPA. Aplikacja integruj
 
 ### Co trzeba zrobic
 
-1. Integracja z Keycloak (login/logout flow)
-2. HTTP Interceptor dodajacy JWT do kazdego requestu API
-3. AuthGuard chroniacy routy administracyjne
-4. Serwis `AuthService` z informacja o roli uzytkownika
-5. Dynamiczne menu - ukryte elementy widoczne tylko dla `Owner`
-6. Lazy-loaded `AdminModule` z chronionymi stronami
+Zaimplementowane (2026-08): Keycloak OIDC, interceptor JWT, Owner guard, menu admin, strony `/admin/work-experience`, `/admin/cv`, `/admin/tracker`. Environments wskazują na `http://localhost:8083`.
 
 ## Kryteria akceptacji
 
-- [ ] Przycisk Login/Logout w toolbarze
-- [ ] Keycloak login flow (redirect do Keycloak, powrot z tokenem)
-- [ ] JWT token automatycznie dolaczany do HTTP requestow (Interceptor)
-- [ ] Token refresh automatyczny (silent refresh)
-- [ ] `AuthService` eksponujacy: `isLoggedIn$`, `userRoles$`, `isOwner$`
-- [ ] `AuthGuard` blokujacy dostep do `/admin/*` dla nie-Owner
-- [ ] Menu nawigacyjne: publiczne linki zawsze widoczne, "Admin Panel" widoczny tylko dla Owner
-- [ ] Lazy-loaded `AdminModule` z routami: `/admin/work-experience`, `/admin/cv`, `/admin/tracker`
-- [ ] Graceful handling: jesli Keycloak niedostepny, aplikacja dziala w trybie publicznym (bez logowania)
+- [x] Przycisk Login/Logout w toolbarze
+- [x] Keycloak login flow (redirect do Keycloak, powrot z tokenem)
+- [x] JWT token automatycznie dolaczany do HTTP requestow (Interceptor)
+- [x] Token refresh automatyczny (silent refresh)
+- [x] `AuthService` eksponujacy: `isLoggedIn`, `userRoles`, `isOwner` (sygnaly Angular)
+- [x] `AuthGuard` blokujacy dostep do `/admin/*` dla nie-Owner
+- [x] Menu nawigacyjne: publiczne linki zawsze widoczne, "Admin Panel" widoczny tylko dla Owner
+- [x] Lazy-loaded strony admin: `/admin/work-experience`, `/admin/cv`, `/admin/tracker`
+- [x] Graceful handling: jesli Keycloak niedostepny, `check-sso` nie blokuje strony publicznej
 
 ## Wymagane pakiety npm
 

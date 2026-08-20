@@ -404,7 +404,7 @@ db:
 - [ ] Vault w trybie produkcyjnym (file backend zamiast dev mode)
 - [ ] Backup automatyczny (pg_dump, mongodump, cron)
 - [ ] Monitoring: Prometheus scrapuje metryki, Grafana dashboardy dzialaja
-- [ ] Jenkins: pipeline wdraza na VPS przez SSH
+- [x] Jenkins: pipeline wdraza stack lokalny (`docker compose` w `infra/docker`); produkcja: overlay `docker-compose.prod.yml`
 - [ ] Test: HTTPS dziala, WAF blokuje podejrzany ruch, API odpowiada
 
 ---

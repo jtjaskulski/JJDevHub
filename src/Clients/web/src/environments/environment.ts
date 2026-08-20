@@ -4,17 +4,17 @@ export const environment = {
   /** Pełny prefix Content API (kanoniczna ścieżka za Nginx). */
   contentApiUrl: 'http://localhost:8081/api/v1/content',
   /**
-   * Gdy ustawione, aplikacja inicjuje Keycloak (OIDC). Puste = brak logowania, tryb publiczny.
-   * Przykład dev: url `http://localhost:8083`, realm `jjdevhub`, clientId `jjdevhub-web`.
+   * OIDC — Keycloak na porcie hosta 8083 (compose).
+   * Seed: owner@test.com / Owner123! (rola Owner), student@test.com / Student123!.
    */
   keycloak: {
-    url: '',
-    realm: '',
-    clientId: '',
+    url: 'http://localhost:8083',
+    realm: 'jjdevhub',
+    clientId: 'jjdevhub-web',
   },
   /**
-   * Dev: pozwala wejść na route admin bez Keycloak gdy keycloak.url jest pusty.
-   * W produkcji ustaw false (build prod).
+   * Gdy Keycloak jest skonfigurowany, admin wymaga roli Owner.
+   * true tylko gdy url Keycloak jest pusty (tryb publiczny bez IdP).
    */
-  allowAdminWithoutAuth: true,
+  allowAdminWithoutAuth: false,
 };

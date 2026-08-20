@@ -162,6 +162,89 @@ export class ApiService {
     return this.http.get<CurriculumVitae[]>(`${this.contentUrl}/cv`);
   }
 
+  getCurriculumVitae(id: string): Observable<CurriculumVitae> {
+    return this.http.get<CurriculumVitae>(`${this.contentUrl}/cv/${id}`);
+  }
+
+  createCurriculumVitae(body: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string | null;
+    location?: string | null;
+    bio?: string | null;
+  }): Observable<{ id: string }> {
+    return this.http.post<{ id: string }>(`${this.contentUrl}/cv`, body);
+  }
+
+  updateCurriculumVitaePersonalInfo(
+    id: string,
+    body: {
+      version: number;
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone?: string | null;
+      location?: string | null;
+      bio?: string | null;
+    },
+  ): Observable<void> {
+    return this.http.put<void>(`${this.contentUrl}/cv/${id}`, body);
+  }
+
+  deleteCurriculumVitae(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.contentUrl}/cv/${id}`);
+  }
+
+  addCurriculumVitaeSkill(
+    id: string,
+    body: { version: number; name: string; category: string; level: string },
+  ): Observable<void> {
+    return this.http.post<void>(`${this.contentUrl}/cv/${id}/skills`, body);
+  }
+
+  removeCurriculumVitaeSkill(id: string, skillId: string, version: number): Observable<void> {
+    return this.http.delete<void>(`${this.contentUrl}/cv/${id}/skills/${skillId}`, {
+      params: { version: String(version) },
+    });
+  }
+
+  addCurriculumVitaeEducation(
+    id: string,
+    body: {
+      version: number;
+      institution: string;
+      fieldOfStudy: string;
+      degree: string;
+      periodStart: string;
+      periodEnd: string | null;
+    },
+  ): Observable<void> {
+    return this.http.post<void>(`${this.contentUrl}/cv/${id}/educations`, body);
+  }
+
+  addCurriculumVitaeProject(
+    id: string,
+    body: {
+      version: number;
+      name: string;
+      description: string;
+      url: string | null;
+      technologies: string[];
+      periodStart: string;
+      periodEnd: string | null;
+    },
+  ): Observable<void> {
+    return this.http.post<void>(`${this.contentUrl}/cv/${id}/projects`, body);
+  }
+
+  linkCurriculumVitaeWorkExperience(
+    id: string,
+    body: { version: number; workExperienceId: string },
+  ): Observable<void> {
+    return this.http.post<void>(`${this.contentUrl}/cv/${id}/work-experiences`, body);
+  }
+
   generateCvPdf(
     curriculumVitaeId: string,
     jobApplicationId?: string | null,

@@ -149,11 +149,13 @@ builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource.AddService("JJDevHub.Content.Api"))
     .WithMetrics(metrics => metrics
         .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
         .AddRuntimeInstrumentation()
         .AddPrometheusExporter())
     .WithTracing(tracing =>
     {
         tracing.AddAspNetCoreInstrumentation();
+        tracing.AddHttpClientInstrumentation();
         var otlp = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
         if (!string.IsNullOrWhiteSpace(otlp))
         {

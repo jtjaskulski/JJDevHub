@@ -23,6 +23,7 @@ public sealed class KafkaConsumerService : BackgroundService
 
     private readonly IWorkExperienceReadStore _readStore;
     private readonly IJobApplicationReadStore _jobApplicationReadStore;
+    private readonly ICurriculumVitaeReadStore _curriculumVitaeReadStore;
     private readonly IProducer<string, string> _producer;
     private readonly IConfiguration _configuration;
     private readonly ILogger<KafkaConsumerService> _logger;
@@ -32,6 +33,7 @@ public sealed class KafkaConsumerService : BackgroundService
     public KafkaConsumerService(
         IWorkExperienceReadStore readStore,
         IJobApplicationReadStore jobApplicationReadStore,
+        ICurriculumVitaeReadStore curriculumVitaeReadStore,
         IProducer<string, string> producer,
         IConfiguration configuration,
         ILogger<KafkaConsumerService> logger,
@@ -40,6 +42,7 @@ public sealed class KafkaConsumerService : BackgroundService
     {
         _readStore = readStore;
         _jobApplicationReadStore = jobApplicationReadStore;
+        _curriculumVitaeReadStore = curriculumVitaeReadStore;
         _producer = producer;
         _configuration = configuration;
         _logger = logger;
@@ -66,7 +69,10 @@ public sealed class KafkaConsumerService : BackgroundService
             nameof(WorkExperienceDeletedIntegrationEvent),
             nameof(JobApplicationCreatedIntegrationEvent),
             nameof(JobApplicationUpdatedIntegrationEvent),
-            nameof(JobApplicationDeletedIntegrationEvent)
+            nameof(JobApplicationDeletedIntegrationEvent),
+            nameof(CurriculumVitaeCreatedIntegrationEvent),
+            nameof(CurriculumVitaeUpdatedIntegrationEvent),
+            nameof(CurriculumVitaeDeletedIntegrationEvent)
         });
 
         stoppingToken.Register(() =>
@@ -265,6 +271,15 @@ public sealed class KafkaConsumerService : BackgroundService
             nameof(JobApplicationDeletedIntegrationEvent) => CreateJobApplicationDeleteOperation(
                 JsonSerializer.Deserialize<JobApplicationDeletedIntegrationEvent>(json, JsonOptions)),
 
+            nameof(CurriculumVitaeCreatedIntegrationEvent) => CreateCurriculumVitaeUpsertOperation(
+                JsonSerializer.Deserialize<CurriculumVitaeCreatedIntegrationEvent>(json, JsonOptions)),
+
+            nameof(CurriculumVitaeUpdatedIntegrationEvent) => CreateCurriculumVitaeUpsertOperation(
+                JsonSerializer.Deserialize<CurriculumVitaeUpdatedIntegrationEvent>(json, JsonOptions)),
+
+            nameof(CurriculumVitaeDeletedIntegrationEvent) => CreateCurriculumVitaeDeleteOperation(
+                JsonSerializer.Deserialize<CurriculumVitaeDeletedIntegrationEvent>(json, JsonOptions)),
+
             _ => throw new InvalidOperationException($"Unexpected topic: {consumeResult.Topic}")
         };
     }
@@ -349,5 +364,32 @@ public sealed class KafkaConsumerService : BackgroundService
             throw new JsonException("Could not deserialize job application deleted event.");
         var id = e.JobApplicationId;
         return ct => _jobApplicationReadStore.DeleteAsync(id, ct);
+    }
+
+    private Func<CancellationToken, Task> CreateCurriculumVitaeUpsertOperation(
+        CurriculumVitaeCreatedIntegrationEvent? e)
+    {
+        if (e is null)
+            throw new JsonException("Could not deserialize curriculum vitae created event.");
+        var model = CurriculumVitaeSnapshotMapper.ToReadModel(e);
+        return ct => _curriculumVitaeReadStore.UpsertAsync(model, ct);
+    }
+
+    private Func<CancellationToken, Task> CreateCurriculumVitaeUpsertOperation(
+        CurriculumVitaeUpdatedIntegrationEvent? e)
+    {
+        if (e is null)
+            throw new JsonException("Could not deserialize curriculum vitae updated event.");
+        var model = CurriculumVitaeSnapshotMapper.ToReadModel(e);
+        return ct => _curriculumVitaeReadStore.UpsertAsync(model, ct);
+    }
+
+    private Func<CancellationToken, Task> CreateCurriculumVitaeDeleteOperation(
+        CurriculumVitaeDeletedIntegrationEvent? e)
+    {
+        if (e is null)
+            throw new JsonException("Could not deserialize curriculum vitae deleted event.");
+        var id = e.CurriculumVitaeId;
+        return ct => _curriculumVitaeReadStore.DeleteAsync(id, ct);
     }
 }

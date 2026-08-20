@@ -3,7 +3,7 @@
 | Pole | Wartosc |
 |------|---------|
 | Sprint | 3 - Event-Driven Sync |
-| Status | IN PROGRESS |
+| Status | DONE |
 | Priorytet | High |
 | Estymacja | 8 story points |
 | Powiazane pliki | `src/Services/JJDevHub.Sync/`, `src/Services/JJDevHub.Content/JJDevHub.Content.Infrastructure/ReadStore/` |
@@ -21,33 +21,28 @@ Sync Worker to BackgroundService ktory konsumuje Integration Events z Kafka i wy
 - `WorkExperienceDocument` z `[BsonId]` atrybutami
 - `MongoDbSettings` z ConnectionString i DatabaseName
 
-**Sync Worker (placeholder):**
-- `Program.cs` z `AddHostedService<Worker>()`
-- `Worker.cs` - `BackgroundService` ktory loguje "Worker running at: {time}" co 1 sekunde
-- Brak logiki Kafka consumera
-- Brak referencji do Content.Infrastructure
+**Sync Worker:**
+- `KafkaConsumerService` — group `jjdevhub-sync-worker`, manual commit, retry, DLT, health
+- Topiki: WorkExperience, JobApplication, CurriculumVitae (Created/Updated/Deleted)
+- Placeholder `Worker.cs` zostal zastapiony
 
 ### Co pozostalo
 
-- Implementacja Kafka consumera w Sync Worker
-- Subskrypcja na Integration Event topics
-- Deserializacja eventow i wykonanie odpowiednich operacji na MongoDB
-- Retry logic i dead letter queue
-- Health check consumera
+- Testy automatyczne Sync Workera
+- Opcjonalnie: projekcja Mongo wylacznie z Kafki (obecnie dual-write: handler pre-commit + consumer)
 
 ## Kryteria akceptacji
 
-- [x] MongoWorkExperienceReadStore z pelnym CRUD + Upsert
-- [x] WorkExperienceDocument z BsonId mapowaniem
-- [ ] Sync Worker konsumuje zdarzenia z Kafka topics
-- [ ] Subskrypcja na: `WorkExperienceCreatedIntegrationEvent`, `WorkExperienceUpdatedIntegrationEvent`, `WorkExperienceDeletedIntegrationEvent`
-- [ ] Deserializacja JSON eventow do odpowiednich typow
-- [ ] Operacje na MongoDB: Upsert (Create/Update), Delete
-- [ ] Consumer Group: `jjdevhub-sync-worker`
-- [ ] Retry logic z exponential backoff przy bledach MongoDB
-- [ ] Dead Letter Topic dla eventow ktore nie moga byc przetworzone
-- [ ] Health check reportujacy status consumera
-- [ ] Graceful shutdown z commit offsetow
+- [x] Sync Worker konsumuje zdarzenia z Kafka topics
+- [x] Subskrypcja na: `WorkExperienceCreatedIntegrationEvent`, `WorkExperienceUpdatedIntegrationEvent`, `WorkExperienceDeletedIntegrationEvent`
+- [x] Subskrypcja na CurriculumVitae Created/Updated/Deleted oraz JobApplication
+- [x] Deserializacja JSON eventow do odpowiednich typow
+- [x] Operacje na MongoDB: Upsert (Create/Update), Delete
+- [x] Consumer Group: `jjdevhub-sync-worker`
+- [x] Retry logic z exponential backoff przy bledach MongoDB
+- [x] Dead Letter Topic dla eventow ktore nie moga byc przetworzone
+- [x] Health check reportujacy status consumera
+- [x] Graceful shutdown z commit offsetow
 
 ## Wymagane pakiety NuGet
 

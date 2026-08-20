@@ -211,7 +211,11 @@ pipeline {
         stage('Deploy') {
             steps {
                 dir('infra/docker') {
-                    sh 'docker-compose up -d --remove-orphans'
+                    sh '''
+                      # CI/local stack. Production overlay:
+                      #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+                      docker compose up -d --remove-orphans
+                    '''
                 }
             }
         }

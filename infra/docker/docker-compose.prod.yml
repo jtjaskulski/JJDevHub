@@ -99,6 +99,9 @@ services:
           memory: 512M
 
   mongodb:
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: "${MONGO_USER:-jjdevhub}"
+      MONGO_INITDB_ROOT_PASSWORD: "${MONGO_PASSWORD:?Set MONGO_PASSWORD in .env}"
     ports: !override []
     volumes:
       - /data/mongo:/data/db
@@ -106,7 +109,7 @@ services:
     networks:
       - data-net
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD-SHELL", "mongosh -u \"$$MONGO_INITDB_ROOT_USERNAME\" -p \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --quiet --eval 'db.adminCommand(\"ping\")'"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -187,7 +190,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__ContentDb: "Host=db;Port=5432;Database=jjdevhub_content;Username=${DB_USER:-postgres};Password=${DB_PASSWORD:?err}"
-      MongoDb__ConnectionString: "mongodb://mongodb:27017"
+      MongoDb__ConnectionString: "mongodb://${MONGO_USER:-jjdevhub}:${MONGO_PASSWORD}@mongodb:27017/?authSource=admin"
       Kafka__BootstrapServers: "kafka:9092"
       Vault__Enabled: "${VAULT_ENABLED:-false}"
       Vault__Token: "${VAULT_TOKEN}"
@@ -261,7 +264,7 @@ services:
   sync-worker:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      MongoDb__ConnectionString: "mongodb://mongodb:27017"
+      MongoDb__ConnectionString: "mongodb://${MONGO_USER:-jjdevhub}:${MONGO_PASSWORD}@mongodb:27017/?authSource=admin"
       Kafka__BootstrapServers: "kafka:9092"
     restart: unless-stopped
     networks:

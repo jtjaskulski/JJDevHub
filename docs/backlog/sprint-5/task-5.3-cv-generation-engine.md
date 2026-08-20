@@ -17,8 +17,8 @@ Generowanie CV w PDF z danych read modelu (`CurriculumVitae` + powiazane sekcje)
 - [x] Generowanie PDF (QuestPDF) na podstawie danych CV z MongoDB
 - [x] Endpoint `POST /api/v1/content/cv/{id}/pdf` (Owner) — tworzy blob, zwraca metadane
 - [x] Endpoint `GET /api/v1/content/cv/pdf-download/{fileId}` (Owner) — `application/pdf`
-- [x] CV zawiera: dane osobowe, doswiadczenie, umiejetnosci, wyksztalcenie, projekty (zgodnie z kompozytorem)
-- [x] Angular: strona admin-cv — operacje na CV i generowanie/pobieranie PDF
+- [x] CV zawiera: dane osobowe, **doswiadczenie (powiazane WE)**, umiejetnosci, wyksztalcenie, projekty
+- [x] Angular: strona admin-cv — CRUD CV, sekcje, generowanie/pobieranie PDF
 
 ## Kolejne iteracje
 

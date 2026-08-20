@@ -45,7 +45,7 @@ Grafana wizualizuje metryki zbierane przez Prometheus w formie interaktywnych da
 - [x] Grafana uruchomiona w Docker z auto-provisioned datasource
 - [x] Content API dashboard z 6 panelami (rate, latency, connections, errors, memory, GC)
 - [x] Dashboardy provisionowane z plikow JSON (nie recznie)
-- [ ] Dashboard: Infrastructure Overview (PostgreSQL connections, MongoDB ops, Kafka lag)
+- [ ] Dashboard: Infrastructure Overview (PostgreSQL connections, MongoDB ops, Kafka lag) — **MVP:** targets up + scrape duration + Content API memory/5xx (brak exporterow PG/Mongo/Kafka)
 - [ ] Dashboard: Business Metrics (CV generated, applications created, match scores)
 - [ ] Dashboard variables: service selector dropdown, environment filter
 - [ ] Alerting: notyfikacja gdy error rate > 5%, latency p95 > 2s, memory > 80%

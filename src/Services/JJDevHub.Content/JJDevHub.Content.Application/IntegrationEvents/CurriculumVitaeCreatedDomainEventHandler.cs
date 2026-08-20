@@ -38,13 +38,7 @@ public class CurriculumVitaeCreatedDomainEventHandler
         await _readStore.UpsertAsync(readModel, cancellationToken);
 
         _outbox.Enqueue(
-            new CurriculumVitaeCreatedIntegrationEvent(
-                readModel.Id,
-                readModel.Version,
-                readModel.FirstName,
-                readModel.LastName,
-                readModel.Email,
-                readModel.LastModifiedAt),
+            CurriculumVitaeSnapshotMapper.ToCreatedEvent(readModel),
             AggregateType,
             notification.CurriculumVitaeId);
     }

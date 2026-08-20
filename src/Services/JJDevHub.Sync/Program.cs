@@ -22,6 +22,7 @@ builder.Services.AddSingleton<IMongoClient>(sp =>
 });
 builder.Services.AddSingleton<IWorkExperienceReadStore, MongoWorkExperienceReadStore>();
 builder.Services.AddSingleton<IJobApplicationReadStore, MongoJobApplicationReadStore>();
+builder.Services.AddSingleton<ICurriculumVitaeReadStore, MongoCurriculumVitaeReadStore>();
 builder.Services.AddSingleton<KafkaConsumerHealthState>();
 builder.Services.AddSingleton<IProducer<string, string>>(sp =>
 {

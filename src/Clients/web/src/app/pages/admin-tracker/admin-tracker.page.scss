@@ -69,3 +69,15 @@
 .detail-acc {
   margin-top: 1rem;
 }
+
+.nested-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.nested-form .grow {
+  flex: 1 1 220px;
+}

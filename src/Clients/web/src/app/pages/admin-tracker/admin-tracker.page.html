@@ -156,9 +156,94 @@
             <mat-expansion-panel-header>
               <mat-panel-title>{{ row.companyName }} — {{ row.position }}</mat-panel-title>
             </mat-expansion-panel-header>
-            <p><strong>Wymagania:</strong> {{ row.requirements.length }}</p>
-            <p><strong>Notatki:</strong> {{ row.notes.length }}</p>
-            <p><strong>Etapów rozmów:</strong> {{ row.interviewStages.length }}</p>
+
+            <h4>Wymagania</h4>
+            <ul>
+              @for (req of row.requirements; track req.id) {
+                <li>{{ req.category }} / {{ req.priority }}: {{ req.description }} {{ req.isMet ? '(spełnione)' : '' }}</li>
+              }
+            </ul>
+            <div class="nested-form" [formGroup]="requirementForm">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Opis</mat-label>
+                <input matInput formControlName="description" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Kategoria</mat-label>
+                <mat-select formControlName="category">
+                  @for (c of requirementCategories; track c) {
+                    <mat-option [value]="c">{{ c }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Priorytet</mat-label>
+                <mat-select formControlName="priority">
+                  @for (p of requirementPriorities; track p) {
+                    <mat-option [value]="p">{{ p }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <button mat-stroked-button type="button" [disabled]="requirementForm.invalid" (click)="addRequirement(row)">
+                Dodaj wymaganie
+              </button>
+            </div>
+
+            <h4>Notatki</h4>
+            <ul>
+              @for (n of row.notes; track n.id) {
+                <li>{{ n.noteType }}: {{ n.content }}</li>
+              }
+            </ul>
+            <div class="nested-form" [formGroup]="noteForm">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic" class="grow">
+                <mat-label>Treść</mat-label>
+                <input matInput formControlName="content" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Typ</mat-label>
+                <mat-select formControlName="noteType">
+                  @for (t of noteTypes; track t) {
+                    <mat-option [value]="t">{{ t }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <button mat-stroked-button type="button" [disabled]="noteForm.invalid" (click)="addNote(row)">
+                Dodaj notatkę
+              </button>
+            </div>
+
+            <h4>Etapy rozmów</h4>
+            <ul>
+              @for (s of row.interviewStages; track s.id) {
+                <li>{{ s.stageName }} — {{ s.status }} ({{ s.scheduledAt }})</li>
+              }
+            </ul>
+            <div class="nested-form" [formGroup]="stageForm">
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Nazwa etapu</mat-label>
+                <input matInput formControlName="stageName" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Termin</mat-label>
+                <input matInput type="datetime-local" formControlName="scheduledAt" />
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Status</mat-label>
+                <mat-select formControlName="status">
+                  @for (st of interviewStatuses; track st) {
+                    <mat-option [value]="st">{{ st }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                <mat-label>Feedback</mat-label>
+                <input matInput formControlName="feedback" />
+              </mat-form-field>
+              <button mat-stroked-button type="button" [disabled]="stageForm.invalid" (click)="addInterviewStage(row)">
+                Dodaj etap
+              </button>
+            </div>
           </mat-expansion-panel>
         }
       </mat-accordion>

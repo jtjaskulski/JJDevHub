@@ -3,7 +3,7 @@
 | Pole | Wartosc |
 |------|---------|
 | Sprint | 1 - Identity & Foundation |
-| Status | IN PROGRESS |
+| Status | DONE |
 | Priorytet | High |
 | Estymacja | 8 story points |
 | Powiazane pliki | `infra/docker/docker-compose.yml`, `src/Services/JJDevHub.Identity/`, `src/Services/JJDevHub.Content/JJDevHub.Content.Api/Program.cs` |
@@ -14,16 +14,20 @@ Keycloak to serwer tozsamosci (IAM) oparty na OpenID Connect (OIDC). Sluzy jako 
 
 ### Co juz jest zrobione
 
-- Keycloak **nie jest jeszcze** w docker-compose (tylko stub Identity API z health endpoint)
-- Identity API (`src/Services/JJDevHub.Identity/`) to minimalny serwis z `GET /health`
-- Brak konfiguracji OIDC/JWT w zadnym serwisie .NET
+- Keycloak w docker-compose (`quay.io/keycloak/keycloak:26.0`, port `8083`, `start-dev --import-realm`)
+- Realm `jjdevhub` z rolami `Student` / `Owner`, klientami `jjdevhub-web` (PKCE) i `jjdevhub-api`
+- Seed users: `owner@test.com` / `Owner123!` (Owner), `student@test.com` / `Student123!` (Student)
+- JWT Bearer + polityka `OwnerOnly` w Content.Api; GET publiczne, zapis wymaga Owner
+- Health check Keycloak w `/health` API
+- Angular: `environment.keycloak.url = http://localhost:8083`
 
-### Co pozostalo
+Uwaga: `--import-realm` dziala tylko gdy realm jeszcze nie istnieje. Aby wgrac seed users na istniejacym stacku, usun kontener/wolumen Keycloak albo utworz userow w Admin Console.
 
-- Dodanie kontenera Keycloak do docker-compose
-- Konfiguracja realm `jjdevhub` z klientami i rolami
-- Integracja JWT Bearer w Content.Api i pozostalych serwisach
-- Rozbudowa Identity API o proxy/integracje z Keycloak
+### Co pozostalo (poza MVP)
+
+- Identity API nadal stub `/health` (Keycloak jest IdP — osobny serwis nie jest wymagany)
+- Dev Keycloak uzywa H2 (`start-dev`); produkcja: Postgres w `docker-compose.prod.yml`
+- `verify-token-audience` ustawione na `false` w compose (dev)
 
 ## Kryteria akceptacji
 

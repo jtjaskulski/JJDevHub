@@ -7,6 +7,7 @@ using JJDevHub.Content.Application.Commands.DeleteCurriculumVitae;
 using JJDevHub.Content.Application.Commands.LinkCurriculumVitaeWorkExperience;
 using JJDevHub.Content.Application.Commands.RemoveCurriculumVitaeSkill;
 using JJDevHub.Content.Application.Commands.UpdateCurriculumVitaePersonalInfo;
+using JJDevHub.Content.Application.DTOs;
 using JJDevHub.Content.Application.Interfaces;
 using JJDevHub.Content.Application.Queries.GetCurriculumVitaeById;
 using JJDevHub.Content.Application.Queries.GetCurriculumVitaes;
@@ -218,6 +219,7 @@ public static class CurriculumVitaeEndpoints
         GenerateCvPdfRequest? body,
         IMediator mediator,
         IJobApplicationReadStore jobApplications,
+        IWorkExperienceReadStore workExperiences,
         ICvPdfBlobStore pdfStore,
         CancellationToken cancellationToken)
     {
@@ -235,7 +237,15 @@ public static class CurriculumVitaeEndpoints
                     $"Job application with id '{jobId}' was not found."));
         }
 
-        var bytes = CurriculumVitaePdfComposer.Compose(cv, job);
+        var linkedWe = new List<WorkExperienceDto>();
+        foreach (var weId in cv.WorkExperienceIds)
+        {
+            var we = await workExperiences.GetByIdAsync(weId, cancellationToken);
+            if (we is not null)
+                linkedWe.Add(we);
+        }
+
+        var bytes = CurriculumVitaePdfComposer.Compose(cv, linkedWe, job);
         var fileName = $"cv-{cv.PersonalInfo.LastName}-{cv.Id:N}.pdf".ToLowerInvariant();
         var fileId = await pdfStore.SaveAsync(id, body?.JobApplicationId, fileName, bytes, cancellationToken);
 

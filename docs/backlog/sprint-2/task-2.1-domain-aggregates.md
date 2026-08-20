@@ -3,7 +3,7 @@
 | Pole | Wartosc |
 |------|---------|
 | Sprint | 2 - The Core & Write Side |
-| Status | IN PROGRESS |
+| Status | DONE |
 | Priorytet | High |
 | Estymacja | 13 story points |
 | Powiazane pliki | `src/Services/JJDevHub.Content/JJDevHub.Content.Core/Entities/`, `src/Services/JJDevHub.Content/JJDevHub.Content.Core/ValueObjects/`, `src/Services/JJDevHub.Content/JJDevHub.Content.Core/Events/` |
@@ -33,24 +33,20 @@ Implementacja agregatow domenowych stanowi serce logiki biznesowej. Kazdy agrega
 
 ### Co pozostalo (CurriculumVitae)
 
-Nowy agregat `CurriculumVitae` obslugujacy kompletne CV:
+**Zaimplementowane (2026-08):** agregat `CurriculumVitae`, VO, EF, komendy, API, testy, admin-cv.
 
-- **Skills** (lista umiejetnosci z kategoriami)
-- **Education** (wyksztalcenie)
-- **Projects** (projekty portfolio)
-- **PersonalInfo** (dane kontaktowe, bio)
-- **Powiazanie z WorkExperience** przez referencje Id
+Pozostale usprawnienia (opcjonalne): osobne domain events `EducationAdded` (obecnie `CurriculumVitaeUpdatedDomainEvent`).
 
 ## Kryteria akceptacji
 
 - [x] Agregat `WorkExperience` z Factory Method, walidacja, domain events
 - [x] Value Object `DateRange` z IsCurrent i DurationInMonths
 - [x] `IWorkExperienceRepository` z pelnym CRUD
-- [ ] Agregat `CurriculumVitae` z encjami potomnymi (Skill, Education, Project)
-- [ ] Value Objects: `PersonalInfo`, `SkillLevel`, `EducationDegree`
-- [ ] Domain Events dla CurriculumVitae: Created, Updated, SkillAdded, EducationAdded
-- [ ] `ICurriculumVitaeRepository` z metodami CRUD
-- [ ] Testy jednostkowe dla nowego agregatu (analogiczne do WorkExperience tests)
+- [x] Agregat `CurriculumVitae` z encjami potomnymi (Skill, Education, Project)
+- [x] Value Objects: `PersonalInfo`, `SkillLevel`, `EducationDegree`
+- [x] Domain Events dla CurriculumVitae: Created, Updated, SkillAdded (Education/Project ida przez Updated)
+- [x] `ICurriculumVitaeRepository` z metodami CRUD
+- [x] Testy jednostkowe dla nowego agregatu (analogiczne do WorkExperience tests)
 
 ## Wymagane pakiety NuGet
 
