@@ -1,0 +1,28 @@
+@JJDevHub.Api_HostAddress = http://localhost:5080
+
+POST {{JJDevHub.Api_HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "owner@test.com",
+  "password": "Password1"
+}
+
+###
+
+POST {{JJDevHub.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "owner@test.com",
+  "password": "Password1"
+}
+
+###
+
+GET {{JJDevHub.Api_HostAddress}}/api/auth/me
+Authorization: Bearer {{token}}
+
+###
+
+GET {{JJDevHub.Api_HostAddress}}/health

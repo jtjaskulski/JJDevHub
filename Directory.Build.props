@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <!-- CachyOS SDK packaging can omit prune package data for net10. -->
+    <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: jjdevhub-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: jjdevhub
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infra/docker/Dockerfile
+    container_name: jjdevhub-api
+    ports:
+      - "5080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=jjdevhub;Username=postgres;Password=password
+      Jwt__Issuer: JJDevHub
+      Jwt__Audience: JJDevHub
+      Jwt__Key: dev-only-change-me-use-at-least-32!
+      Jwt__ExpiryMinutes: "60"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
