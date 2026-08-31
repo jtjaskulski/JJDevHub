@@ -3,15 +3,15 @@ services:
     image: postgres:16-alpine
     container_name: jjdevhub-db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: jjdevhub
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -24,15 +24,30 @@ services:
     ports:
       - "5080:8080"
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=jjdevhub;Username=postgres;Password=password
-      Jwt__Issuer: JJDevHub
-      Jwt__Audience: JJDevHub
-      Jwt__Key: dev-only-change-me-use-at-least-32!
-      Jwt__ExpiryMinutes: "60"
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Jwt__Issuer: ${JWT_ISSUER:-JJDevHub}
+      Jwt__Audience: ${JWT_AUDIENCE:-JJDevHub}
+      Jwt__Key: ${JWT_KEY}
+      Jwt__ExpiryMinutes: ${JWT_EXPIRY_MINUTES:-60}
     depends_on:
       db:
         condition: service_healthy
+
+  web:
+    build:
+      context: ../../src/Clients/web
+      dockerfile: Dockerfile
+    container_name: jjdevhub-web
+    ports:
+      - "4200:80"
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
 volumes:
   postgres_data:

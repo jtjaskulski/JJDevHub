@@ -1,1 +1,25 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  color-scheme: dark;
+  --bg: #12141a;
+  --surface: #1b2030;
+  --border: #2c3448;
+  --text: #eceae6;
+  --muted: #9aa3b5;
+  --accent: #e8a87c;
+  --danger: #e07a7a;
+  --ok: #7dcea0;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", system-ui, sans-serif;
+  line-height: 1.45;
+}
+
+code {
+  font-size: 0.9em;
+}

@@ -1,4 +1,15 @@
+<header>
+  <a routerLink="/" class="brand">{{ title }}</a>
+  <nav>
+    <a routerLink="/">Home</a>
+    @if (isAuthenticated()) {
+      <button type="button" (click)="logout()">Log out</button>
+    } @else {
+      <a routerLink="/login">Log in</a>
+      <a routerLink="/register">Register</a>
+    }
+  </nav>
+</header>
 <main>
-  <h1>{{ title() }}</h1>
-  <p>JJDevHub web client. API proxy: <code>/api</code> → localhost:5080</p>
+  <router-outlet />
 </main>

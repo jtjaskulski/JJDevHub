@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <!-- CachyOS SDK packaging can omit prune package data for net10. -->
+    <!-- Distro SDK packaging can omit prune package data for the TFM. -->
     <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
   </PropertyGroup>
 </Project>

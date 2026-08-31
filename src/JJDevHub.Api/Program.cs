@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using JJDevHub.Api.Auth;
 using JJDevHub.Api.Data;
@@ -5,6 +6,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -50,19 +53,36 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, _, _) =>
+    {
+        document.Components ??= new OpenApiComponents();
+        document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+        document.Components.SecuritySchemes["Bearer"] = new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            In = ParameterLocation.Header,
+            Description = "JWT from POST /api/auth/login",
+        };
+        return Task.CompletedTask;
+    });
+});
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
-        policy.WithOrigins("http://localhost:4200")
+        policy.WithOrigins("http://localhost:4200", "http://127.0.0.1:4200")
             .AllowAnyHeader()
             .AllowAnyMethod());
 });
 
 var app = builder.Build();
 
-await using (var scope = app.Services.CreateAsyncScope())
+if (!IsOpenApiDocumentGeneration(args))
 {
+    await using var scope = app.Services.CreateAsyncScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
 }
@@ -70,6 +90,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
 app.UseCors();
@@ -80,8 +101,29 @@ app.MapGet("/health", () => Results.Ok(new
 {
     Status = "Healthy",
     Timestamp = DateTime.UtcNow,
-}));
+}))
+.WithName("Health")
+.WithTags("Health");
 
 app.MapAuthEndpoints();
 
 app.Run();
+
+static bool IsOpenApiDocumentGeneration(string[] args)
+{
+    if (args.Any(a => a.Contains("GetDocument", StringComparison.OrdinalIgnoreCase)))
+    {
+        return true;
+    }
+
+    var process = Environment.ProcessPath ?? string.Empty;
+    if (process.Contains("getdocument", StringComparison.OrdinalIgnoreCase))
+    {
+        return true;
+    }
+
+    var entry = Assembly.GetEntryAssembly()?.GetName().Name ?? string.Empty;
+    return entry.Contains("getdocument", StringComparison.OrdinalIgnoreCase);
+}
+
+public partial class Program;

@@ -1,0 +1,44 @@
+<section class="panel">
+  <p class="kicker">Status</p>
+  <h2>API connection</h2>
+  <p class="status" [attr.data-state]="apiStatus()">
+    @switch (apiStatus()) {
+      @case ('checking') {
+        Checking /health…
+      }
+      @case ('ok') {
+        API is reachable.
+      }
+      @default {
+        API is unreachable. Start Compose or <code>dotnet run</code> on :5080.
+      }
+    }
+  </p>
+</section>
+
+@if (isAuthenticated()) {
+  <section class="panel">
+    <p class="kicker">Session</p>
+    <h2>Signed in</h2>
+    @if (meError()) {
+      <p class="error">{{ meError() }}</p>
+    } @else {
+      <dl>
+        <dt>Email</dt>
+        <dd>{{ email() ?? '…' }}</dd>
+        <dt>User id</dt>
+        <dd>{{ userId() ?? '…' }}</dd>
+      </dl>
+    }
+  </section>
+} @else {
+  <section class="panel">
+    <p class="kicker">Account</p>
+    <h2>Not signed in</h2>
+    <p>Register or log in to call <code>GET /api/auth/me</code>.</p>
+    <p class="actions">
+      <a routerLink="/login">Log in</a>
+      <a routerLink="/register">Register</a>
+    </p>
+  </section>
+}

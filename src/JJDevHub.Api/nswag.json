@@ -1,0 +1,21 @@
+{
+  "runtime": "Net100",
+  "documentGenerator": {
+    "fromDocument": {
+      "url": "openapi/JJDevHub.Api.json"
+    }
+  },
+  "codeGenerators": {
+    "openApiToTypeScriptClient": {
+      "className": "JjdevhubApiClient",
+      "template": "Angular",
+      "promiseType": "Promise",
+      "httpClass": "HttpClient",
+      "injectionTokenType": "InjectionToken",
+      "rxJsVersion": 7.8,
+      "useSingletonProvider": true,
+      "generateClientInterfaces": true,
+      "output": "../Clients/web/src/app/api/jjdevhub-api.client.ts"
+    }
+  }
+}

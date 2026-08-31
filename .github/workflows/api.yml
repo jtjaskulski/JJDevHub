@@ -1,0 +1,52 @@
+name: api
+
+on:
+  pull_request:
+    paths:
+      - "src/JJDevHub.Api/**"
+      - "tests/JJDevHub.Api.Tests/**"
+      - "nuget.config"
+      - "Directory.Build.props"
+      - "Directory.Packages.props"
+      - "global.json"
+      - "JJDevHub.sln"
+      - "infra/docker/Dockerfile"
+      - "infra/docker/docker-compose.yml"
+      - ".github/workflows/api.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/JJDevHub.Api/**"
+      - "tests/JJDevHub.Api.Tests/**"
+      - "nuget.config"
+      - "Directory.Build.props"
+      - "Directory.Packages.props"
+      - "global.json"
+      - "JJDevHub.sln"
+      - "infra/docker/Dockerfile"
+      - "infra/docker/docker-compose.yml"
+      - ".github/workflows/api.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "11.0.x"
+          dotnet-quality: preview
+
+      - name: Restore
+        run: dotnet restore JJDevHub.sln
+
+      - name: Build
+        run: dotnet build JJDevHub.sln --no-restore -c Release
+
+      - name: Test
+        run: dotnet test tests/JJDevHub.Api.Tests/JJDevHub.Api.Tests.csproj --no-build -c Release
+
+      - name: Docker image
+        run: docker build -f infra/docker/Dockerfile .
