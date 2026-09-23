@@ -101,6 +101,8 @@ Enable **branch protection** on `main` (GitHub → Settings → Branches): requi
 
 **Self-hosted release** (hourly cron): if `origin/main` moved, create `release/YYYY-MM-DD.N` and `docker compose up --build` with `--env-file /etc/jjdevhub/api.env`. See [`infra/ci/jjdevhub-release.cron`](infra/ci/jjdevhub-release.cron) and [`infra/ci/release-and-deploy.sh`](infra/ci/release-and-deploy.sh).
 
+Step-by-step (PL): [Proxmox](docs/proxmox.md), [Cloudflare Tunnel](docs/cloudflare-tunnel.md), [GitHub runner](docs/github.md).
+
 Old Jenkinsfile: only on `archive/pre-rewrite`. Next steps for a CV/enterprise path: Vault or OIDC instead of the env file, then Compose → k3s/k8s.
 
 ## Layout
