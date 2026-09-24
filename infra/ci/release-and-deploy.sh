@@ -14,6 +14,13 @@ fi
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
+# One deploy at a time. Cron and the runner share this clone; the state check
+# and the write at the end must not run in parallel.
+LOCK_FILE="${JJDEVHUB_LOCK_FILE:-/var/lib/jjdevhub/deploy.lock}"
+mkdir -p "$(dirname "$LOCK_FILE")"
+exec 9>"$LOCK_FILE"
+flock 9
+
 # Optional argument: commit to deploy. Cron and manual runs omit it and track origin/main.
 target_sha="${1:-}"
 

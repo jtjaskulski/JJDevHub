@@ -173,3 +173,9 @@ Job na runnerze, z `/opt/jjdevhub`:
 ```
 
 `DEPLOY_SHA` to `workflow_run.head_sha`. Push, który rusza i `api`, i `web`, odpala deploy dwa razy; drugi przebieg wychodzi przez plik stanu. Push tylko w API deployuje po samym `api`, bo `web` ma filtr ścieżek. Katalog `/opt/jjdevhub` ma być czysty. Po zmergowaniu na `main` raz `git pull` na VM, zanim pierwszy `workflow_run` wywoła skrypt.
+
+### Blokada crona i runnera
+
+Sam plik stanu nie serializuje dwóch procesów. Jeśli cron i `workflow_run` wejdą w skrypt zanim którykolwiek zrobi `printf` na końcu, oba przechodzą sprawdzenie i naraz robią `git checkout` oraz `docker compose` w `/opt/jjdevhub`.
+
+Skrypt bierze `flock` na `/var/lib/jjdevhub/deploy.lock` (`JJDEVHUB_LOCK_FILE`) zanim zrobi `git fetch`, i trzyma go do końca procesu: sprawdzenie stanu, checkout, Compose i zapis SHA. Drugie wywołanie czeka. Deskryptor zamyka się przy wyjściu, także przy `already deployed`.
