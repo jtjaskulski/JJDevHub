@@ -5,6 +5,8 @@ import type { LocaleCode } from './content/content.model';
 import { ContentService } from './content/content.service';
 import { LenisService } from './motion/lenis.service';
 
+const UNLOCALIZED_PATHS = new Set(['login', 'register']);
+
 @Component({
   selector: 'app-root',
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
@@ -33,6 +35,10 @@ export class App implements OnInit {
     const [pathPart, query = ''] = url.split('?');
     const [pathname, hash = ''] = pathPart.split('#');
     const segments = pathname.split('/').filter(Boolean);
+
+    if (UNLOCALIZED_PATHS.has(segments[0] ?? '')) {
+      return;
+    }
 
     if (ContentService.isLocaleCode(segments[0])) {
       segments[0] = next;

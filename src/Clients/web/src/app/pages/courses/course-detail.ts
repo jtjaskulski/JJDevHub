@@ -21,6 +21,7 @@ export class CourseDetailPage {
   });
 
   protected readonly locale = this.content.locale;
+  protected readonly backLabel = computed(() => this.content.site().courses.backLabel);
   protected readonly course = computed(() => this.content.courseBySlug(this.slug()));
 
   constructor() {

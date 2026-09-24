@@ -24,6 +24,7 @@
   "courses": {
     "title": "Courses",
     "lead": "Syllabi from the course repositories. Full lesson notes stay on GitHub.",
+    "backLabel": "Back to courses",
     "items": [
       {
         "slug": "mobile",
@@ -161,6 +162,7 @@
   "compendium": {
     "title": "Compendium",
     "lead": "Short definitions students reach for most often. The full glossary stays in the mobile course repo.",
+    "backLabel": "Back to compendium",
     "glossaryUrl": "https://github.com/jtjaskulski/KursReactNativeCQRS/blob/main/GLOSARIUSZ-Pojecia-Technologie.md",
     "glossaryLabel": "Full glossary on GitHub",
     "items": [
@@ -253,6 +255,7 @@
   "notes": {
     "title": "Notes",
     "lead": "Short instructor posts — not lesson copies, just pointers into specific material.",
+    "backLabel": "Back to notes",
     "items": [
       {
         "slug": "dlaczego-cqrs",

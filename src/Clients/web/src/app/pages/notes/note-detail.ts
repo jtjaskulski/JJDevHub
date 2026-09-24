@@ -21,6 +21,7 @@ export class NoteDetailPage {
   });
 
   protected readonly locale = this.content.locale;
+  protected readonly backLabel = computed(() => this.content.site().notes.backLabel);
   protected readonly note = computed(() => this.content.noteBySlug(this.slug()));
 
   constructor() {

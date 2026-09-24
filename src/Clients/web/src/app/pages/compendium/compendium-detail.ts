@@ -21,6 +21,7 @@ export class CompendiumDetailPage {
   });
 
   protected readonly locale = this.content.locale;
+  protected readonly backLabel = computed(() => this.content.site().compendium.backLabel);
   protected readonly term = computed(() => this.content.compendiumBySlug(this.slug()));
 
   constructor() {

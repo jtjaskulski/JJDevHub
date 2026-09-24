@@ -24,6 +24,7 @@
   "courses": {
     "title": "Wykłady",
     "lead": "Sylabusy z repozytoriów kursów. Pełne konspekty zostają na GitHubie.",
+    "backLabel": "Wróć do wykładów",
     "items": [
       {
         "slug": "mobile",
@@ -161,6 +162,7 @@
   "compendium": {
     "title": "Kompendium",
     "lead": "Skrót haseł, po które studenci sięgają najczęściej. Pełny glosariusz zostaje w repo kursu mobilnego.",
+    "backLabel": "Wróć do kompendium",
     "glossaryUrl": "https://github.com/jtjaskulski/KursReactNativeCQRS/blob/main/GLOSARIUSZ-Pojecia-Technologie.md",
     "glossaryLabel": "Pełny glosariusz na GitHubie",
     "items": [
@@ -253,6 +255,7 @@
   "notes": {
     "title": "Notatki",
     "lead": "Krótkie wpisy prowadzącego — nie kopia lekcji, tylko wskazówki do konkretnego materiału.",
+    "backLabel": "Wróć do notatek",
     "items": [
       {
         "slug": "dlaczego-cqrs",

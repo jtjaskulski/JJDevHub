@@ -1,4 +1,4 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter } from 'rxjs';
 
@@ -53,6 +53,10 @@ export class ContentService {
   }));
 
   constructor() {
+    effect(() => {
+      document.documentElement.lang = this.localeSignal();
+    });
+
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe(() => {
       this.localeSignal.set(this.readLocaleFromUrl());
     });

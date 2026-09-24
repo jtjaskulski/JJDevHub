@@ -58,6 +58,7 @@ export interface CourseContent {
 export interface CoursesSection {
   title: string;
   lead: string;
+  backLabel: string;
   items: CourseContent[];
 }
 
@@ -70,6 +71,7 @@ export interface CompendiumTerm {
 export interface CompendiumSection {
   title: string;
   lead: string;
+  backLabel: string;
   glossaryUrl: string;
   glossaryLabel: string;
   items: CompendiumTerm[];
@@ -88,6 +90,7 @@ export interface NoteContent {
 export interface NotesSection {
   title: string;
   lead: string;
+  backLabel: string;
   items: NoteContent[];
 }
 

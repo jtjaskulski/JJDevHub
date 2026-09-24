@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "src/Clients/web/**"
+      - "src/Clients/.dockerignore"
       - "src/Clients/shared/theme/**"
       - "infra/docker/docker-compose.yml"
       - ".github/workflows/web.yml"
@@ -11,6 +12,7 @@ on:
     branches: [main]
     paths:
       - "src/Clients/web/**"
+      - "src/Clients/.dockerignore"
       - "src/Clients/shared/theme/**"
       - "infra/docker/docker-compose.yml"
       - ".github/workflows/web.yml"

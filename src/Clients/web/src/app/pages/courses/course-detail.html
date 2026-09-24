@@ -2,7 +2,7 @@
   <article class="article">
     <header class="article-head reveal">
       <p class="eyebrow">
-        <a [routerLink]="['/', locale(), 'courses']">←</a>
+        <a [routerLink]="['/', locale(), 'courses']" [attr.aria-label]="backLabel()">←</a>
       </p>
       <h1>{{ course.title }}</h1>
       <p class="lead">{{ course.subtitle }}</p>
