@@ -1,0 +1,309 @@
+{
+  "nav": {
+    "home": "Home",
+    "cv": "CV",
+    "courses": "Courses",
+    "compendium": "Compendium",
+    "notes": "Notes",
+    "language": "Language",
+    "languagePl": "PL",
+    "languageEn": "EN"
+  },
+  "home": {
+    "eyebrow": "JJDevHub",
+    "ctaCv": "View CV",
+    "ctaCourses": "Browse courses",
+    "currentTitle": "Now",
+    "currentLead": "In parallel: production work and teaching.",
+    "coursesTitle": "Courses",
+    "coursesLead": "Two tracks — mobile apps and web programming.",
+    "notesTitle": "Latest notes",
+    "notesLead": "Short instructor notes tied to specific lessons.",
+    "viewAll": "View all"
+  },
+  "courses": {
+    "title": "Courses",
+    "lead": "Syllabi from the course repositories. Full lesson notes stay on GitHub.",
+    "items": [
+      {
+        "slug": "mobile",
+        "title": "Mobile applications",
+        "subtitle": "Part-time studies · React Native + .NET CQRS",
+        "summary": [
+          "Twelve lessons from React Native basics through TypeScript, CQRS and Docker, to orders, validation, native modules and release builds.",
+          "Lab code: SolutionOrders.API and SolutionOrdersMobile."
+        ],
+        "repoUrl": "https://github.com/jtjaskulski/KursReactNativeCQRS",
+        "labUrl": "https://github.com/jtjaskulski/PMAB2026Zaoczki",
+        "repoLabel": "Lecture notes",
+        "labLabel": "Lab repository",
+        "lessonsTitle": "Syllabus",
+        "lessons": [
+          {
+            "slug": "wstep-react-native",
+            "title": "Intro: what is React Native",
+            "summary": "Architecture, history, and the 2015 vs 2025 setup comparison.",
+            "url": "https://github.com/jtjaskulski/KursReactNativeCQRS/blob/main/00-Wstep-React-Native.md"
+          },
+          {
+            "slug": "typescript",
+            "title": "1. TypeScript fundamentals",
+            "summary": "Types, compilation, and tsconfig.json before the first mobile project.",
+            "url": "https://github.com/jtjaskulski/KursReactNativeCQRS/blob/main/lekcja-01-typescript.md"
+          },
+          {
+            "slug": "react-native-setup",
+            "title": "2. React Native and TypeScript setup",
+            "summary": "CLI, project layout, and install verification for lab sessions.",
+            "url": "https://github.com/jtjaskulski/KursReactNativeCQRS/blob/main/lekcja-02-react-native-poprawiona.md"
+          },
+          {
+            "slug": "cqrs-queries-commands",
+            "title": "3. .NET, CQRS, queries and commands",
+            "summary": "Vertical slice, first Query and Command, and Swagger checks.",
+            "url": "https://github.com/jtjaskulski/KursReactNativeCQRS/blob/main/lekcja-03-3-cqrs-impl.md"
+          },
+          {
+            "slug": "docker",
+            "title": "4. Docker, SQL Server, migrations",
+            "summary": "Database container, docker-compose, and migrations for local labs.",
+            "url": "https://github.com/jtjaskulski/KursReactNativeCQRS/blob/main/lekcja-04-docker.md"
+          },
+          {
+            "slug": "rn-api-crud",
+            "title": "5. React Native API integration",
+            "summary": "TypeScript models, HTTP service, and CRUD against the CQRS backend.",
+            "url": "https://github.com/jtjaskulski/KursReactNativeCQRS/blob/main/lekcja-05-react-native-crud-full.md"
+          },
+          {
+            "slug": "relacje-1n",
+            "title": "6. 1:N relations — products, categories, units",
+            "summary": "Relation models and PickerField in the product form.",
+            "url": "https://github.com/jtjaskulski/KursReactNativeCQRS/blob/main/lekcja-06-relacje-1m.md"
+          },
+          {
+            "slug": "zamowienia",
+            "title": "7. Orders — master-detail",
+            "summary": "Order → OrderItem, cascades, and nested Include queries.",
+            "url": "https://github.com/jtjaskulski/KursReactNativeCQRS/blob/main/lekcja-07-zamowienia.md"
+          },
+          {
+            "slug": "walidacja",
+            "title": "8. Validation, FluentValidation, MediatR pipeline",
+            "summary": "Command validators and a Behavior in the pipeline before the handler.",
+            "url": "https://github.com/jtjaskulski/KursReactNativeCQRS/blob/main/lekcja-08-walidacja.md"
+          },
+          {
+            "slug": "paginacja-audyt",
+            "title": "9. Pagination, filtering, audit",
+            "summary": "PaginatedList on .NET and usePaginatedFetch in the app.",
+            "url": "https://github.com/jtjaskulski/KursReactNativeCQRS/blob/main/lekcja-09-zaawansowane-cqrs.md"
+          },
+          {
+            "slug": "moduly-natywne",
+            "title": "10. Native modules — permissions, camera, geolocation",
+            "summary": "AsyncStorage, permissions, and access to camera and location.",
+            "url": "https://github.com/jtjaskulski/KursReactNativeCQRS/blob/main/lekcja-10-natywne-moduly.md"
+          },
+          {
+            "slug": "deployment",
+            "title": "11. Deployment — APK and AAB",
+            "summary": "App signing, Android package builds, and release.",
+            "url": "https://github.com/jtjaskulski/KursReactNativeCQRS/blob/main/lekcja-11-deployment.md"
+          }
+        ]
+      },
+      {
+        "slug": "web",
+        "title": "Internet programming",
+        "subtitle": "Summer 2026 · ASP.NET MVC",
+        "summary": [
+          "Current web course: Company and Mine1 projects plus a Dockerized database.",
+          "Angular and Blazor live under “Planned” — no invented syllabus."
+        ],
+        "repoUrl": "https://github.com/jtjaskulski/InternetBusinessApplicationsMVCSummer2026",
+        "repoLabel": "Course repository",
+        "chaptersTitle": "Chapters",
+        "chapters": [
+          {
+            "slug": "company",
+            "title": "Company",
+            "summary": "ASP.NET MVC app — the lab starting point."
+          },
+          {
+            "slug": "mine1",
+            "title": "Mine1",
+            "summary": "Extends the business scenario on the same MVC stack."
+          },
+          {
+            "slug": "docker",
+            "title": "Docker",
+            "summary": "Database and runtime environment in containers."
+          }
+        ],
+        "plannedTitle": "Planned",
+        "plannedLead": "Next programme stage — no lessons and no fake outlines.",
+        "planned": [
+          {
+            "slug": "angular",
+            "title": "Angular",
+            "summary": "Planned SPA front-end chapter."
+          },
+          {
+            "slug": "blazor",
+            "title": "Blazor",
+            "summary": "Planned .NET-in-the-browser chapter."
+          }
+        ]
+      }
+    ]
+  },
+  "compendium": {
+    "title": "Compendium",
+    "lead": "Short definitions students reach for most often. The full glossary stays in the mobile course repo.",
+    "glossaryUrl": "https://github.com/jtjaskulski/KursReactNativeCQRS/blob/main/GLOSARIUSZ-Pojecia-Technologie.md",
+    "glossaryLabel": "Full glossary on GitHub",
+    "items": [
+      {
+        "slug": "cqrs",
+        "term": "CQRS",
+        "definition": [
+          "Command Query Responsibility Segregation — a pattern that separates writes (Commands) from reads (Queries)."
+        ]
+      },
+      {
+        "slug": "command",
+        "term": "Command",
+        "definition": [
+          "A request that changes system state (CREATE, UPDATE, DELETE). Usually returns an id or status."
+        ]
+      },
+      {
+        "slug": "query",
+        "term": "Query",
+        "definition": [
+          "A request to read data. It does not change application or database state."
+        ]
+      },
+      {
+        "slug": "mediatr",
+        "term": "MediatR",
+        "definition": [
+          "A .NET Mediator library: you send a Request and it reaches a Handler through a pipeline."
+        ]
+      },
+      {
+        "slug": "rest",
+        "term": "REST",
+        "definition": [
+          "An HTTP resource style for APIs — endpoints returning JSON, e.g. GET /items, POST /items."
+        ]
+      },
+      {
+        "slug": "docker",
+        "term": "Docker",
+        "definition": [
+          "Service containers: SQL Server, API, and dependencies start from the same docker-compose in the lab."
+        ]
+      },
+      {
+        "slug": "entity-framework",
+        "term": "Entity Framework",
+        "definition": [
+          "A .NET ORM (EF Core) that maps C# objects to SQL tables and handles migrations."
+        ]
+      },
+      {
+        "slug": "react-native",
+        "term": "React Native",
+        "definition": [
+          "React for iOS and Android: one TypeScript codebase, two native apps."
+        ]
+      },
+      {
+        "slug": "typescript",
+        "term": "TypeScript",
+        "definition": [
+          "JavaScript with types. Errors show up in the editor before they hit runtime."
+        ]
+      },
+      {
+        "slug": "crud",
+        "term": "CRUD",
+        "definition": [
+          "Create, Read, Update, Delete — basic data operations, usually mapped to HTTP methods."
+        ]
+      },
+      {
+        "slug": "validation",
+        "term": "Validation",
+        "definition": [
+          "Checking input before the handler — in class: FluentValidation and a MediatR pipeline Behavior."
+        ]
+      },
+      {
+        "slug": "pagination",
+        "term": "Pagination",
+        "definition": [
+          "Splitting large lists into pages (PageNumber, PageSize) on the API and in the mobile client."
+        ]
+      }
+    ]
+  },
+  "notes": {
+    "title": "Notes",
+    "lead": "Short instructor posts — not lesson copies, just pointers into specific material.",
+    "items": [
+      {
+        "slug": "dlaczego-cqrs",
+        "title": "Why CQRS shows up early in the lab",
+        "date": "2026-03-02",
+        "summary": "How to separate Commands from Queries before the app grows.",
+        "body": [
+          "On the mobile track CQRS appears early so students do not mix writes and reads in one service.",
+          "Start with GetAllItems and CreateItem — the Query vs Command difference is clear without heavy theory.",
+          "The full walkthrough is in lesson 3; lab code lives in PMAB2026Zaoczki."
+        ],
+        "relatedLessonSlug": "cqrs-queries-commands",
+        "relatedCourseSlug": "mobile"
+      },
+      {
+        "slug": "docker-przed-api",
+        "title": "Docker before the first API call",
+        "date": "2026-03-09",
+        "summary": "A database container saves an hour of fighting local SQL Server.",
+        "body": [
+          "Start the docker-compose from lesson 4 before wiring React Native to the API.",
+          "On the Android emulator localhost is not your laptop — check the host IP or use adb reverse.",
+          "The same containers return in the MVC course for the Company and Mine1 database."
+        ],
+        "relatedLessonSlug": "docker",
+        "relatedCourseSlug": "mobile"
+      },
+      {
+        "slug": "company-mine1",
+        "title": "Company and Mine1 — what is what",
+        "date": "2026-04-14",
+        "summary": "Two MVC projects in one summer-course repository.",
+        "body": [
+          "Company is the entry point: ASP.NET MVC structure and the first business scenario.",
+          "Mine1 extends the same stack with the next use case — do not start from scratch.",
+          "Repository: InternetBusinessApplicationsMVCSummer2026."
+        ],
+        "relatedCourseSlug": "web"
+      },
+      {
+        "slug": "angular-blazor-plan",
+        "title": "Angular and Blazor — plan only for now",
+        "date": "2026-05-20",
+        "summary": "No fake lessons. MVC comes first.",
+        "body": [
+          "The “Planned” chapter is a programme direction, not a finished syllabus.",
+          "While Company, Mine1, and Docker are in progress, we do not invent SPA outlines.",
+          "When the material exists, it will appear here as chapters with links — same pattern as the mobile course."
+        ],
+        "relatedCourseSlug": "web"
+      }
+    ]
+  }
+}

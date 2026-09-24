@@ -1,0 +1,17 @@
+@if (note(); as note) {
+  <article class="article">
+    <header class="article-head reveal">
+      <p class="eyebrow">
+        <a [routerLink]="['/', locale(), 'notes']">←</a>
+      </p>
+      <time [attr.datetime]="note.date">{{ note.date }}</time>
+      <h1>{{ note.title }}</h1>
+      <p class="summary">{{ note.summary }}</p>
+    </header>
+    <div class="body reveal">
+      @for (paragraph of note.body; track paragraph) {
+        <p animate.enter="list-enter" animate.leave="list-leave">{{ paragraph }}</p>
+      }
+    </div>
+  </article>
+}

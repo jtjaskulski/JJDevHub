@@ -1,0 +1,25 @@
+<section class="page">
+  <header class="page-head reveal">
+    <h1>{{ section().title }}</h1>
+    <p>{{ section().lead }}</p>
+    <p class="glossary">
+      <a [href]="section().glossaryUrl" target="_blank" rel="noopener noreferrer">
+        {{ section().glossaryLabel }}
+      </a>
+    </p>
+  </header>
+
+  <div class="grid">
+    @for (term of section().items; track term.slug) {
+      <a
+        class="tile"
+        animate.enter="list-enter"
+        animate.leave="list-leave"
+        [routerLink]="['/', locale(), 'compendium', term.slug]"
+      >
+        <h2>{{ term.term }}</h2>
+        <p>{{ term.definition[0] }}</p>
+      </a>
+    }
+  </div>
+</section>

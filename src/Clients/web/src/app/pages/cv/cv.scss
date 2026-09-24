@@ -1,0 +1,83 @@
+:host {
+  display: block;
+}
+
+.cv {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: var(--space-9) var(--space-6) var(--space-11);
+}
+
+.cv-hero {
+  margin-bottom: var(--space-9);
+}
+
+.cv-hero h1 {
+  margin: 0;
+  font-size: clamp(2.5rem, 6vw, var(--font-h1));
+  letter-spacing: var(--tracking-h1);
+  line-height: 1.08;
+}
+
+.cv-role {
+  margin: var(--space-3) 0 0;
+  font-size: var(--font-h4);
+  letter-spacing: var(--tracking-h4);
+  color: var(--muted);
+}
+
+.cv-email {
+  display: inline-block;
+  margin-top: var(--space-4);
+}
+
+.cv-section {
+  margin-bottom: var(--space-9);
+}
+
+.cv-section > h2 {
+  margin: 0 0 var(--space-6);
+  font-size: var(--font-h2);
+  letter-spacing: var(--tracking-h2);
+  line-height: 1.1;
+}
+
+.cv-chapter {
+  margin-bottom: var(--space-7);
+  padding-bottom: var(--space-7);
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.cv-chapter:last-child {
+  border-bottom: 0;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.cv-period {
+  margin: 0 0 var(--space-2);
+  color: var(--muted);
+  font-size: var(--font-small);
+  letter-spacing: var(--tracking-small);
+}
+
+.cv-chapter h3 {
+  margin: 0;
+  font-size: var(--font-h3);
+  letter-spacing: var(--tracking-h3);
+  line-height: 1.2;
+}
+
+.cv-org {
+  margin: var(--space-1) 0 var(--space-3);
+  color: var(--muted);
+}
+
+.cv-chapter p {
+  margin: 0 0 var(--space-3);
+  color: var(--ink);
+}
+
+.cv-chapter p:last-child {
+  margin-bottom: 0;
+}

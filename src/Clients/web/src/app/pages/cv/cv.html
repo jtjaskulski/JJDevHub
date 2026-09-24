@@ -1,0 +1,52 @@
+<article class="cv">
+  <header class="cv-hero reveal">
+    <h1>{{ cv().name }}</h1>
+    <p class="cv-role">{{ cv().role }}</p>
+    <a class="cv-email" [href]="'mailto:' + cv().email">{{ cv().email }}</a>
+  </header>
+
+  <section class="cv-section">
+    <h2 class="reveal">{{ cv().experienceTitle }}</h2>
+    @for (entry of cv().experience; track entry.title + '|' + entry.period) {
+      <section class="cv-chapter reveal" animate.enter="list-enter" animate.leave="list-leave">
+        <p class="cv-period">{{ entry.period }}</p>
+        <h3>{{ entry.title }}</h3>
+        @if (entry.company) {
+          <p class="cv-org">{{ entry.company }}</p>
+        }
+        @for (paragraph of entry.paragraphs; track paragraph) {
+          <p>{{ paragraph }}</p>
+        }
+      </section>
+    }
+  </section>
+
+  <section class="cv-section">
+    <h2 class="reveal">{{ cv().educationTitle }}</h2>
+    @for (entry of cv().education; track entry.title + '|' + entry.period) {
+      <section class="cv-chapter reveal" animate.enter="list-enter" animate.leave="list-leave">
+        <p class="cv-period">{{ entry.period }}</p>
+        <h3>{{ entry.title }}</h3>
+        @if (entry.institution) {
+          <p class="cv-org">{{ entry.institution }}</p>
+        }
+        @for (paragraph of entry.paragraphs; track paragraph) {
+          <p>{{ paragraph }}</p>
+        }
+      </section>
+    }
+  </section>
+
+  <section class="cv-section">
+    <h2 class="reveal">{{ cv().extrasTitle }}</h2>
+    @for (entry of cv().extras; track entry.title + entry.period) {
+      <section class="cv-chapter reveal" animate.enter="list-enter" animate.leave="list-leave">
+        <p class="cv-period">{{ entry.period }}</p>
+        <h3>{{ entry.title }}</h3>
+        @for (paragraph of entry.paragraphs; track paragraph) {
+          <p>{{ paragraph }}</p>
+        }
+      </section>
+    }
+  </section>
+</article>

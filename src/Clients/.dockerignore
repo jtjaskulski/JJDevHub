@@ -1,0 +1,11 @@
+mobile
+web/node_modules
+web/.angular
+web/dist
+web/.vscode
+web/coverage
+web/out-tsc
+**/.git
+**/*.md
+web/.env
+web/.env.*

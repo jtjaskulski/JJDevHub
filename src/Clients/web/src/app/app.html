@@ -1,15 +1,38 @@
-<header>
-  <a routerLink="/" class="brand">{{ title }}</a>
-  <nav>
-    <a routerLink="/">Home</a>
-    @if (isAuthenticated()) {
-      <button type="button" (click)="logout()">Log out</button>
-    } @else {
-      <a routerLink="/login">Log in</a>
-      <a routerLink="/register">Register</a>
-    }
+<header class="shell-nav">
+  <a [routerLink]="['/', locale()]" class="brand">{{ title }}</a>
+  <nav [attr.aria-label]="nav().language">
+    <a [routerLink]="['/', locale()]" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }">
+      {{ nav().home }}
+    </a>
+    <a [routerLink]="['/', locale(), 'cv']" routerLinkActive="is-active">{{ nav().cv }}</a>
+    <a [routerLink]="['/', locale(), 'courses']" routerLinkActive="is-active">{{ nav().courses }}</a>
+    <a [routerLink]="['/', locale(), 'compendium']" routerLinkActive="is-active">{{ nav().compendium }}</a>
+    <a [routerLink]="['/', locale(), 'notes']" routerLinkActive="is-active">{{ nav().notes }}</a>
   </nav>
+  <div class="lang" role="group" [attr.aria-label]="nav().language">
+    <button
+      type="button"
+      class="lang-btn"
+      [class.is-active]="locale() === 'pl'"
+      (click)="switchLocale('pl')"
+    >
+      {{ nav().languagePl }}
+    </button>
+    <button
+      type="button"
+      class="lang-btn"
+      [class.is-active]="locale() === 'en'"
+      (click)="switchLocale('en')"
+    >
+      {{ nav().languageEn }}
+    </button>
+  </div>
 </header>
-<main>
+
+<main class="shell-main">
   <router-outlet />
 </main>
+
+<footer class="shell-footer">
+  <p class="shell-footer-brand">{{ title }}</p>
+</footer>

@@ -1,6 +1,6 @@
 # Web
 
-Angular 21 client. Use **pnpm**. Talks to the API through `/api` (dev proxy or nginx in Docker).
+Angular 21 client. Use **pnpm**. Talks to the API through `/api` (dev proxy or nginx in Docker). Polish docs for routes, theme tokens, motion, and content live in [docs/frontend/README.md](../../../docs/frontend/README.md).
 
 ## Local (API on :5080)
 

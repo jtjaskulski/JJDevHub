@@ -1,0 +1,21 @@
+<section class="page">
+  <header class="page-head reveal">
+    <h1>{{ section().title }}</h1>
+    <p>{{ section().lead }}</p>
+  </header>
+
+  <div class="grid">
+    @for (note of section().items; track note.slug) {
+      <a
+        class="tile"
+        animate.enter="list-enter"
+        animate.leave="list-leave"
+        [routerLink]="['/', locale(), 'notes', note.slug]"
+      >
+        <time [attr.datetime]="note.date">{{ note.date }}</time>
+        <h2>{{ note.title }}</h2>
+        <p>{{ note.summary }}</p>
+      </a>
+    }
+  </div>
+</section>

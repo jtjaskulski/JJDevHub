@@ -1,0 +1,23 @@
+<section class="page">
+  <header class="page-head reveal">
+    <h1>{{ section().title }}</h1>
+    <p>{{ section().lead }}</p>
+  </header>
+
+  <div class="tile-grid">
+    @for (course of section().items; track course.slug) {
+      <a
+        class="tile"
+        animate.enter="list-enter"
+        animate.leave="list-leave"
+        [routerLink]="['/', locale(), 'courses', course.slug]"
+      >
+        <h2>{{ course.title }}</h2>
+        <p class="tile-sub">{{ course.subtitle }}</p>
+        @for (paragraph of course.summary; track paragraph) {
+          <p>{{ paragraph }}</p>
+        }
+      </a>
+    }
+  </div>
+</section>
