@@ -51,9 +51,11 @@ Token z kreatora jest jednorazowy. Etykieta `jjdevhub` jest tą, której użyje 
 
 Sprawdzenie: runner w panelu ma status **Idle**.
 
-## 3. Docelowy workflow (jeszcze go nie ma)
+## 3. Docelowy workflow (historyczne)
 
-Plik `.github/workflows/deploy.yml` powstanie w następnym kroku. Kształt:
+Nie wykonuj tej sekcji. `deploy.yml` już jest. Szkic poniżej woła skrypt bez SHA i jest nieaktualny. Aktualne wywołanie jest w [Historii zmian](#po-dodaniu-ścieżki-sha).
+
+Zapis sprzed pliku, zostawiony bez zmian w treści szkicu:
 
 - trigger `workflow_run` po **ukończonym sukcesem** workflow `api` i `web`, tylko dla `main`
 - `runs-on: [self-hosted, jjdevhub]`
@@ -61,14 +63,14 @@ Plik `.github/workflows/deploy.yml` powstanie w następnym kroku. Kształt:
 
 `workflow_run` czyta definicję z domyślnej gałęzi (`main`). Runner musi być online w momencie sukcesu CI.
 
-Przy implementacji rozdziel [release-and-deploy.sh](../infra/ci/release-and-deploy.sh):
+Planowane wtedy rozdzielenie [release-and-deploy.sh](../infra/ci/release-and-deploy.sh):
 
 - cron dalej sam sprawdza, czy `origin/main` się ruszył
 - osobna ścieżka robi `compose up` dla SHA podanego przez runner
 
 Oba mechanizmy czytają `/var/lib/jjdevhub/last-release-sha`. Drugi nie przebudowuje tego samego SHA (`already deployed` w obecnym skrypcie).
 
-Szkic, **nie dodawaj go teraz**:
+Szkic historyczny, bez argumentu SHA. Nie wklejaj go:
 
 ```yaml
 name: deploy
@@ -88,7 +90,7 @@ jobs:
         run: /opt/jjdevhub/infra/ci/release-and-deploy.sh
 ```
 
-Ścieżka „dla zadanego SHA” jeszcze nie istnieje — dzisiejszy skrypt zawsze bierze aktualny `origin/main`. Dopóki jej nie ma, nie polegaj na tym szkicu: zielone CI API bez zmian na `main` i tak zdeployowałoby cały czubek `main`.
+To zdanie jest historyczne: wtedy ścieżki SHA nie było i szkic deployowałby czubek `main`. Teraz skrypt przyjmuje SHA — patrz [Po dodaniu ścieżki SHA](#po-dodaniu-ścieżki-sha).
 
 ## 4. Cron jako zapas
 
