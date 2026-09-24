@@ -8,7 +8,9 @@
     "prebuild": "node scripts/copy-cv.mjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
+    "pretest": "node scripts/copy-cv.mjs",
     "test": "ng test",
+    "pretest:ci": "node scripts/copy-cv.mjs",
     "test:ci": "ng test --watch=false"
   },
   "private": true,

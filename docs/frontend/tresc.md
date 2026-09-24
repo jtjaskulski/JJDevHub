@@ -39,7 +39,7 @@ Bez adresu, telefonu, prawa jazdy i klauzuli RODO w założeniu danych lokalnych
 1. Jeśli istnieje `cv.local.json` → kopiuje go do `cv.json`
 2. W przeciwnym razie → kopiuje `cv.example.json`
 
-Hooki w [package.json](../../src/Clients/web/package.json): `prestart` i `prebuild` wołają ten skrypt. `ContentService` robi `import cvFile from '../../content/cv.json'`.
+Hooki w [package.json](../../src/Clients/web/package.json): `prestart`, `prebuild`, `pretest` i `pretest:ci` wołają ten skrypt. GitHub Actions odpala `pnpm test:ci` zanim zrobi `pnpm build`, więc bez `pretest:ci` runner nie ma `cv.json` i pada na imporcie. Na runnerze nie ma `cv.local.json`, więc skrypt bierze `cv.example.json`. `ContentService` robi `import cvFile from '../../content/cv.json'`.
 
 ## Serwer / obraz Dockera
 
