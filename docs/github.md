@@ -102,3 +102,43 @@ JJDEVHUB_ENV_FILE=/etc/jjdevhub/api.env ./infra/ci/release-and-deploy.sh
 - Webhook HTTP na VM (potrzebny otwarty port albo osobna trasa tunelu i sekret).
 - Job deploy na `ubuntu-latest`.
 - Sekretów (`JWT_KEY`, hasło Postgresa, token tunelu, token runnera) w repo albo w GitHub Actions secrets po to, żeby hosted runner stawiał produkcję.
+
+## Historia zmian
+
+Dopisuj tu kolejny stan, nie kasuj poprzedniego. Sekcje wyżej opisują to, co działa teraz.
+
+### Zanim był `deploy.yml`
+
+Skrypt [infra/ci/release-and-deploy.sh](../infra/ci/release-and-deploy.sh) po `git fetch origin main` zawsze brał aktualny `origin/main`. Przy nowym SHA tworzył `release/YYYY-MM-DD.N` i robił `docker compose up -d --build`. Stan lądował w `/var/lib/jjdevhub/last-release-sha`. Nie było argumentu SHA: zielone CI API bez zmian na `main` i tak zdeployowałoby czubek `main`.
+
+Pliku `.github/workflows/deploy.yml` nie było. Docelowy kształt, zapisany wtedy jako szkic do następnego kroku:
+
+- trigger `workflow_run` po sukcesie `api` i `web`, tylko dla `main`
+- `runs-on: [self-hosted, jjdevhub]`
+- job woła ten sam skrypt, bez SHA
+
+```yaml
+name: deploy
+
+on:
+  workflow_run:
+    workflows: [api, web]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: [self-hosted, jjdevhub]
+    steps:
+      - name: Deploy SHA that passed CI
+        run: /opt/jjdevhub/infra/ci/release-and-deploy.sh
+```
+
+Cron zostawał zapasem na tym samym pliku stanu.
+
+### Po dodaniu ścieżki SHA
+
+Doszedł [.github/workflows/deploy.yml](../.github/workflows/deploy.yml). Job startuje tylko przy `conclusion == success`, `head_branch == main` i evencie `push` albo `workflow_dispatch`. Woła skrypt z `workflow_run.head_sha`.
+
+Skrypt dostał opcjonalny argument. Bez niego cron dalej bierze `origin/main`. Z argumentem deployuje ten commit, po `git fetch` i `git cat-file -e`. Jeśli zapisany SHA jest tym samym commitem albo już go zawiera (`git merge-base --is-ancestor`), skrypt kończy się `already deployed` i nie robi checkoutu. Drugi zielony workflow tego samego pusha nie przebudowuje obrazów, a wolniejsze CI starszego commita nie cofa nowszego deployu.
