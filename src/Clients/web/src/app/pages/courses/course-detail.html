@@ -1,0 +1,63 @@
+@if (course(); as course) {
+  <article class="article">
+    <header class="article-head reveal">
+      <p class="eyebrow">
+        <a [routerLink]="['/', locale(), 'courses']" [attr.aria-label]="backLabel()">←</a>
+      </p>
+      <h1>{{ course.title }}</h1>
+      <p class="lead">{{ course.subtitle }}</p>
+      @for (paragraph of course.summary; track paragraph) {
+        <p>{{ paragraph }}</p>
+      }
+      <p class="links">
+        <a [href]="course.repoUrl" target="_blank" rel="noopener noreferrer">{{ course.repoLabel }}</a>
+        @if (course.labUrl && course.labLabel) {
+          <a [href]="course.labUrl" target="_blank" rel="noopener noreferrer">{{ course.labLabel }}</a>
+        }
+      </p>
+    </header>
+
+    @if (course.lessons?.length) {
+      <section class="block reveal">
+        <h2>{{ course.lessonsTitle }}</h2>
+        <ul class="lesson-list">
+          @for (lesson of course.lessons; track lesson.slug) {
+            <li animate.enter="list-enter" animate.leave="list-leave">
+              <a [href]="lesson.url" target="_blank" rel="noopener noreferrer">
+                <strong>{{ lesson.title }}</strong>
+                <span>{{ lesson.summary }}</span>
+              </a>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    @if (course.chapters?.length) {
+      <section class="block reveal">
+        <h2>{{ course.chaptersTitle }}</h2>
+        @for (chapter of course.chapters; track chapter.slug) {
+          <div class="chapter" animate.enter="list-enter" animate.leave="list-leave">
+            <h3>{{ chapter.title }}</h3>
+            <p>{{ chapter.summary }}</p>
+          </div>
+        }
+      </section>
+    }
+
+    @if (course.planned?.length) {
+      <section class="block planned reveal">
+        <h2>{{ course.plannedTitle }}</h2>
+        @if (course.plannedLead) {
+          <p class="planned-lead">{{ course.plannedLead }}</p>
+        }
+        @for (chapter of course.planned; track chapter.slug) {
+          <div class="chapter" animate.enter="list-enter" animate.leave="list-leave">
+            <h3>{{ chapter.title }}</h3>
+            <p>{{ chapter.summary }}</p>
+          </div>
+        }
+      </section>
+    }
+  </article>
+}

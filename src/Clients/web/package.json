@@ -3,10 +3,14 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
+    "prestart": "node scripts/copy-cv.mjs",
     "start": "ng serve --proxy-config proxy.conf.json",
+    "prebuild": "node scripts/copy-cv.mjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
+    "pretest": "node scripts/copy-cv.mjs",
     "test": "ng test",
+    "pretest:ci": "node scripts/copy-cv.mjs",
     "test:ci": "ng test --watch=false"
   },
   "private": true,
@@ -19,7 +23,11 @@
     "@angular/platform-browser": "^21.2.0",
     "@angular/router": "^21.2.0",
     "rxjs": "~7.8.0",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "@jjdevhub/theme": "file:../shared/theme",
+    "gsap": "^3.13.0",
+    "lenis": "^1.3.8",
+    "@fontsource-variable/inter": "^5.2.6"
   },
   "devDependencies": {
     "@angular/build": "^21.2.21",

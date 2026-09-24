@@ -30,6 +30,7 @@
               }
             ],
             "styles": [
+              "node_modules/@fontsource-variable/inter/wght.css",
               "src/styles.scss"
             ]
           },
@@ -43,8 +44,8 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "4kB",
-                  "maximumError": "8kB"
+                  "maximumWarning": "24kB",
+                  "maximumError": "40kB"
                 }
               ],
               "outputHashing": "all"

@@ -1,44 +1,78 @@
-<section class="panel">
-  <p class="kicker">Status</p>
-  <h2>API connection</h2>
-  <p class="status" [attr.data-state]="apiStatus()">
-    @switch (apiStatus()) {
-      @case ('checking') {
-        Checking /health…
-      }
-      @case ('ok') {
-        API is reachable.
-      }
-      @default {
-        API is unreachable. Start Compose or <code>dotnet run</code> on :5080.
-      }
-    }
-  </p>
+<section class="hero" [attr.aria-label]="cv().name">
+  <div class="hero-pin" #heroPin>
+    <p class="hero-eyebrow">{{ site().home.eyebrow }}</p>
+    <h1 class="hero-name" #heroName>{{ cv().name }}</h1>
+    <p class="hero-role" #heroRole>{{ cv().role }}</p>
+
+    <div class="hero-current">
+      <h2 class="hero-current-title">{{ site().home.currentTitle }}</h2>
+      <p class="hero-current-lead">{{ site().home.currentLead }}</p>
+      <div class="hero-chapters">
+        @for (item of currentChapters(); track item.title + '|' + item.period) {
+          <article class="hero-chapter" #chapter>
+            <p class="hero-chapter-period">{{ item.period }}</p>
+            <h3>{{ item.title }}</h3>
+            @if (item.company) {
+              <p class="hero-chapter-company">{{ item.company }}</p>
+            }
+            @for (paragraph of item.paragraphs; track paragraph) {
+              <p>{{ paragraph }}</p>
+            }
+          </article>
+        }
+      </div>
+    </div>
+
+    <p class="hero-cta">
+      <a [routerLink]="['/', locale(), 'cv']">{{ site().home.ctaCv }}</a>
+      <a [routerLink]="['/', locale(), 'courses']">{{ site().home.ctaCourses }}</a>
+    </p>
+  </div>
 </section>
 
-@if (isAuthenticated()) {
-  <section class="panel">
-    <p class="kicker">Session</p>
-    <h2>Signed in</h2>
-    @if (meError()) {
-      <p class="error">{{ meError() }}</p>
-    } @else {
-      <dl>
-        <dt>Email</dt>
-        <dd>{{ email() ?? '…' }}</dd>
-        <dt>User id</dt>
-        <dd>{{ userId() ?? '…' }}</dd>
-      </dl>
+<section class="section reveal">
+  <div class="section-head">
+    <h2>{{ site().home.coursesTitle }}</h2>
+    <p>{{ site().home.coursesLead }}</p>
+  </div>
+  <div class="tile-grid">
+    @for (course of courses(); track course.slug) {
+      <a
+        class="tile"
+        animate.enter="list-enter"
+        animate.leave="list-leave"
+        [routerLink]="['/', locale(), 'courses', course.slug]"
+      >
+        <h3>{{ course.title }}</h3>
+        <p class="tile-sub">{{ course.subtitle }}</p>
+        <p>{{ course.summary[0] }}</p>
+      </a>
     }
-  </section>
-} @else {
-  <section class="panel">
-    <p class="kicker">Account</p>
-    <h2>Not signed in</h2>
-    <p>Register or log in to call <code>GET /api/auth/me</code>.</p>
-    <p class="actions">
-      <a routerLink="/login">Log in</a>
-      <a routerLink="/register">Register</a>
-    </p>
-  </section>
-}
+  </div>
+</section>
+
+<section class="section reveal">
+  <div class="section-head">
+    <h2>{{ site().home.notesTitle }}</h2>
+    <p>{{ site().home.notesLead }}</p>
+  </div>
+  <div class="notes-list">
+    @for (note of latestNotes(); track note.slug) {
+      <a
+        class="note-row"
+        animate.enter="list-enter"
+        animate.leave="list-leave"
+        [routerLink]="['/', locale(), 'notes', note.slug]"
+      >
+        <time [attr.datetime]="note.date">{{ note.date }}</time>
+        <span>
+          <strong>{{ note.title }}</strong>
+          <span class="note-summary">{{ note.summary }}</span>
+        </span>
+      </a>
+    }
+  </div>
+  <p class="section-more">
+    <a [routerLink]="['/', locale(), 'notes']">{{ site().home.viewAll }}</a>
+  </p>
+</section>

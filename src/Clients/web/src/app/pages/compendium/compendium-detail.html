@@ -1,0 +1,15 @@
+@if (term(); as term) {
+  <article class="article">
+    <header class="article-head reveal">
+      <p class="eyebrow">
+        <a [routerLink]="['/', locale(), 'compendium']" [attr.aria-label]="backLabel()">←</a>
+      </p>
+      <h1>{{ term.term }}</h1>
+    </header>
+    <div class="body reveal">
+      @for (paragraph of term.definition; track paragraph) {
+        <p animate.enter="list-enter" animate.leave="list-leave">{{ paragraph }}</p>
+      }
+    </div>
+  </article>
+}

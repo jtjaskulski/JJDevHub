@@ -62,6 +62,10 @@ coverage/
 appsettings.Development.json
 appsettings.Local.json
 
+# Web CV — local personal data and generated copy for the build
+src/Clients/web/src/content/cv.local.json
+src/Clients/web/src/content/cv.json
+
 # IDE / OS
 .idea/
 .vscode/*

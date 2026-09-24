@@ -30,6 +30,7 @@ on:
 
 jobs:
   build:
+    name: api
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
