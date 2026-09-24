@@ -14,12 +14,38 @@ fi
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-git fetch origin main
-remote_sha="$(git rev-parse origin/main)"
+# One deploy at a time. Cron and the runner share this clone; the state check
+# and the write at the end must not run in parallel.
+LOCK_FILE="${JJDEVHUB_LOCK_FILE:-/var/lib/jjdevhub/deploy.lock}"
+mkdir -p "$(dirname "$LOCK_FILE")"
+exec 9>"$LOCK_FILE"
+flock 9
 
-if [[ -f "$STATE_FILE" && "$(cat "$STATE_FILE")" == "$remote_sha" ]]; then
-  echo "already deployed $remote_sha"
-  exit 0
+# Optional argument: commit to deploy. Cron and manual runs omit it and track origin/main.
+target_sha="${1:-}"
+
+git fetch origin main
+
+if [[ -n "$target_sha" ]]; then
+  git cat-file -e "${target_sha}^{commit}"
+  remote_sha="$(git rev-parse "${target_sha}^{commit}")"
+else
+  remote_sha="$(git rev-parse origin/main)"
+fi
+
+if [[ -f "$STATE_FILE" ]]; then
+  saved_sha="$(tr -d '[:space:]' < "$STATE_FILE")"
+  if [[ -n "$saved_sha" && "$saved_sha" == "$remote_sha" ]]; then
+    echo "already deployed $remote_sha"
+    exit 0
+  fi
+  # A later green run of an older commit must not roll back a newer deploy.
+  if [[ -n "$saved_sha" ]] \
+    && git cat-file -e "${saved_sha}^{commit}" 2>/dev/null \
+    && git merge-base --is-ancestor "$remote_sha" "$saved_sha"; then
+    echo "already deployed $saved_sha"
+    exit 0
+  fi
 fi
 
 date_utc="$(date -u +%Y-%m-%d)"
