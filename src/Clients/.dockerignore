@@ -9,3 +9,6 @@ web/out-tsc
 **/*.md
 web/.env
 web/.env.*
+
+# BuildKit drops gitignored files. This one must reach the image when it sits on the VM.
+!web/src/content/cv.local.json

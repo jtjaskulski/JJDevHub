@@ -49,7 +49,7 @@ Sam `git checkout` **nie** przywiezie `cv.local.json`. Na VM trzeba położyć p
 
 `web/src/content/cv.local.json`
 
-Bez niego obraz zbuduje się z example (placeholdery w hero i na `/cv`). Dockerfile weba kopiuje katalog `web/` po `pnpm install` i robi `pnpm build` — skrypt `prebuild` musi wtedy znaleźć lokalny plik już w kontekście kopiowanym do obrazu (albo akceptujesz example w danym środowisku).
+Bez niego obraz zbuduje się z example (placeholdery w hero i na `/cv`). Samo położenie pliku na dysku VM nie wystarcza: BuildKit wyrzuca z kontekstu pliki z `.gitignore`, a `cv.local.json` tam jest. Wyjątek jest w [src/Clients/.dockerignore](../../src/Clients/.dockerignore) (`!web/src/content/cv.local.json`). Dockerfile kopiuje katalog `web/` i `pnpm build` odpala `prebuild` — skrypt widzi lokalny plik tylko wtedy, gdy ten wyjątek jest już w zbudowanym checkoutcie.
 
 ## Locale w runtime
 
