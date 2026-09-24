@@ -20,7 +20,7 @@ Cron co godzinę, jeśli `origin/main` zmienił SHA:
 - [infra/ci/jjdevhub-release.cron](../infra/ci/jjdevhub-release.cron)
 - [infra/ci/release-and-deploy.sh](../infra/ci/release-and-deploy.sh)
 
-Skrypt robi `git fetch origin main`. Bez argumentu celem jest `origin/main` (cron). Z argumentem SHA deployuje ten commit. Przy nowym SHA tworzy lokalną gałąź `release/YYYY-MM-DD.N` i `docker compose up -d --build` z `--env-file /etc/jjdevhub/api.env`. Stan zapisuje w `/var/lib/jjdevhub/last-release-sha`. Jeśli zapisany commit jest tym samym SHA albo już go zawiera, wypisuje `already deployed` i nie robi checkoutu.
+Skrypt robi `git fetch origin main`, przy nowym SHA tworzy lokalną gałąź `release/YYYY-MM-DD.N` i `docker compose up -d --build` z `--env-file /etc/jjdevhub/api.env`. Stan zapisuje w `/var/lib/jjdevhub/last-release-sha`.
 
 Ograniczenia crona: deploy czeka do 59 minut i poleci nawet, gdy `api` albo `web` na GitHubie jest czerwony.
 
@@ -51,21 +51,44 @@ Token z kreatora jest jednorazowy. Etykieta `jjdevhub` jest tą, której użyje 
 
 Sprawdzenie: runner w panelu ma status **Idle**.
 
-## 3. Workflow deploy
+## 3. Docelowy workflow (jeszcze go nie ma)
 
-[`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) startuje po **ukończonym sukcesem** `api` albo `web`, gdy `head_branch` to `main` i event to `push` albo `workflow_dispatch`. PR nie deployuje. Job idzie na `[self-hosted, jjdevhub]` i z `/opt/jjdevhub` woła:
+Plik `.github/workflows/deploy.yml` powstanie w następnym kroku. Kształt:
 
-```bash
-./infra/ci/release-and-deploy.sh "$DEPLOY_SHA"
+- trigger `workflow_run` po **ukończonym sukcesem** workflow `api` i `web`, tylko dla `main`
+- `runs-on: [self-hosted, jjdevhub]`
+- job na VM woła deploy tego SHA, które przeszło CI — nie czeka na cron
+
+`workflow_run` czyta definicję z domyślnej gałęzi (`main`). Runner musi być online w momencie sukcesu CI.
+
+Przy implementacji rozdziel [release-and-deploy.sh](../infra/ci/release-and-deploy.sh):
+
+- cron dalej sam sprawdza, czy `origin/main` się ruszył
+- osobna ścieżka robi `compose up` dla SHA podanego przez runner
+
+Oba mechanizmy czytają `/var/lib/jjdevhub/last-release-sha`. Drugi nie przebudowuje tego samego SHA (`already deployed` w obecnym skrypcie).
+
+Szkic, **nie dodawaj go teraz**:
+
+```yaml
+name: deploy
+
+on:
+  workflow_run:
+    workflows: [api, web]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: [self-hosted, jjdevhub]
+    steps:
+      - name: Deploy SHA that passed CI
+        run: /opt/jjdevhub/infra/ci/release-and-deploy.sh
 ```
 
-`DEPLOY_SHA` to commit, który przeszedł CI (`workflow_run.head_sha`), nie aktualny czubek `main`.
-
-`workflow_run` czyta definicję z domyślnej gałęzi (`main`). Runner musi być online i mieć etykietę `jjdevhub`. Katalog `/opt/jjdevhub` ma być czysty, bo skrypt robi `git checkout`.
-
-Push, który rusza i `api`, i `web`, odpali deploy dwa razy. Drugi przebieg zobaczy ten sam SHA w pliku stanu i wyjdzie. Push tylko w API deployuje po samym `api` — `web` się wtedy nie uruchamia przez filtr ścieżek.
-
-Po zmergowaniu tego pliku na `main` zrób na VM raz `git pull` w `/opt/jjdevhub`, zanim pierwszy `workflow_run` wywoła skrypt. Na dysku musi być wersja, która przyjmuje SHA.
+Ścieżka „dla zadanego SHA” jeszcze nie istnieje — dzisiejszy skrypt zawsze bierze aktualny `origin/main`. Dopóki jej nie ma, nie polegaj na tym szkicu: zielone CI API bez zmian na `main` i tak zdeployowałoby cały czubek `main`.
 
 ## 4. Cron jako zapas
 
@@ -105,7 +128,7 @@ JJDEVHUB_ENV_FILE=/etc/jjdevhub/api.env ./infra/ci/release-and-deploy.sh
 
 ## Historia zmian
 
-Dopisuj tu kolejny stan, nie kasuj poprzedniego. Sekcje wyżej opisują to, co działa teraz.
+Dopisuj tu kolejny stan. Sekcji wyżej nie przerabiaj.
 
 ### Zanim był `deploy.yml`
 
@@ -142,3 +165,11 @@ Cron zostawał zapasem na tym samym pliku stanu.
 Doszedł [.github/workflows/deploy.yml](../.github/workflows/deploy.yml). Job startuje tylko przy `conclusion == success`, `head_branch == main` i evencie `push` albo `workflow_dispatch`. Woła skrypt z `workflow_run.head_sha`.
 
 Skrypt dostał opcjonalny argument. Bez niego cron dalej bierze `origin/main`. Z argumentem deployuje ten commit, po `git fetch` i `git cat-file -e`. Jeśli zapisany SHA jest tym samym commitem albo już go zawiera (`git merge-base --is-ancestor`), skrypt kończy się `already deployed` i nie robi checkoutu. Drugi zielony workflow tego samego pusha nie przebudowuje obrazów, a wolniejsze CI starszego commita nie cofa nowszego deployu.
+
+Job na runnerze, z `/opt/jjdevhub`:
+
+```bash
+./infra/ci/release-and-deploy.sh "$DEPLOY_SHA"
+```
+
+`DEPLOY_SHA` to `workflow_run.head_sha`. Push, który rusza i `api`, i `web`, odpala deploy dwa razy; drugi przebieg wychodzi przez plik stanu. Push tylko w API deployuje po samym `api`, bo `web` ma filtr ścieżek. Katalog `/opt/jjdevhub` ma być czysty. Po zmergowaniu na `main` raz `git pull` na VM, zanim pierwszy `workflow_run` wywoła skrypt.
