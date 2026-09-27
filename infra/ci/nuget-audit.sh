@@ -6,7 +6,7 @@ cd "$REPO_ROOT"
 
 export DOTNET_NOLOGO=1
 dotnet restore JJDevHub.sln
-dotnet list JJDevHub.sln package --vulnerable --include-transitive --format json \
+dotnet package list --project JJDevHub.sln --vulnerable --include-transitive --format json \
   --source https://api.nuget.org/v3/index.json >/tmp/nuget-audit.json
 
 # Nagłówek „has the following vulnerable packages” jest w raporcie tekstowym przy każdym

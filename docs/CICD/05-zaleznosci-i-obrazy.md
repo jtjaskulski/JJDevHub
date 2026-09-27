@@ -30,7 +30,7 @@ Komendy skanów żyją w [infra/ci/](../../infra/ci/). Workflowy tylko je wołaj
 | Dependabot | Bot GitHuba: PR z aktualizacją wersji zależności według ekosystemu (`nuget`, `npm`, `github-actions`, `docker`). |
 | Dependency review | Action na PR: porównuje lock/manifest z bazą i failuje przy nowych podatnościach według progu. |
 | Trivy | Skaner Aqua: OS packages + zależności w obrazie / filesystemie. Tu: fail CRITICAL i HIGH. |
-| NuGet audit | `dotnet restore` / `dotnet list package --vulnerable` z infrastrukturą audytu NuGet. |
+| NuGet audit | `dotnet restore` / `dotnet package list --vulnerable` z infrastrukturą audytu NuGet. |
 | pnpm audit | Audyt drzewa npm przez pnpm; `--audit-level=high` failuje od High w górę. |
 | `permissions` | Najmniejsze uprawnienia GITHUB_TOKEN w workflow (`contents: read`). |
 | `concurrency` | Jedna aktywna runda danego workflow na ref; anuluje starsze runy przy nowym pushu. |
@@ -96,7 +96,7 @@ cd "$REPO_ROOT"
 
 export DOTNET_NOLOGO=1
 dotnet restore JJDevHub.sln
-dotnet list JJDevHub.sln package --vulnerable --include-transitive --format json \
+dotnet package list --project JJDevHub.sln --vulnerable --include-transitive --format json \
   --source https://api.nuget.org/v3/index.json >/tmp/nuget-audit.json
 
 # Nagłówek „has the following vulnerable packages” jest w raporcie tekstowym przy każdym
@@ -109,7 +109,7 @@ fi
 echo "nuget-audit: ok"
 ```
 
-Low i Moderate zostają w `/tmp/nuget-audit.json` i nie kończą joba. Fail jest tylko przy `"severity": "Critical"` albo `"severity": "High"`. Stderr z `dotnet list` nie mieszaj z tym plikiem — `grep` ma widzieć sam JSON.
+Low i Moderate zostają w `/tmp/nuget-audit.json` i nie kończą joba. Fail jest tylko przy `"severity": "Critical"` albo `"severity": "High"`. Stderr z `dotnet package list` nie mieszaj z tym plikiem — `grep` ma widzieć sam JSON. W SDK 11 rozwiązanie idzie przez `--project`, nie jako argument pozycyjny.
 
 #### `infra/ci/pnpm-audit.sh`
 
@@ -449,7 +449,7 @@ Wymaga dependency graph (włączany razem z Dependabot / automatycznie dla publi
 
 ```bash
 dotnet restore
-dotnet list package --vulnerable --include-transitive
+dotnet package list --project JJDevHub.sln --vulnerable --include-transitive
 ```
 
 W CI ustawiasz fail, gdy output zawiera Critical/High. Central Package Management (`Directory.Packages.props`) oznacza, że bump wersji jest w jednym pliku — Dependabot i audyt patrzą tam.
@@ -518,7 +518,7 @@ Przy serii pushy na ten sam branch anuluje poprzedni run — oszczędza minuty i
 2. **Trivy w YAML skopiowany 4 razy** — dryf flag; trzymaj skrypt w `infra/ci/`.
 3. **Dependabot bez CI na PR** — merge bumpa „na oko”.
 4. **`permissions: write-all` „na wszelki wypadek”** — zbędne ryzyko przy skradzionym workflow.
-5. **Ignorowanie transitive** — `dotnet list … --include-transitive` i lockfile istnieją po to.
+5. **Ignorowanie transitive** — `dotnet package list … --include-transitive` i lockfile istnieją po to.
 6. **Jeden ekosystem `npm` na root monorepo**, gdy frontend siedzi w podkatalogu — bot nic nie znajdzie; `directory` musi wskazać `src/Clients/web`.
 7. **Fail na Low w pierwszym tygodniu** — zespół wyłącza cały skaner; zacznij od High/Critical.
 8. **Mylenie dependency review z CodeQL** — review = zależności; CodeQL = wzorce w Twoim kodzie.
@@ -526,6 +526,6 @@ Przy serii pushy na ten sam branch anuluje poprzedni run — oszczędza minuty i
 ### Oficjalne źródła
 
 - GitHub Docs: Dependabot, dependency review action, GITHUB_TOKEN permissions, concurrency.
-- NuGet: auditing packages / `dotnet list package --vulnerable`.
+- NuGet: auditing packages / `dotnet package list --vulnerable`.
 - pnpm: `pnpm audit`.
 - Aqua Trivy: dokumentacja `trivy image`, severity, ignore file.
