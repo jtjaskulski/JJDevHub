@@ -7,6 +7,8 @@ on:
       - "src/Clients/.dockerignore"
       - "src/Clients/shared/theme/**"
       - "infra/docker/docker-compose.yml"
+      - "infra/ci/pnpm-audit.sh"
+      - "infra/ci/trivy-web.sh"
       - ".github/workflows/web.yml"
   push:
     branches: [main]
@@ -15,8 +17,17 @@ on:
       - "src/Clients/.dockerignore"
       - "src/Clients/shared/theme/**"
       - "infra/docker/docker-compose.yml"
+      - "infra/ci/pnpm-audit.sh"
+      - "infra/ci/trivy-web.sh"
       - ".github/workflows/web.yml"
   workflow_dispatch:
+
+concurrency:
+  group: web-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -41,12 +52,30 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: pnpm audit
+        working-directory: .
+        run: ./infra/ci/pnpm-audit.sh
+
       - name: Test
         run: pnpm test:ci
 
       - name: Build
         run: pnpm build
 
-      - name: Docker image
+      - name: Install Trivy
         working-directory: .
-        run: docker build -f src/Clients/web/Dockerfile src/Clients
+        env:
+          TRIVY_VERSION: "0.74.0"
+          TRIVY_SHA256: "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a"
+        run: |
+          set -euo pipefail
+          tarball="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl -fsSL -o "/tmp/${tarball}" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${tarball}"
+          echo "${TRIVY_SHA256}  /tmp/${tarball}" | sha256sum -c -
+          tar -xzf "/tmp/${tarball}" -C /usr/local/bin trivy
+          trivy --version
+
+      - name: Docker image + Trivy
+        working-directory: .
+        run: ./infra/ci/trivy-web.sh

@@ -20,8 +20,8 @@ Komendy skanów żyją w [infra/ci/](../../infra/ci/). Workflowy tylko je wołaj
 - CodeQL: [04-codeql.md](04-codeql.md).
 - Centralne wersje NuGet: [Directory.Packages.props](../../Directory.Packages.props), frontend: [src/Clients/web/package.json](../../src/Clients/web/package.json) + `pnpm-lock.yaml`.
 - Dockerfile API: [infra/docker/Dockerfile](../../infra/docker/Dockerfile). Dockerfile web: [src/Clients/web/Dockerfile](../../src/Clients/web/Dockerfile).
-- W `infra/ci/` są dziś tylko [release-and-deploy.sh](../../infra/ci/release-and-deploy.sh) i cron — **brak** skryptów audytu/Trivy; dopiszesz je poniżej.
-- W repo **nie ma** `.github/dependabot.yml` ani dependency review — to ten dokument.
+- Skrypty audytu i Trivy: [nuget-audit.sh](../../infra/ci/nuget-audit.sh), [pnpm-audit.sh](../../infra/ci/pnpm-audit.sh), [trivy-api.sh](../../infra/ci/trivy-api.sh), [trivy-web.sh](../../infra/ci/trivy-web.sh). Obok zostaje [release-and-deploy.sh](../../infra/ci/release-and-deploy.sh) i cron.
+- Dependabot: [.github/dependabot.yml](../../.github/dependabot.yml). Dependency review: [.github/workflows/dependency-review.yml](../../.github/workflows/dependency-review.yml).
 
 ## Słownik pojęć z tego pliku
 

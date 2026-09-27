@@ -12,6 +12,8 @@ on:
       - "JJDevHub.sln"
       - "infra/docker/Dockerfile"
       - "infra/docker/docker-compose.yml"
+      - "infra/ci/nuget-audit.sh"
+      - "infra/ci/trivy-api.sh"
       - ".github/workflows/api.yml"
   push:
     branches: [main]
@@ -25,8 +27,17 @@ on:
       - "JJDevHub.sln"
       - "infra/docker/Dockerfile"
       - "infra/docker/docker-compose.yml"
+      - "infra/ci/nuget-audit.sh"
+      - "infra/ci/trivy-api.sh"
       - ".github/workflows/api.yml"
   workflow_dispatch:
+
+concurrency:
+  group: api-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -43,11 +54,27 @@ jobs:
       - name: Restore
         run: dotnet restore JJDevHub.sln
 
+      - name: NuGet audit
+        run: ./infra/ci/nuget-audit.sh
+
       - name: Build
         run: dotnet build JJDevHub.sln --no-restore -c Release
 
       - name: Test
         run: dotnet test tests/JJDevHub.Api.Tests/JJDevHub.Api.Tests.csproj --no-build -c Release
 
-      - name: Docker image
-        run: docker build -f infra/docker/Dockerfile .
+      - name: Install Trivy
+        env:
+          TRIVY_VERSION: "0.74.0"
+          TRIVY_SHA256: "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a"
+        run: |
+          set -euo pipefail
+          tarball="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl -fsSL -o "/tmp/${tarball}" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${tarball}"
+          echo "${TRIVY_SHA256}  /tmp/${tarball}" | sha256sum -c -
+          tar -xzf "/tmp/${tarball}" -C /usr/local/bin trivy
+          trivy --version
+
+      - name: Docker image + Trivy
+        run: ./infra/ci/trivy-api.sh
