@@ -66,14 +66,14 @@ jobs:
         working-directory: .
         env:
           TRIVY_VERSION: "0.74.0"
-          TRIVY_SHA256: "bc701c3c3ee8b9acbea2c23257e41381e3854888f51281616a6ba5dc96963821"
+          TRIVY_SHA256: "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a"
         run: |
           set -euo pipefail
           tarball="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
           curl -fsSL -o "/tmp/${tarball}" \
             "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${tarball}"
           echo "${TRIVY_SHA256}  /tmp/${tarball}" | sha256sum -c -
-          tar -xzf "/tmp/${tarball}" -C /usr/local/bin trivy
+          sudo tar -xzf "/tmp/${tarball}" -C /usr/local/bin trivy
           trivy --version
 
       - name: Docker image + Trivy

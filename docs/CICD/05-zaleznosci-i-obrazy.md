@@ -277,7 +277,7 @@ jobs:
           curl -fsSL -o "/tmp/${tarball}" \
             "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${tarball}"
           echo "${TRIVY_SHA256}  /tmp/${tarball}" | sha256sum -c -
-          tar -xzf "/tmp/${tarball}" -C /usr/local/bin trivy
+          sudo tar -xzf "/tmp/${tarball}" -C /usr/local/bin trivy
           trivy --version
 
       - name: Docker image + Trivy
@@ -362,7 +362,7 @@ jobs:
           curl -fsSL -o "/tmp/${tarball}" \
             "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${tarball}"
           echo "${TRIVY_SHA256}  /tmp/${tarball}" | sha256sum -c -
-          tar -xzf "/tmp/${tarball}" -C /usr/local/bin trivy
+          sudo tar -xzf "/tmp/${tarball}" -C /usr/local/bin trivy
           trivy --version
 
       - name: Docker image + Trivy
