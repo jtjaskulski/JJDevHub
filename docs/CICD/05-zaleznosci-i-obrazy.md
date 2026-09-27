@@ -476,7 +476,7 @@ trivy image --severity CRITICAL,HIGH --exit-code 1 myapp:ci
 
 Trivy raportuje CVE w:
 
-- pakietach OS warstwy bazowej (`nginx:1.27-alpine`, `mcr.microsoft.com/dotnet/aspnet:…`),
+- pakietach OS warstwy bazowej (`nginx:1.30-alpine`, `mcr.microsoft.com/dotnet/aspnet:…`),
 - bibliotekach aplikacji wykrytych w warstwach.
 
 `--exit-code 1` = fail CI. `--ignore-unfixed` = nie failuj, gdy vendor nie wydał poprawki (kompromis operacyjny).
