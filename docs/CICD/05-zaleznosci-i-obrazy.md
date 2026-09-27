@@ -137,7 +137,8 @@ cd "$REPO_ROOT"
 IMAGE="${TRIVY_API_IMAGE:-jjdevhub-api:ci}"
 
 docker build -f infra/docker/Dockerfile -t "$IMAGE" .
-trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed "$IMAGE"
+trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed \
+  --ignorefile .trivyignore.yaml "$IMAGE"
 ```
 
 #### `infra/ci/trivy-web.sh`
@@ -156,6 +157,8 @@ trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed "$IMAGE"
 ```
 
 `--ignore-unfixed` pomija CVE bez dostępnej poprawki w upstreamie. Jeśli wolisz failować także na unfixed, usuń flagę — świadomie, bo job będzie częściej czerwony.
+
+[.trivyignore.yaml](../../.trivyignore.yaml) dotyczy tylko skanu API. Osiem HIGH siedzi w `usr/bin/pebble` (Go stdlib w Ubuntu z `mcr.microsoft.com/dotnet/aspnet:11.0-preview`); `JJDevHub.Api.deps.json` jest czysty, a entrypoint to `dotnet`, nie pebble. YAML nie ładuje się sam — stąd `--ignorefile`. Wpisy gasną `2026-12-31`. Skan web tego pliku nie używa.
 
 Lokalnie (opcjonalnie):
 
@@ -218,6 +221,7 @@ on:
       - "infra/docker/docker-compose.yml"
       - "infra/ci/nuget-audit.sh"
       - "infra/ci/trivy-api.sh"
+      - ".trivyignore.yaml"
       - ".github/workflows/api.yml"
   push:
     branches: [main]
@@ -233,6 +237,7 @@ on:
       - "infra/docker/docker-compose.yml"
       - "infra/ci/nuget-audit.sh"
       - "infra/ci/trivy-api.sh"
+      - ".trivyignore.yaml"
       - ".github/workflows/api.yml"
   workflow_dispatch:
 

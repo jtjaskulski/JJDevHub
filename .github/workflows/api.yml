@@ -14,6 +14,7 @@ on:
       - "infra/docker/docker-compose.yml"
       - "infra/ci/nuget-audit.sh"
       - "infra/ci/trivy-api.sh"
+      - ".trivyignore.yaml"
       - ".github/workflows/api.yml"
   push:
     branches: [main]
@@ -29,6 +30,7 @@ on:
       - "infra/docker/docker-compose.yml"
       - "infra/ci/nuget-audit.sh"
       - "infra/ci/trivy-api.sh"
+      - ".trivyignore.yaml"
       - ".github/workflows/api.yml"
   workflow_dispatch:
 
