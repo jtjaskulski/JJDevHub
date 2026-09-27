@@ -7,6 +7,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -78,6 +82,59 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod());
 });
 
+// Jaeger (08) accepts OTLP traces only. The shared endpoint is that traces address.
+// Metrics and logs must not fall back to it — they retry forever against a trace-only receiver.
+var tracesEndpoint = OtelSetting(builder.Configuration, "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
+    ?? OtelSetting(builder.Configuration, "OTEL_EXPORTER_OTLP_ENDPOINT");
+var metricsEndpoint = OtelSetting(builder.Configuration, "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT");
+var logsEndpoint = OtelSetting(builder.Configuration, "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT");
+
+var serviceName = OtelSetting(builder.Configuration, "OTEL_SERVICE_NAME")
+    ?? "JJDevHub.Api";
+
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService(serviceName: serviceName))
+    .WithTracing(tracing =>
+    {
+        tracing
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation();
+        if (tracesEndpoint is not null)
+        {
+            tracing.AddOtlpExporter(options =>
+            {
+                options.Endpoint = new Uri(tracesEndpoint);
+            });
+        }
+    })
+    .WithMetrics(metrics =>
+    {
+        metrics
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddRuntimeInstrumentation();
+        if (metricsEndpoint is not null)
+        {
+            metrics.AddOtlpExporter(options =>
+            {
+                options.Endpoint = new Uri(metricsEndpoint);
+            });
+        }
+    });
+
+builder.Logging.AddOpenTelemetry(logging =>
+{
+    logging.IncludeFormattedMessage = true;
+    logging.IncludeScopes = true;
+    if (logsEndpoint is not null)
+    {
+        logging.AddOtlpExporter(options =>
+        {
+            options.Endpoint = new Uri(logsEndpoint);
+        });
+    }
+});
+
 var app = builder.Build();
 
 if (!IsOpenApiDocumentGeneration(args))
@@ -108,6 +165,12 @@ app.MapGet("/health", () => Results.Ok(new
 app.MapAuthEndpoints();
 
 app.Run();
+
+static string? OtelSetting(IConfiguration configuration, string key)
+{
+    var value = configuration[key] ?? Environment.GetEnvironmentVariable(key);
+    return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}
 
 static bool IsOpenApiDocumentGeneration(string[] args)
 {

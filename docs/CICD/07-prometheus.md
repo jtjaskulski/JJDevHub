@@ -56,11 +56,11 @@ W rejestracji metryk z 06 dodaj `.AddPrometheusExporter()` **zawsze** (nie tylko
         .AddHttpClientInstrumentation()
         .AddRuntimeInstrumentation()
         .AddPrometheusExporter();
-    if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+    if (metricsEndpoint is not null)
     {
         metrics.AddOtlpExporter(options =>
         {
-            options.Endpoint = new Uri(otlpEndpoint);
+            options.Endpoint = new Uri(metricsEndpoint);
         });
     }
 });
@@ -215,12 +215,12 @@ Nginx (`web`) proxy’uje `/health` i `/api/`, nie `/metrics`. Tunel Cloudflare 
 
 ### Dwa wyjścia tych samych metryk
 
-W 06 metryki powstają w procesie. Na zewnątrz idą tylko OTLP-em, i tylko gdy endpoint nie jest pusty. Ten numer dokłada **drugi czytnik**, zawsze:
+W 06 metryki powstają w procesie. Push OTLP idzie wyłącznie na `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` — nie na adres Jaegera. Ten numer dokłada **czytnik scrape**, zawsze:
 
 - `AddPrometheusExporter()` — niezależnie od OTLP,
 - `MapPrometheusScrapingEndpoint("/metrics")` — GET bez JWT.
 
-OTLP (później Jaeger, i to i tak głównie na trace’y) i scrape mogą działać razem. Wyłączenie jednego nie kasuje instrumentów. Prometheus nie umie przyjąć OTLP z tego API. Dlatego adres `prometheus:9090` nie jest celem `OTEL_EXPORTER_OTLP_ENDPOINT`.
+Scrape i push OTLP metryk (osobny endpoint collectora) mogą działać razem. Wyłączenie jednego nie kasuje instrumentów. Prometheus nie umie przyjąć OTLP z tego API, a Jaeger nie przyjmuje metryk. Dlatego `prometheus:9090` i `http://jaeger:4317` nie są celem `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`. Adres Jaegera zostaje przy trasach (`OTEL_EXPORTER_OTLP_ENDPOINT`).
 
 Sam `AddPrometheusExporter` bez `Map…` nie otwiera portu. Samo mapowanie bez eksportera daje pustkę albo brak trasy. Potrzebne są oba, w tej kolejności: rejestracja **przed** `Build()`, trasa **po** `Build()`.
 

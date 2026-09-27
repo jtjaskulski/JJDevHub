@@ -10,7 +10,7 @@
 - Compose: usługa `api` w [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml) — env z `/etc/jjdevhub/api.env` (wzór [infra/docker/.env.example](../../infra/docker/.env.example)).
 - Obraz API: [infra/docker/Dockerfile](../../infra/docker/Dockerfile).
 - VM i sekrety: [01-proxmox.md](01-proxmox.md). Tunel tylko na `4200`: [02-cloudflare-tunnel.md](02-cloudflare-tunnel.md). CI: [03-github.md](03-github.md). Security CI: [04-codeql.md](04-codeql.md), [05-zaleznosci-i-obrazy.md](05-zaleznosci-i-obrazy.md).
-- W kodzie **nie ma** jeszcze pakietów OpenTelemetry ani `OTEL_*` w Compose / `.env.example` — to ten dokument.
+- Pakiety OpenTelemetry i zmienne `OTEL_*` w Compose / `.env.example` są już w repozytorium — ten dokument.
 - Endpoint `/metrics` pod scrape Prometheusa **nie** należy do tego pliku (07).
 
 ## Słownik pojęć z tego pliku
@@ -23,7 +23,7 @@
 | Log | Zdarzenie tekstowe / strukturalne skorelowane z trace id, gdy pipeline to spina. |
 | OTLP | OpenTelemetry Protocol — transport telemetrii. Tu: **gRPC**. |
 | Resource | Atrybuty procesu: `service.name`, wersja, środowisko. |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | Adres kolektora/odbiornika, np. `http://jaeger:4317`. Gdy pusty — nie konfigurujesz eksportera sieciowego. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Adres **tras**. Później `http://jaeger:4317`. Jaeger nie przyjmuje metryk ani logów. Puste = brak eksportu tras. |
 
 ## Kroki
 
@@ -32,11 +32,11 @@
 W [Directory.Packages.props](../../Directory.Packages.props) dopisz wersje (dobierz aktualne stabilne z nuget.org; poniżej orientacyjne — przy implementacji sprawdź najnowsze zgodne z net11):
 
 ```xml
-<PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.12.0" />
-<PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.12.0" />
-<PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.12.0" />
-<PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.12.0" />
-<PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.12.0" />
+<PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
+<PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.19.0" />
+<PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.19.0" />
+<PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.19.0" />
+<PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.19.1" />
 ```
 
 W [JJDevHub.Api.csproj](../../src/JJDevHub.Api/JJDevHub.Api.csproj):
@@ -63,11 +63,14 @@ using OpenTelemetry.Trace;
 
 // … istniejący kod builder.Services …
 
-var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]
-    ?? Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
+// Jaeger (08) przyjmuje tylko trasy. Wspólny endpoint to ten adres.
+// Metryki i logi nie spadają na niego — inaczej batch idzie w retry do odbiornika samych tras.
+var tracesEndpoint = OtelSetting(builder.Configuration, "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
+    ?? OtelSetting(builder.Configuration, "OTEL_EXPORTER_OTLP_ENDPOINT");
+var metricsEndpoint = OtelSetting(builder.Configuration, "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT");
+var logsEndpoint = OtelSetting(builder.Configuration, "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT");
 
-var serviceName = builder.Configuration["OTEL_SERVICE_NAME"]
-    ?? Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME")
+var serviceName = OtelSetting(builder.Configuration, "OTEL_SERVICE_NAME")
     ?? "JJDevHub.Api";
 
 builder.Services.AddOpenTelemetry()
@@ -77,11 +80,11 @@ builder.Services.AddOpenTelemetry()
         tracing
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation();
-        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+        if (tracesEndpoint is not null)
         {
             tracing.AddOtlpExporter(options =>
             {
-                options.Endpoint = new Uri(otlpEndpoint);
+                options.Endpoint = new Uri(tracesEndpoint);
                 // gRPC — domyślne dla OTLP w tym eksporterze przy porcie 4317
             });
         }
@@ -92,11 +95,11 @@ builder.Services.AddOpenTelemetry()
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation()
             .AddRuntimeInstrumentation();
-        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+        if (metricsEndpoint is not null)
         {
             metrics.AddOtlpExporter(options =>
             {
-                options.Endpoint = new Uri(otlpEndpoint);
+                options.Endpoint = new Uri(metricsEndpoint);
             });
         }
     });
@@ -105,15 +108,17 @@ builder.Logging.AddOpenTelemetry(logging =>
 {
     logging.IncludeFormattedMessage = true;
     logging.IncludeScopes = true;
-    if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+    if (logsEndpoint is not null)
     {
         logging.AddOtlpExporter(options =>
         {
-            options.Endpoint = new Uri(otlpEndpoint);
+            options.Endpoint = new Uri(logsEndpoint);
         });
     }
 });
 ```
+
+`OtelSetting` czyta klucz z konfiguracji, potem ze zmiennej procesu, i zwraca `null` dla pustego albo białego stringa (żeby `new Uri` nie wywalił startu).
 
 Wymuś protokół gRPC przez środowisko (zalecane, zamiast hardcodu w każdym miejscu):
 
@@ -130,14 +135,21 @@ W usłudze `api` w [infra/docker/docker-compose.yml](../../infra/docker/docker-c
 ```yaml
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-JJDevHub.Api}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:-}
       OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
 ```
 
 W [infra/docker/.env.example](../../infra/docker/.env.example) (i później w `/etc/jjdevhub/api.env` na VM):
 
 ```bash
-# Puste = bez eksportu sieciowego. Po 08-jaeger.md np. http://jaeger:4317
+# Trasy. Puste = bez eksportu. Po 08-jaeger.md: http://jaeger:4317
+# Jaeger nie przyjmuje metryk ani logów OTLP — tych sygnałów tam nie kieruj.
 OTEL_EXPORTER_OTLP_ENDPOINT=
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=
+OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=
+OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=
 OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 OTEL_SERVICE_NAME=JJDevHub.Api
 ```
@@ -146,7 +158,7 @@ Na serwerze po deployu:
 
 ```bash
 sudoedit /etc/jjdevhub/api.env
-# dopisz trzy linie jak wyżej; endpoint na razie zostaw pusty
+# dopisz linie jak wyżej; endpointy na razie zostaw puste
 ```
 
 **Nie** dodawaj kontenera `otel-collector`, `jaeger` ani `prometheus` w tym kroku. **Nie** publikuj żadnego nowego portu w tunelu Cloudflare.
@@ -183,7 +195,7 @@ dotnet run --project src/JJDevHub.Api
 1. Solution buduje się; testy API przechodzą.
 2. `curl` na `/health` (port `5080` lub przez nginx `4200`) zwraca Healthy.
 3. W kodzie widać `AddOpenTelemetry`, instrumentacje ASP.NET / Http / Runtime oraz warunkowy `AddOtlpExporter`.
-4. W Compose / `.env.example` są `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_PROTOCOL=grpc`.
+4. W Compose / `.env.example` są `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT` (trasy), osobne `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` i `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` oraz `OTEL_EXPORTER_OTLP_PROTOCOL=grpc`.
 5. Brak kontenerów collector/Prometheus/Jaeger w tym commicie; tunel Cloudflare bez nowych hostname’ów.
 6. Po ustawieniu prawdziwego endpointu w późniejszym numerze (Jaeger) spany pojawią się w UI odbiornika — tu wystarczy gotowość konfiguracji.
 
@@ -223,12 +235,16 @@ przeglądarka
     → nginx :80  (w Compose publikowane jako :4200)
         → API :8080
               Activity / span HTTP
-              metryka czasu żądania
-              log z trace id
-                    │
-                    ▼  tylko gdy OTEL_EXPORTER_OTLP_ENDPOINT jest ustawiony
+                    │  tylko gdy adres tras jest ustawiony
+                    ▼
               OTLP gRPC :4317
-                    → Jaeger (08) albo inny odbiornik
+                    → Jaeger (08), tylko trace
+              metryka czasu żądania
+                    → OTLP tylko przy OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+                    → scrape /metrics od numeru 07 (Prometheus), nie Jaeger
+              log z trace id
+                    → konsola zostaje
+                    → OTLP tylko przy OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
 ```
 
 Bez adresu strzałka w dół urywa się w procesie. Aplikacja dalej odpowiada na `/health`.
@@ -268,7 +284,13 @@ OTLP to protokół wynoszenia telemetrii. Dwa transporty, których ludzie mylą,
 
 Schemat `http://` przy gRPC znaczy „bez TLS”, nie „to zwykły POST”. `https://jaeger:4317` włącza TLS i pada na all-in-one bez certyfikatu. Do adresu gRPC nie doklejasz `/v1/traces` — ta ścieżka należy do transportu HTTP.
 
-Jeden `OTEL_EXPORTER_OTLP_ENDPOINT` w przepisie obsługuje trasy, metryki i logi. Spec zna też zmienne per sygnał (`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` i analogiczne). Tu zostają nieużyte: jeden odbiornik, jeden adres.
+`OTEL_EXPORTER_OTLP_ENDPOINT` w tym stacku karmi **tylko trasy** (Jaeger z [08-jaeger.md](08-jaeger.md) przyjmuje OTLP trace, nie metryki i nie logi). Spec zna zmienne per sygnał i kod ich używa:
+
+- trasy: `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, a gdy puste — `OTEL_EXPORTER_OTLP_ENDPOINT`,
+- metryki: wyłącznie `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` (collector albo backend metryk), bez zejścia na adres Jaegera,
+- logi: wyłącznie `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`.
+
+Puste metryki i logi nie rejestrują `AddOtlpExporter`. Inaczej batch leci w retry na `http://jaeger:4317` i nic nie dochodzi.
 
 Eksporter .NET **bez** ustawionego endpointu celuje w `http://localhost:4317`. Dlatego krok 2 woła `AddOtlpExporter` tylko gdy zmienna jest niepusta. Bezwarunkowe `AddOtlpExporter()` przy pustym env sypie w logu retry do loopbacka kontenera API. Pusty string w Compose (`${OTEL_EXPORTER_OTLP_ENDPOINT:-}`) wpada w `IsNullOrWhiteSpace` i eksportera nie ma. Wartość `null` albo przypadkowa spacja już tak — `new Uri(...)` wywali start.
 
@@ -285,7 +307,10 @@ Collector OTel (osobny proces: filtr, tail sampling, rozdział na kilka backend�
 | Zmienna | Przykład w JJDevHub | Sens |
 | --- | --- | --- |
 | `OTEL_SERVICE_NAME` | `JJDevHub.Api` | `service.name` w UI. Fallback w kodzie jest taki sam. |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | puste, później `http://jaeger:4317` | Adres odbiornika. Puste = brak eksportera. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | puste, później `http://jaeger:4317` | Adres **tras**, gdy nie ma `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`. |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | puste | Nadpisuje adres tras. |
+| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | puste | Jedyny adres pushu metryk. Nie ustawiaj na Jaegera. |
+| `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | puste | Jedyny adres pushu logów. Nie ustawiaj na Jaegera. |
 | `OTEL_EXPORTER_OTLP_PROTOCOL` | `grpc` | Transport. Musi pasować do portu. |
 | `OTEL_RESOURCE_ATTRIBUTES` | `deployment.environment.name=prod` | Doklejane atrybuty procesu. Bez sekretów. |
 | `OTEL_TRACES_SAMPLER` | nie ustawiasz | Domyślnie zapis 100% (parent-based, always on). |
@@ -306,7 +331,7 @@ Rejestracja stoi **przed** `var app = builder.Build()`. Provider powstaje przy b
 | `AddAspNetCoreInstrumentation` | Span i metryka na każde żądanie, które doszło do Kestrela. |
 | `AddHttpClientInstrumentation` | Span klienta na wychodzące `HttpClient`. W tym API dziś nikt `HttpClient` nie woła (Identity i Npgsql idą inną drogą), więc przy loginie dziecka HTTP nie będzie. Zostaje na kolejny wychodzący call. |
 | `AddRuntimeInstrumentation` | Metryki procesu: GC, thread pool, wyjątki. Do dashboardu „czy proces oddycha”, nie do ścieżki requestu. |
-| `if` wokół `AddOtlpExporter` | Sieć tylko gdy endpoint nie jest pusty. Osobno dla tras i dla metryk — to dwa providery. |
+| `if` wokół `AddOtlpExporter` | Osobny adres na każdy sygnał. Trasy biorą Jaegera. Metryki i logi nie dziedziczą tego adresu. |
 | `builder.Logging.AddOpenTelemetry` | Trzeci sygnał. Nie wchodzi w `WithTracing` / `WithMetrics`. |
 | `IncludeFormattedMessage` | W rekordzie jest gotowy tekst komunikatu, nie tylko szablon. |
 | `IncludeScopes` | Dokleja scope’y `ILogger`. To nie to samo co `trace_id`. |
@@ -328,9 +353,9 @@ Resource to etykiety **procesu**, te same przy każdym spanie i metryce:
 
 ### Metryki: są w procesie, wychodzą dwiema drogami
 
-W tym numerze jedyna droga na zewnątrz to push OTLP, i tylko gdy endpoint jest ustawiony. Bez niego instrumenty i tak powstają, ale nikt ich nie zbiera: nie ma czytnika (reader). `curl` na `/metrics` nic nie pokaże — tego endpointu jeszcze nie ma.
+W tym numerze push metryk OTLP włącza się wyłącznie przez `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`. Adres Jaegera (`OTEL_EXPORTER_OTLP_ENDPOINT`) tego czytnika nie otwiera. Bez adresu metryk instrumenty i tak powstają, ale nikt ich nie zbiera: nie ma czytnika (reader). `curl` na `/metrics` nic nie pokaże — tego endpointu jeszcze nie ma.
 
-[07-prometheus.md](07-prometheus.md) dokłada drugi czytnik: eksporter Prometheus i scrape. Oba mogą żyć naraz (push OTLP i pull `/metrics`). Prometheus nie czyta OTLP z tego API; dlatego stos jest hybrydą, a nie „metryki też do Jaegera”.
+[07-prometheus.md](07-prometheus.md) dokłada czytnik scrape: eksporter Prometheus. Push OTLP metryk (osobny endpoint, collector) i pull `/metrics` mogą żyć naraz. Prometheus nie czyta OTLP z tego API, a Jaeger nie przyjmuje metryk.
 
 Nazwy zależą od wersji instrumentacji i od `OTEL_SEMCONV_STABILITY_OPT_IN`:
 
@@ -417,7 +442,7 @@ Konsolowy eksporter (`OpenTelemetry.Exporter.Console`, `AddConsoleExporter()`) w
 8. **Email, hasło, JWT albo connection string w tagu spana lub w `OTEL_RESOURCE_ATTRIBUTES`.** Resource i atrybuty są indeksowane. Zostają w backendzie dłużej niż linia logu na VM.
 9. **`service.name` ustawione na hostname albo nazwę kontenera.** Każdy restart wygląda jak nowy serwis. Nazwa zostaje `JJDevHub.Api`.
 10. **Oczekiwanie drzewa EF i HttpClient po samym tym pliku.** Jest jeden span HTTP. Reszta to osobna decyzja, gdy pasek będzie za gruby.
-11. **Szukanie `/metrics` albo dashboardu RPS w tym kroku.** Metryki wychodzą OTLP-em albo — od numeru 07 — scrapem. Jaeger nie rysuje wykresu requestów na sekundę.
+11. **Szukanie `/metrics` albo dashboardu RPS w tym kroku.** Metryki OTLP wychodzą tylko na `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`. Od numeru 07 dochodzi scrape. Jaeger nie rysuje wykresu requestów na sekundę i nie jest adresem metryk.
 12. **Wystawienie 4317 w tunelu Cloudflare.** Telemetria niesie trasy, statusy i czasem fragmenty błędów. Zostaje w sieci Dockera. Tunel dalej publikuje tylko `4200`.
 13. **Sampler ratio „na wszelki wypadek” przy pierwszym teście.** Dziewięć na dziesięć `curl` nie trafi do UI i wygląda to jak zepsuty eksport.
 14. **Własny `ActivitySource` bez `AddSource`.** `StartActivity` zwraca `null`, spanu nie ma, kod z `?.` po cichu nic nie robi.
@@ -433,4 +458,4 @@ Konsolowy eksporter (`OpenTelemetry.Exporter.Console`, `AddConsoleExporter()`) w
 
 ### Co zapamiętać
 
-OpenTelemetry w tym API to trzy sygnały na żądanie, które i tak obsługuje Kestrel: jeden span HTTP, obserwacja histogramu, log z `trace_id`, gdy linia powstanie w trakcie requestu. Eksport OTLP gRPC włącza się wyłącznie niepustym endpointem; inaczej proces milczy i `/health` działa jak wcześniej. SQL, wychodzące HTTP i scrape `/metrics` do tego numeru nie należą. Kolejny krok zbiera metryki Prometheusem, a trasy oglądasz w Jaegerze — tym samym `service.name` i tym samym adresem `http://jaeger:4317`.
+OpenTelemetry w tym API to trzy sygnały na żądanie, które i tak obsługuje Kestrel: jeden span HTTP, obserwacja histogramu, log z `trace_id`, gdy linia powstanie w trakcie requestu. Eksport OTLP gRPC tras włącza się adresem Jaegera; metryki i logi mają własne endpointy i na Jaegera nie spadają. Inaczej proces milczy i `/health` działa jak wcześniej. SQL, wychodzące HTTP i scrape `/metrics` do tego numeru nie należą. Kolejny krok zbiera metryki Prometheusem (pull), a trasy oglądasz w Jaegerze pod `service.name` `JJDevHub.Api` i adresem `http://jaeger:4317`.
