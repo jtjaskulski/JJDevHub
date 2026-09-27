@@ -10,7 +10,7 @@
 - Compose: usługa `api` w [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml) — env z `/etc/jjdevhub/api.env` (wzór [infra/docker/.env.example](../../infra/docker/.env.example)).
 - Obraz API: [infra/docker/Dockerfile](../../infra/docker/Dockerfile).
 - VM i sekrety: [01-proxmox.md](01-proxmox.md). Tunel tylko na `4200`: [02-cloudflare-tunnel.md](02-cloudflare-tunnel.md). CI: [03-github.md](03-github.md). Security CI: [04-codeql.md](04-codeql.md), [05-zaleznosci-i-obrazy.md](05-zaleznosci-i-obrazy.md).
-- W kodzie **nie ma** jeszcze pakietów OpenTelemetry ani `OTEL_*` w Compose / `.env.example` — to ten dokument.
+- Pakiety OpenTelemetry i zmienne `OTEL_*` w Compose / `.env.example` są już w repozytorium — ten dokument.
 - Endpoint `/metrics` pod scrape Prometheusa **nie** należy do tego pliku (07).
 
 ## Słownik pojęć z tego pliku
@@ -32,11 +32,11 @@
 W [Directory.Packages.props](../../Directory.Packages.props) dopisz wersje (dobierz aktualne stabilne z nuget.org; poniżej orientacyjne — przy implementacji sprawdź najnowsze zgodne z net11):
 
 ```xml
-<PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.12.0" />
-<PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.12.0" />
-<PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.12.0" />
-<PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.12.0" />
-<PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.12.0" />
+<PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
+<PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.19.0" />
+<PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.19.0" />
+<PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.19.0" />
+<PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.19.1" />
 ```
 
 W [JJDevHub.Api.csproj](../../src/JJDevHub.Api/JJDevHub.Api.csproj):
