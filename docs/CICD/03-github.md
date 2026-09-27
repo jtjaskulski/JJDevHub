@@ -1,6 +1,6 @@
 # GitHub — deploy na VM
 
-Push na `main` ma przebudować Compose na VM z [proxmox.md](proxmox.md). Aplikacja jest wtedy dostępna tunelem z [cloudflare-tunnel.md](cloudflare-tunnel.md).
+Push na `main` ma przebudować Compose na VM z [proxmox.md](01-proxmox.md). Aplikacja jest wtedy dostępna tunelem z [cloudflare-tunnel.md](02-cloudflare-tunnel.md).
 
 Zrób to **self-hosted runnerem** na tej samej VM. Runner sam wychodzi do GitHuba, więc do domu nie musi wchodzić webhook.
 
@@ -10,15 +10,15 @@ Godzinny cron zostaje jako zapas, gdy runner jest offline. Nie stawiaj nasłuchu
 
 Dwa workflowy tylko budują i testują, bez sekretów produkcyjnych:
 
-- [`.github/workflows/api.yml`](../.github/workflows/api.yml) — restore, build, test, `docker build` API
-- [`.github/workflows/web.yml`](../.github/workflows/web.yml) — `pnpm` test/build i obraz Angulara
+- [`.github/workflows/api.yml`](../../.github/workflows/api.yml) — restore, build, test, `docker build` API
+- [`.github/workflows/web.yml`](../../.github/workflows/web.yml) — `pnpm` test/build i obraz Angulara
 
 Oba startują na PR i na pushu do `main`, ale z filtrem ścieżek. Push, który nie tyka API, nie uruchomi `api`. To samo dotyczy `web`.
 
 Cron co godzinę, jeśli `origin/main` zmienił SHA:
 
-- [infra/ci/jjdevhub-release.cron](../infra/ci/jjdevhub-release.cron)
-- [infra/ci/release-and-deploy.sh](../infra/ci/release-and-deploy.sh)
+- [infra/ci/jjdevhub-release.cron](../../infra/ci/jjdevhub-release.cron)
+- [infra/ci/release-and-deploy.sh](../../infra/ci/release-and-deploy.sh)
 
 Skrypt robi `git fetch origin main`, przy nowym SHA tworzy lokalną gałąź `release/YYYY-MM-DD.N` i `docker compose up -d --build` z `--env-file /etc/jjdevhub/api.env`. Stan zapisuje w `/var/lib/jjdevhub/last-release-sha`.
 
@@ -63,7 +63,7 @@ Zapis sprzed pliku, zostawiony bez zmian w treści szkicu:
 
 `workflow_run` czyta definicję z domyślnej gałęzi (`main`). Runner musi być online w momencie sukcesu CI.
 
-Planowane wtedy rozdzielenie [release-and-deploy.sh](../infra/ci/release-and-deploy.sh):
+Planowane wtedy rozdzielenie [release-and-deploy.sh](../../infra/ci/release-and-deploy.sh):
 
 - cron dalej sam sprawdza, czy `origin/main` się ruszył
 - osobna ścieżka robi `compose up` dla SHA podanego przez runner
@@ -94,13 +94,13 @@ To zdanie jest historyczne: wtedy ścieżki SHA nie było i szkic deployowałby 
 
 ## 4. Cron jako zapas
 
-Gdy runner leży, godzinny wpis i tak dociągnie `main`. `/etc/jjdevhub/api.env` i `/var/lib/jjdevhub` są już z [proxmox.md](proxmox.md). Wpis crona dodaj jako użytkownik z grupy `docker`:
+Gdy runner leży, godzinny wpis i tak dociągnie `main`. `/etc/jjdevhub/api.env` i `/var/lib/jjdevhub` są już z [proxmox.md](01-proxmox.md). Wpis crona dodaj jako użytkownik z grupy `docker`:
 
 ```bash
 crontab -e
 ```
 
-Wklej linię z [infra/ci/jjdevhub-release.cron](../infra/ci/jjdevhub-release.cron):
+Wklej linię z [infra/ci/jjdevhub-release.cron](../../infra/ci/jjdevhub-release.cron):
 
 ```cron
 0 * * * * cd /opt/jjdevhub && JJDEVHUB_ENV_FILE=/etc/jjdevhub/api.env /opt/jjdevhub/infra/ci/release-and-deploy.sh >> /var/log/jjdevhub-release.log 2>&1
@@ -134,7 +134,7 @@ Dopisuj tu kolejny stan. Sekcji wyżej nie przerabiaj.
 
 ### Zanim był `deploy.yml`
 
-Skrypt [infra/ci/release-and-deploy.sh](../infra/ci/release-and-deploy.sh) po `git fetch origin main` zawsze brał aktualny `origin/main`. Przy nowym SHA tworzył `release/YYYY-MM-DD.N` i robił `docker compose up -d --build`. Stan lądował w `/var/lib/jjdevhub/last-release-sha`. Nie było argumentu SHA: zielone CI API bez zmian na `main` i tak zdeployowałoby czubek `main`.
+Skrypt [infra/ci/release-and-deploy.sh](../../infra/ci/release-and-deploy.sh) po `git fetch origin main` zawsze brał aktualny `origin/main`. Przy nowym SHA tworzył `release/YYYY-MM-DD.N` i robił `docker compose up -d --build`. Stan lądował w `/var/lib/jjdevhub/last-release-sha`. Nie było argumentu SHA: zielone CI API bez zmian na `main` i tak zdeployowałoby czubek `main`.
 
 Pliku `.github/workflows/deploy.yml` nie było. Docelowy kształt, zapisany wtedy jako szkic do następnego kroku:
 
@@ -164,7 +164,7 @@ Cron zostawał zapasem na tym samym pliku stanu.
 
 ### Po dodaniu ścieżki SHA
 
-Doszedł [.github/workflows/deploy.yml](../.github/workflows/deploy.yml). Job startuje tylko przy `conclusion == success`, `head_branch == main` i evencie `push` albo `workflow_dispatch`. Woła skrypt z `workflow_run.head_sha`.
+Doszedł [.github/workflows/deploy.yml](../../.github/workflows/deploy.yml). Job startuje tylko przy `conclusion == success`, `head_branch == main` i evencie `push` albo `workflow_dispatch`. Woła skrypt z `workflow_run.head_sha`.
 
 Skrypt dostał opcjonalny argument. Bez niego cron dalej bierze `origin/main`. Z argumentem deployuje ten commit, po `git fetch` i `git cat-file -e`. Jeśli zapisany SHA jest tym samym commitem albo już go zawiera (`git merge-base --is-ancestor`), skrypt kończy się `already deployed` i nie robi checkoutu. Drugi zielony workflow tego samego pusha nie przebudowuje obrazów, a wolniejsze CI starszego commita nie cofa nowszego deployu.
 

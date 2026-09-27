@@ -43,7 +43,7 @@ Hooki w [package.json](../../src/Clients/web/package.json): `prestart`, `prebuil
 
 ## Serwer / obraz Dockera
 
-Sam `git checkout` **nie** przywiezie `cv.local.json`. Na VM trzeba położyć plik lokalnie **przed** buildem obrazu weba — ta sama kategoria sekretów / lokalnych plików co `/etc/jjdevhub/api.env` z [proxmox.md](../proxmox.md) i [github.md](../github.md).
+Sam `git checkout` **nie** przywiezie `cv.local.json`. Na VM trzeba położyć plik lokalnie **przed** buildem obrazu weba — ta sama kategoria sekretów / lokalnych plików co `/etc/jjdevhub/api.env` z [proxmox.md](../CICD/01-proxmox.md) i [github.md](../CICD/03-github.md).
 
 Ścieżka w drzewie źródłowym (w kontekście buildu `src/Clients`):
 

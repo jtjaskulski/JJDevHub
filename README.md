@@ -103,7 +103,7 @@ Enable **branch protection** on `main` (GitHub → Settings → Branches): requi
 
 A green `api` or `web` run on `main` starts [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) on the self-hosted runner (`jjdevhub`) and deploys that commit. The hourly cron stays the fallback when the runner is offline.
 
-Step-by-step (PL): [Proxmox](docs/proxmox.md), [Cloudflare Tunnel](docs/cloudflare-tunnel.md), [GitHub runner](docs/github.md).
+Step-by-step (PL): [Proxmox](docs/CICD/01-proxmox.md), [Cloudflare Tunnel](docs/CICD/02-cloudflare-tunnel.md), [GitHub runner](docs/CICD/03-github.md).
 
 Old Jenkinsfile: only on `archive/pre-rewrite`. Next steps for a CV/enterprise path: Vault or OIDC instead of the env file, then Compose → k3s/k8s.
 

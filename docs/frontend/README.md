@@ -6,7 +6,7 @@ Treść kursów i etykiet jest w JSON w repo. Dane osobowe CV nie — tylko loka
 
 Mobilka w [src/Clients/mobile/JJDevHubMobile](../../src/Clients/mobile/JJDevHubMobile) na razie jest szkieletem. Wspólne z nią są tokeny, nie ekrany i nie ścieżka do CV.
 
-Lokalny start i Docker: [src/Clients/web/README.md](../../src/Clients/web/README.md). Deploy obrazu: [github.md](../github.md), [proxmox.md](../proxmox.md).
+Lokalny start i Docker: [src/Clients/web/README.md](../../src/Clients/web/README.md). Deploy obrazu: [github.md](../CICD/03-github.md), [proxmox.md](../CICD/01-proxmox.md).
 
 ## Mapa stron
 

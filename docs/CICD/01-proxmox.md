@@ -1,8 +1,8 @@
 # Proxmox — VM pod JJDevHub
 
-Aplikacja zostaje na Twoim komputerze. Ten dokument stawia osobną maszynę wirtualną, Dockera i pierwszy `docker compose up`. Publikacja w internecie jest w [cloudflare-tunnel.md](cloudflare-tunnel.md). Deploy po pushu na `main` jest w [github.md](github.md).
+Aplikacja zostaje na Twoim komputerze. Ten dokument stawia osobną maszynę wirtualną, Dockera i pierwszy `docker compose up`. Publikacja w internecie jest w [cloudflare-tunnel.md](02-cloudflare-tunnel.md). Deploy po pushu na `main` jest w [github.md](03-github.md).
 
-Gałąź w repo to `main`. Stack to Postgres 16, API .NET i Angular za nginx — plik [infra/docker/docker-compose.yml](../infra/docker/docker-compose.yml).
+Gałąź w repo to `main`. Stack to Postgres 16, API .NET i Angular za nginx — plik [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml).
 
 ## Dlaczego VM, nie LXC
 
@@ -77,7 +77,7 @@ docker compose version
 
 ## 5. Klon repo
 
-Katalog `/opt/jjdevhub`. Deploy key albo HTTPS — konto na VM potrzebuje odczytu `origin`. Zapis do GitHuba jest zbędny, dopóki nie ustawisz `JJDEVHUB_PUSH_RELEASE=1` (patrz [github.md](github.md)).
+Katalog `/opt/jjdevhub`. Deploy key albo HTTPS — konto na VM potrzebuje odczytu `origin`. Zapis do GitHuba jest zbędny, dopóki nie ustawisz `JJDEVHUB_PUSH_RELEASE=1` (patrz [github.md](03-github.md)).
 
 Deploy key (read-only), na VM jako użytkownik, który będzie robił deploy:
 
@@ -107,7 +107,7 @@ HTTPS zamiast klucza: `git clone https://github.com/jtjaskulski/JJDevHub.git /op
 
 ## 6. Sekrety poza klonem
 
-Hasła nie wchodzą do gita. Wzorzec jest w [infra/docker/.env.example](../infra/docker/.env.example). Na serwerze plik żyje w `/etc/jjdevhub/api.env` i przeżywa `git checkout` gałęzi `release/*`.
+Hasła nie wchodzą do gita. Wzorzec jest w [infra/docker/.env.example](../../infra/docker/.env.example). Na serwerze plik żyje w `/etc/jjdevhub/api.env` i przeżywa `git checkout` gałęzi `release/*`.
 
 ```bash
 sudo install -d -o root -g docker -m 750 /etc/jjdevhub
@@ -138,7 +138,7 @@ ports:
   - "127.0.0.1:5433:5432"
 ```
 
-Tej zmiany **nie ma jeszcze w git**. Nie edytuj jej tylko w katalogu `/opt/jjdevhub`: skrypt [infra/ci/release-and-deploy.sh](../infra/ci/release-and-deploy.sh) robi `git checkout` gałęzi `release/YYYY-MM-DD.N` i lokalna poprawka zniknie albo zablokuje checkout, gdy drzewo jest brudne. Bind `127.0.0.1` dodaj osobnym commitem na `main`, zanim oprzesz się na cronie.
+Tej zmiany **nie ma jeszcze w git**. Nie edytuj jej tylko w katalogu `/opt/jjdevhub`: skrypt [infra/ci/release-and-deploy.sh](../../infra/ci/release-and-deploy.sh) robi `git checkout` gałęzi `release/YYYY-MM-DD.N` i lokalna poprawka zniknie albo zablokuje checkout, gdy drzewo jest brudne. Bind `127.0.0.1` dodaj osobnym commitem na `main`, zanim oprzesz się na cronie.
 
 Do pierwszego startu obecny Compose wystarcza. Nie publikuj `5433` w tunelu.
 
@@ -151,7 +151,7 @@ cd /opt/jjdevhub
 docker compose --env-file /etc/jjdevhub/api.env -f infra/docker/docker-compose.yml up -d --build
 ```
 
-Obrazy budują się na VM (API z [infra/docker/Dockerfile](../infra/docker/Dockerfile), web z [src/Clients/web/Dockerfile](../src/Clients/web/Dockerfile)). Pierwszy build trwa kilka minut.
+Obrazy budują się na VM (API z [infra/docker/Dockerfile](../../infra/docker/Dockerfile), web z [src/Clients/web/Dockerfile](../../src/Clients/web/Dockerfile)). Pierwszy build trwa kilka minut.
 
 Sprawdzenie na VM:
 
@@ -170,4 +170,4 @@ curl -s -X POST http://127.0.0.1:4200/api/auth/register \
   -d '{"email":"owner@test.com","password":"Password1"}'
 ```
 
-Dalej: [cloudflare-tunnel.md](cloudflare-tunnel.md).
+Dalej: [cloudflare-tunnel.md](02-cloudflare-tunnel.md).

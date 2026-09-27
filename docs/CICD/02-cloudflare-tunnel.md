@@ -1,6 +1,6 @@
 # Cloudflare Tunnel
 
-VM z [proxmox.md](proxmox.md) nie potrzebuje publicznego IP. `cloudflared` wychodzi z VM do Cloudflare, a Cloudflare kończy TLS i wysyła ruch HTTP na nginx.
+VM z [proxmox.md](01-proxmox.md) nie potrzebuje publicznego IP. `cloudflared` wychodzi z VM do Cloudflare, a Cloudflare kończy TLS i wysyła ruch HTTP na nginx.
 
 Jeden origin: `http://127.0.0.1:4200`. Kontener `web` proxy'uje `/api/`, `/health`, `/openapi/` i `/scalar` do API. Postgresa (`5433`) tunelem nie publikujesz.
 
@@ -78,4 +78,4 @@ Przy `ASPNETCORE_ENVIRONMENT=Production` ścieżki `/openapi` i `/scalar` nie dz
 
 Nie włączaj Access przed tą aplikacją. JJDevHub ma własne logowanie JWT. Access (osobne logowanie Cloudflare) da się dołożyć później, jeśli strona ma być niewidoczna bez konta w Zero Trust.
 
-Deploy po commitach: [github.md](github.md).
+Deploy po commitach: [github.md](03-github.md).
