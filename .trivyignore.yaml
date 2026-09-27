@@ -1,0 +1,38 @@
+# usr/bin/pebble is Canonical's pebble inside mcr.microsoft.com/dotnet/aspnet:11.0-preview
+# (Ubuntu 26.04). The API entrypoint is dotnet, not pebble. These are Go stdlib CVEs
+# in that binary: upstream has a fix, this preview image has not been rebuilt.
+# Scoped to that path so the same CVE in another file still fails the scan.
+# Delete this file when the base image no longer reports them.
+vulnerabilities:
+  - id: CVE-2026-33818
+    paths:
+      - usr/bin/pebble
+    expired_at: 2026-12-31
+  - id: CVE-2026-39821
+    paths:
+      - usr/bin/pebble
+    expired_at: 2026-12-31
+  - id: CVE-2026-46600
+    paths:
+      - usr/bin/pebble
+    expired_at: 2026-12-31
+  - id: CVE-2026-56853
+    paths:
+      - usr/bin/pebble
+    expired_at: 2026-12-31
+  - id: CVE-2026-56858
+    paths:
+      - usr/bin/pebble
+    expired_at: 2026-12-31
+  - id: CVE-2026-56859
+    paths:
+      - usr/bin/pebble
+    expired_at: 2026-12-31
+  - id: CVE-2026-56860
+    paths:
+      - usr/bin/pebble
+    expired_at: 2026-12-31
+  - id: CVE-2026-56862
+    paths:
+      - usr/bin/pebble
+    expired_at: 2026-12-31

@@ -20,8 +20,8 @@ Komendy skanów żyją w [infra/ci/](../../infra/ci/). Workflowy tylko je wołaj
 - CodeQL: [04-codeql.md](04-codeql.md).
 - Centralne wersje NuGet: [Directory.Packages.props](../../Directory.Packages.props), frontend: [src/Clients/web/package.json](../../src/Clients/web/package.json) + `pnpm-lock.yaml`.
 - Dockerfile API: [infra/docker/Dockerfile](../../infra/docker/Dockerfile). Dockerfile web: [src/Clients/web/Dockerfile](../../src/Clients/web/Dockerfile).
-- W `infra/ci/` są dziś tylko [release-and-deploy.sh](../../infra/ci/release-and-deploy.sh) i cron — **brak** skryptów audytu/Trivy; dopiszesz je poniżej.
-- W repo **nie ma** `.github/dependabot.yml` ani dependency review — to ten dokument.
+- Skrypty audytu i Trivy: [nuget-audit.sh](../../infra/ci/nuget-audit.sh), [pnpm-audit.sh](../../infra/ci/pnpm-audit.sh), [trivy-api.sh](../../infra/ci/trivy-api.sh), [trivy-web.sh](../../infra/ci/trivy-web.sh). Obok zostaje [release-and-deploy.sh](../../infra/ci/release-and-deploy.sh) i cron.
+- Dependabot: [.github/dependabot.yml](../../.github/dependabot.yml). Dependency review: [.github/workflows/dependency-review.yml](../../.github/workflows/dependency-review.yml).
 
 ## Słownik pojęć z tego pliku
 
@@ -30,7 +30,7 @@ Komendy skanów żyją w [infra/ci/](../../infra/ci/). Workflowy tylko je wołaj
 | Dependabot | Bot GitHuba: PR z aktualizacją wersji zależności według ekosystemu (`nuget`, `npm`, `github-actions`, `docker`). |
 | Dependency review | Action na PR: porównuje lock/manifest z bazą i failuje przy nowych podatnościach według progu. |
 | Trivy | Skaner Aqua: OS packages + zależności w obrazie / filesystemie. Tu: fail CRITICAL i HIGH. |
-| NuGet audit | `dotnet restore` / `dotnet list package --vulnerable` z infrastrukturą audytu NuGet. |
+| NuGet audit | `dotnet restore` / `dotnet package list --vulnerable` z infrastrukturą audytu NuGet. |
 | pnpm audit | Audyt drzewa npm przez pnpm; `--audit-level=high` failuje od High w górę. |
 | `permissions` | Najmniejsze uprawnienia GITHUB_TOKEN w workflow (`contents: read`). |
 | `concurrency` | Jedna aktywna runda danego workflow na ref; anuluje starsze runy przy nowym pushu. |
@@ -96,7 +96,7 @@ cd "$REPO_ROOT"
 
 export DOTNET_NOLOGO=1
 dotnet restore JJDevHub.sln
-dotnet list JJDevHub.sln package --vulnerable --include-transitive --format json \
+dotnet package list --project JJDevHub.sln --vulnerable --include-transitive --format json \
   --source https://api.nuget.org/v3/index.json >/tmp/nuget-audit.json
 
 # Nagłówek „has the following vulnerable packages” jest w raporcie tekstowym przy każdym
@@ -109,7 +109,7 @@ fi
 echo "nuget-audit: ok"
 ```
 
-Low i Moderate zostają w `/tmp/nuget-audit.json` i nie kończą joba. Fail jest tylko przy `"severity": "Critical"` albo `"severity": "High"`. Stderr z `dotnet list` nie mieszaj z tym plikiem — `grep` ma widzieć sam JSON.
+Low i Moderate zostają w `/tmp/nuget-audit.json` i nie kończą joba. Fail jest tylko przy `"severity": "Critical"` albo `"severity": "High"`. Stderr z `dotnet package list` nie mieszaj z tym plikiem — `grep` ma widzieć sam JSON. W SDK 11 rozwiązanie idzie przez `--project`, nie jako argument pozycyjny.
 
 #### `infra/ci/pnpm-audit.sh`
 
@@ -137,7 +137,8 @@ cd "$REPO_ROOT"
 IMAGE="${TRIVY_API_IMAGE:-jjdevhub-api:ci}"
 
 docker build -f infra/docker/Dockerfile -t "$IMAGE" .
-trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed "$IMAGE"
+trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed \
+  --ignorefile .trivyignore.yaml "$IMAGE"
 ```
 
 #### `infra/ci/trivy-web.sh`
@@ -156,6 +157,8 @@ trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed "$IMAGE"
 ```
 
 `--ignore-unfixed` pomija CVE bez dostępnej poprawki w upstreamie. Jeśli wolisz failować także na unfixed, usuń flagę — świadomie, bo job będzie częściej czerwony.
+
+[.trivyignore.yaml](../../.trivyignore.yaml) dotyczy tylko skanu API. Osiem HIGH siedzi w `usr/bin/pebble` (Go stdlib w Ubuntu z `mcr.microsoft.com/dotnet/aspnet:11.0-preview`); `JJDevHub.Api.deps.json` jest czysty, a entrypoint to `dotnet`, nie pebble. YAML nie ładuje się sam — stąd `--ignorefile`. Wpisy gasną `2026-12-31`. Skan web tego pliku nie używa.
 
 Lokalnie (opcjonalnie):
 
@@ -180,7 +183,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
   review:
@@ -218,6 +220,7 @@ on:
       - "infra/docker/docker-compose.yml"
       - "infra/ci/nuget-audit.sh"
       - "infra/ci/trivy-api.sh"
+      - ".trivyignore.yaml"
       - ".github/workflows/api.yml"
   push:
     branches: [main]
@@ -233,6 +236,7 @@ on:
       - "infra/docker/docker-compose.yml"
       - "infra/ci/nuget-audit.sh"
       - "infra/ci/trivy-api.sh"
+      - ".trivyignore.yaml"
       - ".github/workflows/api.yml"
   workflow_dispatch:
 
@@ -277,7 +281,7 @@ jobs:
           curl -fsSL -o "/tmp/${tarball}" \
             "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${tarball}"
           echo "${TRIVY_SHA256}  /tmp/${tarball}" | sha256sum -c -
-          tar -xzf "/tmp/${tarball}" -C /usr/local/bin trivy
+          sudo tar -xzf "/tmp/${tarball}" -C /usr/local/bin trivy
           trivy --version
 
       - name: Docker image + Trivy
@@ -362,7 +366,7 @@ jobs:
           curl -fsSL -o "/tmp/${tarball}" \
             "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${tarball}"
           echo "${TRIVY_SHA256}  /tmp/${tarball}" | sha256sum -c -
-          tar -xzf "/tmp/${tarball}" -C /usr/local/bin trivy
+          sudo tar -xzf "/tmp/${tarball}" -C /usr/local/bin trivy
           trivy --version
 
       - name: Docker image + Trivy
@@ -444,7 +448,7 @@ Wymaga dependency graph (włączany razem z Dependabot / automatycznie dla publi
 
 ```bash
 dotnet restore
-dotnet list package --vulnerable --include-transitive
+dotnet package list --project JJDevHub.sln --vulnerable --include-transitive
 ```
 
 W CI ustawiasz fail, gdy output zawiera Critical/High. Central Package Management (`Directory.Packages.props`) oznacza, że bump wersji jest w jednym pliku — Dependabot i audyt patrzą tam.
@@ -471,7 +475,7 @@ trivy image --severity CRITICAL,HIGH --exit-code 1 myapp:ci
 
 Trivy raportuje CVE w:
 
-- pakietach OS warstwy bazowej (`nginx:1.27-alpine`, `mcr.microsoft.com/dotnet/aspnet:…`),
+- pakietach OS warstwy bazowej (`nginx:1.30-alpine`, `mcr.microsoft.com/dotnet/aspnet:…`),
 - bibliotekach aplikacji wykrytych w warstwach.
 
 `--exit-code 1` = fail CI. `--ignore-unfixed` = nie failuj, gdy vendor nie wydał poprawki (kompromis operacyjny).
@@ -513,7 +517,7 @@ Przy serii pushy na ten sam branch anuluje poprzedni run — oszczędza minuty i
 2. **Trivy w YAML skopiowany 4 razy** — dryf flag; trzymaj skrypt w `infra/ci/`.
 3. **Dependabot bez CI na PR** — merge bumpa „na oko”.
 4. **`permissions: write-all` „na wszelki wypadek”** — zbędne ryzyko przy skradzionym workflow.
-5. **Ignorowanie transitive** — `dotnet list … --include-transitive` i lockfile istnieją po to.
+5. **Ignorowanie transitive** — `dotnet package list … --include-transitive` i lockfile istnieją po to.
 6. **Jeden ekosystem `npm` na root monorepo**, gdy frontend siedzi w podkatalogu — bot nic nie znajdzie; `directory` musi wskazać `src/Clients/web`.
 7. **Fail na Low w pierwszym tygodniu** — zespół wyłącza cały skaner; zacznij od High/Critical.
 8. **Mylenie dependency review z CodeQL** — review = zależności; CodeQL = wzorce w Twoim kodzie.
@@ -521,6 +525,6 @@ Przy serii pushy na ten sam branch anuluje poprzedni run — oszczędza minuty i
 ### Oficjalne źródła
 
 - GitHub Docs: Dependabot, dependency review action, GITHUB_TOKEN permissions, concurrency.
-- NuGet: auditing packages / `dotnet list package --vulnerable`.
+- NuGet: auditing packages / `dotnet package list --vulnerable`.
 - pnpm: `pnpm audit`.
 - Aqua Trivy: dokumentacja `trivy image`, severity, ignore file.

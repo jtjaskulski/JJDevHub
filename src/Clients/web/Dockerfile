@@ -17,7 +17,9 @@ RUN pnpm install --frozen-lockfile
 COPY web/ ./
 RUN pnpm build
 
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.30-alpine AS runtime
+# Tag still ships libexpat 2.8.4-r0 (CVE-2026-93990). Alpine 3.24 has 2.8.5-r0.
+RUN apk upgrade --no-cache libexpat
 COPY web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /src/web/dist/web/browser /usr/share/nginx/html
 EXPOSE 80
