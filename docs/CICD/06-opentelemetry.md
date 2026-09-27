@@ -253,7 +253,7 @@ W .NET span to `System.Diagnostics.Activity`. `Activity.Current` to span „na t
 
 Między procesami kontekst jedzie nagłówkiem W3C `traceparent` (i opcjonalnie `tracestate`). Nginx w tym repo dokleja `Host`, `X-Real-IP` i `X-Forwarded-For`, a reszty nagłówków nie wycina, więc `traceparent` od klienta doszedłby do Kestrela. Dziś go nie ma kto wysłać: Angular z tego numeru nie jest instrumentowany. Każde żądanie do API jest więc **korzeniem** trace’u, nie dzieckiem spana z przeglądarki.
 
-Adres, który widzi span, to ten, który widzi API: ścieżka `/api/auth/login` albo `/health`, port **8080** w kontenerze. `5080` to mapowanie na hoście (`5080:8080`). Peer w atrybutach sieciowych to adres z sieci Dockera (kontener `web`), nie przeglądarka użytkownika.
+Adres, który widzi span, to ten, który widzi API: ścieżka `/api/auth/login` albo `/health`, port **8080** w kontenerze. `5080` to mapowanie na hoście (`127.0.0.1:5080:8080`). Peer w atrybutach sieciowych to adres z sieci Dockera (kontener `web`), nie przeglądarka użytkownika.
 
 ### OTLP
 

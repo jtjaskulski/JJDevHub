@@ -143,7 +143,7 @@ Dopisz do [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.ym
     container_name: jjdevhub-grafana
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_SERVER_HTTP_PORT: "3000"
     ports:
@@ -168,15 +168,17 @@ Dopisz do [infra/docker/.env.example](../../infra/docker/.env.example) i na VM d
 
 ```bash
 GRAFANA_ADMIN_USER=admin
-GRAFANA_ADMIN_PASSWORD=wygeneruj-silne-haslo
+GRAFANA_ADMIN_PASSWORD=
 ```
+
+`GRAFANA_ADMIN_PASSWORD` zostaw puste w przykładzie w git. Na VM i w lokalnym `infra/docker/.env` wstaw wynik `openssl rand -base64 24`. Puste albo brak zmiennej przerywa `docker compose` (`:?` w przepisie), zamiast startu ze znanym hasłem.
 
 ```bash
 openssl rand -base64 24
 sudoedit /etc/jjdevhub/api.env
 ```
 
-Nie commituj prawdziwego hasła. Domyślne `change-me` tylko na labie lokalnym.
+Nie commituj prawdziwego hasła. Compose nie ma wartości domyślnej dla tego sekretu, także na lokalnym labie.
 
 ### 7. Compose up
 
@@ -359,7 +361,7 @@ histogram_quantile(
 
 ### Hasło admina i volume
 
-`GF_SECURITY_ADMIN_PASSWORD` obowiązuje przy **pierwszym** starcie, gdy `grafana.db` jeszcze nie ma. Domyślne `change-me` z Compose wchodzi, gdy `--env-file` nie podstawi `GRAFANA_ADMIN_PASSWORD`. Na VM hasło jest z `openssl rand -base64 24` w `/etc/jjdevhub/api.env`, nie w git.
+`GF_SECURITY_ADMIN_PASSWORD` obowiązuje przy **pierwszym** starcie, gdy `grafana.db` jeszcze nie ma. Compose nie podstawia hasła, gdy zmienna jest pusta albo jej nie ma — `up` wtedy pada na interpolacji. Na VM hasło jest z `openssl rand -base64 24` w `/etc/jjdevhub/api.env`, nie w git. Lokalny lab używa tego samego mechanizmu (`infra/docker/.env`).
 
 Zmiana tej zmiennej przy istniejącym volume **nie** zmienia hasła. Zostaje to z pierwszego bootu. Rotacja:
 
@@ -378,7 +380,7 @@ Hasło ląduje w środowisku procesu. `docker inspect jjdevhub-grafana` je poka�
 | Objaw | Co sprawdzić |
 | --- | --- |
 | `curl` na `:3000` z VM nie łączy | Bind, `docker logs jjdevhub-grafana`, czy `up` w ogóle stworzył kontener. Z laptopa bez SSH tak ma być. |
-| Login odrzuca hasło z aktualnego `api.env` | Volume powstał wcześniej, często na `change-me`. Reset `grafana-cli` albo nowy volume. |
+| Login odrzuca hasło z aktualnego `api.env` | Volume powstał przy innym haśle (pierwszy boot). Reset `grafana-cli` albo nowy volume. |
 | Save & test: lookup `prometheus` | URL z `127.0.0.1` albo z `container_name`. Ma być `http://prometheus:9090`. |
 | Save & test: connection refused | Backend jeszcze nie słucha albo zły port (`9090` vs `8080`, Jaeger `16686` vs `4317`). |
 | Datasource zielony, folder JJDevHub pusty | Brak drugiego mountu na `/var/lib/grafana/dashboards` albo zły `path` w providerze. |
@@ -393,7 +395,7 @@ Hasło ląduje w środowisku procesu. `docker inspect jjdevhub-grafana` je poka�
 ### Typowe pomyłki
 
 1. **`0.0.0.0:3000` albo Public Hostname na Grafanę.** Konto admina i mapa requestów na zewnątrz. Zostaje loopback i SSH.
-2. **Hasło `change-me` na VM**, bo `up` poszedł bez `--env-file`. Fallback w Compose jest na lokalny lab.
+2. **Domyślne hasło w Compose**, gdy w env brak `GRAFANA_ADMIN_PASSWORD`. Przepis używa `${GRAFANA_ADMIN_PASSWORD:?…}` — brak sekretu zatrzymuje `up`, nie wpuszcza znanego hasła.
 3. **Wiara, że nowy `GRAFANA_ADMIN_PASSWORD` sam wejdzie.** Bez pustego volume albo `grafana-cli` zostaje stare.
 4. **Datasource `http://127.0.0.1:9090` albo `http://jaeger:4317`.** Pierwsze to loopback Grafany. Drugie to gRPC, nie query UI.
 5. **`access: direct`.** Przeglądarka szuka Dockera po swojej stronie.

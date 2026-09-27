@@ -9,8 +9,8 @@ Wymaga instrumentacji z [06-opentelemetry.md](06-opentelemetry.md). Ten plik dok
 ## Co już jest w repo
 
 - Compose bez Prometheusa: [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml) — serwisy `db`, `api`, `web`; nazwy kontenerów `jjdevhub-db`, `jjdevhub-api`, `jjdevhub-web`.
-- API nasłuchuje w kontenerze na `8080` (`ASPNETCORE_URLS`), host mapuje `5080:8080`.
-- nginx (`web`) proxy’uje `/api/`, `/health`, `/openapi/`, `/scalar` — **nie** `/metrics` (i tak nie wystawiamy metryk na zewnątrz).
+- API nasłuchuje w kontenerze na `8080` (`ASPNETCORE_URLS`). Host mapuje `127.0.0.1:5080:8080` — port nie jest na wszystkich interfejsach. Bez tego bindu anonimowe `/metrics` czyta każdy, kto dosięgnie VM na `5080`, nawet gdy nginx i tunel tej ścieżki nie proxy’ują.
+- nginx (`web`) proxy’uje `/api/`, `/health`, `/openapi/`, `/scalar` — **nie** `/metrics`. To nie zastępuje bindu loopback na porcie API.
 - OTel (traces/metrics/logs + OTLP): [06-opentelemetry.md](06-opentelemetry.md).
 - VM: [01-proxmox.md](01-proxmox.md). Deploy: [03-github.md](03-github.md).
 - Pliku `infra/prometheus/` oraz serwisu `prometheus` w Compose jeszcze nie ma — to ten dokument.
@@ -72,7 +72,7 @@ Po `var app = builder.Build();` i pipeline’ie auth (albo zaraz po `UseAuthoriz
 app.MapPrometheusScrapingEndpoint("/metrics");
 ```
 
-`/metrics` ma być dostępny **bez JWT** (Prometheus nie loguje się do API). Nie dodawaj tej ścieżki do nginx jako publicznego proxy i nie wystawiaj jej w tunelu.
+`/metrics` ma być dostępny **bez JWT** (Prometheus nie loguje się do API). Nie dodawaj tej ścieżki do nginx jako publicznego proxy i nie wystawiaj jej w tunelu. W [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml) port API zostaw jako `127.0.0.1:5080:8080`. Sam brak proxy nginx nie zamyka `/metrics`, dopóki host publikuje `5080` na `0.0.0.0`.
 
 Sprawdzenie lokalne po starcie API:
 
@@ -211,7 +211,7 @@ z hosta VM:
   curl 127.0.0.1:9090/-/healthy   UI Prometheusa, bind tylko loopback
 ```
 
-Nginx (`web`) proxy’uje `/health` i `/api/`, nie `/metrics`. Tunel Cloudflare zostaje przy `127.0.0.1:4200`. Publiczny hub tych liczb nie serwuje.
+Nginx (`web`) proxy’uje `/health` i `/api/`, nie `/metrics`. Tunel Cloudflare zostaje przy `127.0.0.1:4200`. Publiczny hub tych liczb nie serwuje, bo port hosta API to `127.0.0.1:5080`, nie `0.0.0.0:5080`. Scrape Prometheusa i tak idzie po `api:8080` w sieci Compose i tego bindu nie potrzebuje.
 
 ### Dwa wyjścia tych samych metryk
 
@@ -224,7 +224,7 @@ OTLP (później Jaeger, i to i tak głównie na trace’y) i scrape mogą dział
 
 Sam `AddPrometheusExporter` bez `Map…` nie otwiera portu. Samo mapowanie bez eksportera daje pustkę albo brak trasy. Potrzebne są oba, w tej kolejności: rejestracja **przed** `Build()`, trasa **po** `Build()`.
 
-Trasy `/metrics` nie spinaj z `RequireAuthorization()`. Job `jjdevhub-api` nie ma tokenu. 401 na scrape to target DOWN, nie „lepsze bezpieczeństwo”. Ścieżka zostaje otwarta na porcie procesu. Na zewnątrz i tak nie wchodzi przez nginx.
+Trasy `/metrics` nie spinaj z `RequireAuthorization()`. Job `jjdevhub-api` nie ma tokenu. 401 na scrape to target DOWN, nie „lepsze bezpieczeństwo”. Ścieżka zostaje otwarta na porcie procesu. Z zewnątrz VM jej nie ma, bo publikacja hosta to loopback (`127.0.0.1:5080:8080`), a nginx tej ścieżki nie proxy’uje.
 
 ### Co ten API naprawdę wypisze
 
@@ -296,7 +296,7 @@ scrape_configs:
 | `targets` | Host i port **z sieci kontenera Prometheusa**. Usługa `api`, port procesu `8080`. |
 | `labels` | Doklejane do każdej serii z tego targetu. |
 
-`5080` istnieje tylko na hoście (`5080:8080` w Compose API). Z kontenera `jjdevhub-prometheus` port `5080` nic nie znaczy, a `127.0.0.1` to sam Prometheus. Stąd `api:8080`.
+`5080` istnieje tylko na hoście (`127.0.0.1:5080:8080` w Compose API). Z kontenera `jjdevhub-prometheus` port `5080` nic nie znaczy, a `127.0.0.1` to sam Prometheus. Stąd `api:8080`.
 
 Osobnej sieci `networks:` nie deklarujesz. Serwisy z jednego pliku Compose widzą się po nazwie usługi. `container_name: jjdevhub-prometheus` nie jest nazwą DNS. Datasource Grafany i tak używa `prometheus:9090`.
 

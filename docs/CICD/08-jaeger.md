@@ -71,7 +71,7 @@ Przykład bloku `api` po zmianie (skrót — zachowaj resztę z pliku):
       dockerfile: infra/docker/Dockerfile
     container_name: jjdevhub-api
     ports:
-      - "5080:8080"
+      - "127.0.0.1:5080:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}

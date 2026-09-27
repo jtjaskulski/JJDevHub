@@ -1,8 +1,10 @@
-# SonarQube — Quality Gate na PR
+# SonarQube — Quality Gate na `main`
 
 ## Po co ten krok
 
-CodeQL ([04-codeql.md](04-codeql.md)) łapie klasy błędów bezpieczeństwa. Dependencies i obrazy ([05-zaleznosci-i-obrazy.md](05-zaleznosci-i-obrazy.md)) pilnują CVE. SonarQube pilnuje **jakości i coverage** na PR: smród kodu, duplikaty, brak testów na nowym kodzie. Self-hosted na tej samej VM Proxmox co Compose ([01-proxmox.md](01-proxmox.md)). Jeden projekt Sonara na serwis (`jjdevhub-api`, `jjdevhub-web`). Wynik Quality Gate ma być **wymaganym status checkiem** na `main` ([03-github.md](03-github.md)).
+CodeQL ([04-codeql.md](04-codeql.md)) łapie klasy błędów bezpieczeństwa. Dependencies i obrazy ([05-zaleznosci-i-obrazy.md](05-zaleznosci-i-obrazy.md)) pilnują CVE. SonarQube pilnuje **jakości i coverage** po merge na `main`: smród kodu, duplikaty, brak testów na nowym kodzie. Serwer stoi na tej samej VM Proxmox co Compose ([01-proxmox.md](01-proxmox.md)). Jeden projekt Sonara na serwis (`jjdevhub-api`, `jjdevhub-web`).
+
+Job analizy używa runnera `[self-hosted, jjdevhub]` **tylko** przy pushu na `main`. Pull request — także z forka — nie odpala tam `dotnet`, `pnpm` ani Dockera. Build i testy PR zostają na `ubuntu-latest` w jobach `build`. Check `sonar-api` / `sonar-web` powstaje na pushu `main`, nie jako required check PR ([03-github.md](03-github.md)).
 
 ## Co już jest w repo
 
@@ -24,8 +26,8 @@ SonarQube **nie** wchodzi do [infra/docker/docker-compose.yml](../../infra/docke
 | Quality Gate | Zestaw progów (coverage na new code, bugs, …); Pass/Fail |
 | Project key | Identyfikator projektu na serwerze (`jjdevhub-api`, `jjdevhub-web`) |
 | token | Sekret do `sonar.token` w CI; nie commitować |
-| coverage report | Plik (np. OpenCover/Cobertura) z `dotnet test --collect` |
-| PR decoration / check | Status na PR w GitHubie (tu: job w Actions + required check) |
+| coverage report | Plik OpenCover (`coverage.opencover.xml`) z `dotnet test --collect` |
+| check `sonar-*` | Status joba na pushu `main`. Na PR ten job nie startuje |
 
 ## Kroki
 
@@ -58,7 +60,7 @@ services:
       retries: 10
 
   sonarqube:
-    image: sonarqube:community
+    image: sonarqube:26.9.0.129388-community
     container_name: sonarqube
     depends_on:
       sonarqube-db:
@@ -115,13 +117,14 @@ Dla każdego wygeneruj **Global Analysis Token** albo token projektu (SonarQube 
 - `SONAR_TOKEN_API`
 - `SONAR_TOKEN_WEB`
 
-Oraz URL dostępny **dla runnerów**:
+Oraz URL dostępny **dla runnera na tej VM**:
 
-- Hosted `ubuntu-latest` nie dosięgnie `127.0.0.1` na Twojej VM. Opcje:
-  1. Dodać job analizy na `runs-on: [self-hosted, jjdevhub]` (ten sam runner co deploy) z `SONAR_HOST_URL=http://127.0.0.1:9000`, albo
-  2. Wystawić Sonara tylko w LAN / VPN i podać ten URL runnerowi self-hosted.
+- Hosted `ubuntu-latest` nie dosięgnie `127.0.0.1` na Twojej VM.
+- Job analizy jest na `runs-on: [self-hosted, jjdevhub]` (ten sam runner co deploy) z `SONAR_HOST_URL=http://127.0.0.1:9000`, i **tylko** gdy `github.event_name == 'push'` oraz `github.ref == 'refs/heads/main'`.
+- Nie dokładaj `pull_request` do tego joba. Checkout PR na produkcyjnej VM wykonuje komendy z nieufnego kodu (fork albo obcy branch) obok działającego huba.
+- Analiza jeszcze na PR wymagałaby osobnego, izolowanego runnera i adresu Sonara, który ten runner widzi. Ten przepis jej nie dodaje.
 
-Ten tutorial wybiera **(1)**: analiza na self-hosted runnerze. Nie wystawiaj `:9000` w Cloudflare.
+Nie wystawiaj `:9000` w Cloudflare.
 
 Sekret wspólny:
 
@@ -148,11 +151,11 @@ Lokalny przebieg raportu:
 
 ```bash
 dotnet test tests/JJDevHub.Api.Tests/JJDevHub.Api.Tests.csproj -c Release \
-  --collect:"XPlat Code Coverage" \
+  --collect:"XPlat Code Coverage;Format=opencover" \
   --results-directory TestResults
 ```
 
-Coverlet zwykle zapisze `TestResults/**/coverage.cobertura.xml`.
+Coverlet zapisze `TestResults/**/coverage.opencover.xml`. Skaner C# nie importuje Cobertury (`sonar.cs.cobertura.reportsPaths` nie wchodzi do analizy), więc domyślny `coverage.cobertura.xml` zostawia gate z pokryciem 0%.
 
 Plik `src/JJDevHub.Api/sonar-project.properties` (albo parametry tylko w CLI — poniżej w workflow):
 
@@ -162,25 +165,24 @@ sonar.projectName=JJDevHub API
 sonar.sources=src/JJDevHub.Api
 sonar.tests=tests/JJDevHub.Api.Tests
 sonar.exclusions=**/bin/**,**/obj/**,**/Migrations/**
-sonar.cs.opencover.reportsPaths=
-sonar.cs.cobertura.reportsPaths=TestResults/**/coverage.cobertura.xml
+sonar.cs.opencover.reportsPaths=TestResults/**/coverage.opencover.xml
 ```
 
-Ścieżki raportu doprecyzuj po pierwszym `dotnet test` (`find TestResults -name coverage.cobertura.xml`).
+Ścieżkę doprecyzuj po pierwszym `dotnet test` (`find TestResults -name coverage.opencover.xml`).
 
 Skaner .NET czyta `sonar-project.properties` z katalogu, w którym odpalasz `begin` (w jobie to korzeń repo po `checkout`). Plik położony tylko w `src/JJDevHub.Api/` sam się nie włączy. Wykluczenia migracji podaj w `begin` (`/d:sonar.exclusions=**/bin/**,**/obj/**,**/Migrations/**`) albo połóż properties w korzeniu i nie mieszaj go ze skanem web. `sonar.sources` przy `dotnet sonarscanner` pomiń — źródła biorą się z projektów zbudowanych między begin a end.
 
 ### 4. Quality Gate
 
-W Sonar UI: **Quality Gates**. **Sonar way** ma próg coverage na new code (zwykle 80%). Dla `jjdevhub-api` jest sensowny, gdy raport Cobertura dochodzi. Dla `jjdevhub-web` ten sam próg obleje każdy PR: `pnpm test:ci` nie oddaje lcov, a krok 6 raportu coverage nie wysyła. Sklonuj gate, zdejmij warunek coverage i przypisz go tylko do web. API zostaw na Sonar way (albo na klonie z progiem, który akceptujesz). Jeden gate z coverage na obu projektach robi z `sonar-web` stały czerwony check.
+W Sonar UI: **Quality Gates**. **Sonar way** ma próg coverage na new code (zwykle 80%). Dla `jjdevhub-api` jest sensowny, gdy raport OpenCover dochodzi. Dla `jjdevhub-web` ten sam próg obleje każdy skan: `pnpm test:ci` nie oddaje lcov, a krok 6 raportu coverage nie wysyła. Sklonuj gate, zdejmij warunek coverage i przypisz go tylko do web. API zostaw na Sonar way (albo na klonie z progiem, który akceptujesz). Jeden gate z coverage na obu projektach robi z `sonar-web` stały czerwony check.
 
 Gate Fail = nieprzechodzący check w CI, o ile skaner ma `qualitygate.wait=true` (krok 8).
 
 ### 5. Workflow API — skan na self-hosted
 
-Rozszerz [`.github/workflows/api.yml`](../../.github/workflows/api.yml): po istniejącym jobie `build` na `ubuntu-latest` dodaj job `sonar` (albo przenieś test+sonar na self-hosted — ważne, by token i host były osiągalne).
+Rozszerz [`.github/workflows/api.yml`](../../.github/workflows/api.yml): po istniejącym jobie `build` na `ubuntu-latest` dodaj job `sonar`. Build i testy PR zostaw na hosted. Na self-hosted idzie tylko analiza zaufanego `main`.
 
-Przykład joba (obok istniejącego `build`; nie kasuj build/test na hosted, jeśli chcesz szybki feedback — wtedy sonar osobno):
+Przykład joba (obok istniejącego `build`; nie przenoś build/test PR na runner `jjdevhub`):
 
 Kolejność skanera .NET: **begin → build → test z coverage → end**.
 
@@ -188,7 +190,7 @@ Kolejność skanera .NET: **begin → build → test z coverage → end**.
   sonar:
     name: sonar-api
     needs: build
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: [self-hosted, jjdevhub]
     steps:
       - uses: actions/checkout@v4
@@ -208,7 +210,7 @@ Kolejność skanera .NET: **begin → build → test z coverage → end**.
             /k:"jjdevhub-api" \
             /d:sonar.token="${{ secrets.SONAR_TOKEN_API }}" \
             /d:sonar.host.url="${{ secrets.SONAR_HOST_URL }}" \
-            /d:sonar.cs.cobertura.reportsPaths="TestResults/**/coverage.cobertura.xml" \
+            /d:sonar.cs.opencover.reportsPaths="TestResults/**/coverage.opencover.xml" \
             /d:sonar.qualitygate.wait=true
 
       - name: Build for Sonar
@@ -219,7 +221,7 @@ Kolejność skanera .NET: **begin → build → test z coverage → end**.
       - name: Test with coverage
         run: |
           dotnet test tests/JJDevHub.Api.Tests/JJDevHub.Api.Tests.csproj -c Release --no-build \
-            --collect:"XPlat Code Coverage" \
+            --collect:"XPlat Code Coverage;Format=opencover" \
             --results-directory TestResults
 
       - name: SonarScanner end
@@ -228,17 +230,17 @@ Kolejność skanera .NET: **begin → build → test z coverage → end**.
           dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN_API }}"
 ```
 
-Nazwa checka na GitHubie będzie `sonar-api` (pole `name` joba).
+Nazwa checka na GitHubie będzie `sonar-api` (pole `name` joba). Pojawia się przy pushu na `main`, nie na pull requeście. Warunek `if` nie rozszerzaj o `pull_request`: ten runner stoi na VM, która serwuje hub.
 
 ### 6. Workflow web — osobny projekt
 
-W [`.github/workflows/web.yml`](../../.github/workflows/web.yml) dodaj job `sonar-web` na `[self-hosted, jjdevhub]`:
+W [`.github/workflows/web.yml`](../../.github/workflows/web.yml) dodaj job `sonar-web` na `[self-hosted, jjdevhub]`, z tym samym warunkiem co API: tylko push na `main`. Krok `docker run` nie może iść na kodzie z pull requestu.
 
 ```yaml
   sonar:
     name: sonar-web
     needs: build
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: [self-hosted, jjdevhub]
     defaults:
       run:
@@ -286,11 +288,11 @@ W [`.github/workflows/web.yml`](../../.github/workflows/web.yml) dodaj job `sona
 
 GitHub → **Settings** → **Branches** → reguła `main` ([03-github.md](03-github.md)):
 
-- Require status checks: istniejące `api`, `web`, **oraz** `sonar-api` i `sonar-web` po pierwszym zielonym runie
+- Require status checks na PR: istniejące `api` i `web` (hosted). **Nie** dodawaj `sonar-api` ani `sonar-web`.
 
-Bez pierwszego runu check nie ma na liście — dodaj po PR testowym. Na liście bywa sama nazwa joba albo `api / sonar-api` — zaznacz tę, którą PR już pokazuje.
+Te dwa joby nie startują na `pull_request`. Wymagany check, którego workflow na PR nie tworzy, wisi i blokuje merge. Werdykt Sonara jest na pushu `main` po merge: czerwony `sonar-api` / `sonar-web` widać na tym commicie, nie jako bramkę przed wciśnięciem merge.
 
-Joby Sonara siedzą w workflowach z filtrem `paths`. PR, który rusza tylko API, nie uruchamia `web.yml`, więc check `sonar-web` w ogóle nie powstaje. Required check, którego nie ma, potrafi zablokować merge. Po pierwszym teście obu stron albo zostaw required tylko check, który na danym PR realnie startuje, albo wynieś skan do workflow bez filtra ścieżek.
+Filtr `paths` zostaje. Push na `main` tylko z API nie uruchamia `web.yml`, więc `sonar-web` na tym pushu nie powstaje — i nie musi, skoro nie jest required na PR.
 
 ### 8. Quality Gate w CI (fail joba)
 
@@ -311,7 +313,7 @@ cd /opt/sonarqube && docker compose --env-file .env ps
 curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:9000/
 ```
 
-W UI widać projekty `jjdevhub-api` i `jjdevhub-web`. Otwórz PR zmieniający `src/JJDevHub.Api/**`: check `sonar-api` się pojawia. Przy `qualitygate.wait=true` job jest czerwony, gdy gate nie przejdzie. Obraz `community` trzyma jedną gałąź — w UI widać ostatnią analizę, nie osobną zakładkę PR.
+W UI widać projekty `jjdevhub-api` i `jjdevhub-web`. Check `sonar-api` pojawia się po pushu na `main`, który rusza `api.yml` — nie na pull requeście. Przy `qualitygate.wait=true` job jest czerwony, gdy gate nie przejdzie. Obraz Community trzyma jedną gałąź — w UI widać ostatnią analizę, nie osobną zakładkę PR.
 
 Negatyw: `https://hub.example.com` nie serwuje `:9000`. Compose aplikacji (`jjdevhub-*`) nadal bez kontenera Sonara.
 
@@ -321,7 +323,8 @@ Negatyw: `https://hub.example.com` nie serwuje `:9000`. Compose aplikacji (`jjde
 - Nie publikuj `:9000` w Cloudflare Tunnel
 - Nie używaj jednego `projectKey` na całe monorepo — osobno API i web
 - Nie commituj `SONAR_TOKEN_*` ani hasła DB Sonara
-- Nie wyłączaj `fetch-depth: 0` — analiza new code na PR tego potrzebuje
+- Nie wyłączaj `fetch-depth: 0` w jobie Sonara — analiza new code na `main` tego potrzebuje
+- Nie stawiaj jobów `sonar` / `sonar-web` na `pull_request` z `runs-on: [self-hosted, jjdevhub]`
 - Nie zastępuj tym krokiem CodeQL (04) ani Trivy (05)
 
 ## Następny numer
@@ -336,7 +339,7 @@ Ta sekcja tłumaczy serwer, skaner i bramkę. Przepis Compose i jobów jest wyż
 
 ### Co to jest
 
-SonarQube trzyma historię jakości kodu i liczy, czy **nowy** kod mieści się w progach. CI buduje projekt, opcjonalnie dokleja raport pokrycia i wysyła paczkę na serwer. Serwer zwraca Pass albo Fail. W tym repozytorium serwer to obraz `sonarqube:community` na tej samej VM co hub, w **osobnym** Compose pod `/opt/sonarqube`. Deploy huba (`release-and-deploy.sh`) go nie restartuje.
+SonarQube trzyma historię jakości kodu i liczy, czy **nowy** kod mieści się w progach. CI buduje projekt, dokleja raport pokrycia i wysyła paczkę na serwer. Serwer zwraca Pass albo Fail. W tym repozytorium serwer to obraz `sonarqube:26.9.0.129388-community` na tej samej VM co hub, w **osobnym** Compose pod `/opt/sonarqube`. Deploy huba (`release-and-deploy.sh`) go nie restartuje. Tag wersji jest w przepisie od pierwszego `up` — pływające `sonarqube:community` przy następnym `pull` może zrobić migrację schematu na istniejącym volume.
 
 Trzy warstwy obok siebie:
 
@@ -349,10 +352,10 @@ Trzy warstwy obok siebie:
 Reguły security w Sonarze częściowo zahaczają o te same klasy co CodeQL. Bramka jakości i tak zostaje tutaj: pokrycie, bugi, zapachy. `security-and-quality` w CodeQL tego nie zastępuje.
 
 ```
-PR (checkout na runnerze jjdevhub na VM)
+push na main (checkout na runnerze jjdevhub na VM)
     ├─ dotnet sonarscanner begin
     ├─ dotnet build
-    ├─ dotnet test  →  TestResults/**/coverage.cobertura.xml
+    ├─ dotnet test  →  TestResults/**/coverage.opencover.xml
     └─ dotnet sonarscanner end
             │
             ▼  HTTP, token
@@ -362,8 +365,10 @@ PR (checkout na runnerze jjdevhub na VM)
     Quality Gate Pass/Fail  →  kod wyjścia joba (gdy wait=true)
             │
             ▼
-    check sonar-api / sonar-web na GitHubie
+    check sonar-api / sonar-web na commicie main
 ```
+
+Pull request nie wchodzi na ten runner. Jego build i testy zostają na `ubuntu-latest`.
 
 Front idzie inną drogą: obraz `sonarsource/sonar-scanner-cli` w Dockerze, bez raportu pokrycia, dopóki `pnpm test:ci` go nie zacznie pisać.
 
@@ -397,7 +402,7 @@ Kontener po `up` jeszcze przez kilka minut stawia schemat. `curl` na `:9000` w t
 
 Gdy log mówi, że `vm.max_map_count` jest za niskie, proces indeksu nie wstanie i kontener wchodzi w restart. Sysctl z kroku 1 (`524288`, plik w `/etc/sysctl.d/`) zostaje po rebootcie VM. Sam `-w` bez pliku znika po restarcie maszyny.
 
-Obraz `sonarqube:community` bez tagu wersji przy następnym `pull` może skoczyć o major. Po pierwszym zdrowym starcie warto przypiąć konkretny tag. Skok wersji na istniejącym volume bywa migracją schematu, nie drobiazgiem.
+Obraz w przepisie to `sonarqube:26.9.0.129388-community`, nie pływające `sonarqube:community`. Tag wersji jest od pierwszego `up`, zanim powstanie volume. Późniejszy `pull` tagu bez numeru potrafi skoczyć o major i zrobić migrację schematu na danych, które już żyją.
 
 RAM: to JVM obok API, Prometheusa, Jaegera i Grafany. Osobny Compose jest po to, żeby deploy huba jej nie zabijał, nie po to, żeby udawać, że pamięci starcza na wszystko. Gdy VM się dusi, Sonar jest pierwszym kandydatem do zejścia z tej maszyny, nie Jaeger.
 
@@ -407,14 +412,14 @@ Dwa klucze, dwa sekrety:
 
 | Project key | Co wchodzi do skanu | Pokrycie w tym kroku |
 | --- | --- | --- |
-| `jjdevhub-api` | Projekty zbudowane między `begin` a `end` (API i testy) | Cobertura z Coverlet |
+| `jjdevhub-api` | Projekty zbudowane między `begin` a `end` (API i testy) | OpenCover z Coverlet |
 | `jjdevhub-web` | `src/Clients/web/src`, bez `node_modules`, speców i wygenerowanego klienta | Brak raportu, dopóki testy nie zaczną pisać lcov |
 
 Token tworzysz w UI (My Account → Security), typ analizy projektu albo globalny. Do CI idzie token, nie hasło admina. `SONAR_TOKEN_API` analizuje tylko API, `SONAR_TOKEN_WEB` tylko web. `SONAR_HOST_URL` w sekretach GitHuba to `http://127.0.0.1:9000`.
 
-Ten adres jest prawdziwy wyłącznie dla procesu na VM. Job na `ubuntu-latest` łączy się ze **swoim** loopbackiem i dostaje connection refused. Dlatego oba joby Sonara mają `runs-on: [self-hosted, jjdevhub]`. Runner w kontenerze z własną siecią też nie widzi Sonara na `127.0.0.1` hosta — ma być procesem na tej maszynie, tak jak deploy z 03.
+Ten adres jest prawdziwy wyłącznie dla procesu na VM. Job na `ubuntu-latest` łączy się ze **swoim** loopbackiem i dostaje connection refused. Dlatego oba joby Sonara mają `runs-on: [self-hosted, jjdevhub]` i warunek push na `main`. Pull request zostaje na hosted runnerze i do Sonara nie dzwoni. Runner w kontenerze z własną siecią też nie widzi Sonara na `127.0.0.1` hosta — ma być procesem na tej maszynie, tak jak deploy z 03.
 
-**Sonar way** wymaga pokrycia nowego kodu (próg w okolicy 80%) oraz ratingów bugów i podatności. Dla API, gdy Cobertura dochodzi, ten próg ma sens. Dla web ten sam gate jest czerwony na każdym PR: `pnpm test:ci` (`ng test --watch=false`) nie zapisuje lcov, a skaner web go nie dostaje. Linie bez raportu liczą się jako niepokryte. Dlatego web dostaje **klon** gate bez warunku coverage. Issues zostają. Pokrycie frontu dołożysz razem z raportem, nie przez zaostrzenie gate’u w ciemno.
+**Sonar way** wymaga pokrycia nowego kodu (próg w okolicy 80%) oraz ratingów bugów i podatności. Dla API, gdy OpenCover dochodzi, ten próg ma sens. Dla web ten sam gate jest czerwony na każdym skanie: `pnpm test:ci` (`ng test --watch=false`) nie zapisuje lcov, a skaner web go nie dostaje. Linie bez raportu liczą się jako niepokryte. Dlatego web dostaje **klon** gate bez warunku coverage. Issues zostają. Pokrycie frontu dołożysz razem z raportem, nie przez zaostrzenie gate’u w ciemno.
 
 New code na Community ustawiasz jako „previous version” albo liczbę dni. Nie ma „reference branch” z edycji płatnej. Pierwsza analiza często bierze cały kod za nowy. Przy 80% coverage i cienkich testach pierwszy `sonar-api` pada, choć skaner doszedł do końca. To próg, nie zepsuty raport. Albo obniżasz próg na start, albo oznaczasz wersję po pierwszym zielonym skanie i gate pilnuje tylko tego, co dojdzie później (Clean as You Code).
 
@@ -422,20 +427,20 @@ New code na Community ustawiasz jako „previous version” albo liczbę dni. Ni
 
 `dotnet sonarscanner` wstrzykuje się w MSBuild. Kolejność jest częścią narzędzia, nie ozdobą:
 
-1. **begin** — zapisuje `.sonarqube` w katalogu roboczym i podpina targety pod następny build. Tu podajesz klucz, token, URL, ścieżkę Cobertury, wykluczenia i `sonar.qualitygate.wait=true`.
+1. **begin** — zapisuje `.sonarqube` w katalogu roboczym i podpina targety pod następny build. Tu podajesz klucz, token, URL, ścieżkę OpenCover, wykluczenia i `sonar.qualitygate.wait=true`.
 2. **build** — kompilacja, którą skaner nagrywa. Build sprzed `begin` do analizy nie wchodzi. Job hosted `api` buduje osobno i ten artefakt się nie liczy. Job `sonar-api` buduje jeszcze raz, już po `begin`.
-3. **test** — `dotnet test … --no-build` na tym buildzie, z `--collect:"XPlat Code Coverage"` i `--results-directory TestResults`. Coverlet (paczka `coverlet.collector` w projekcie testów) kładzie `TestResults/<guid>/coverage.cobertura.xml`.
+3. **test** — `dotnet test … --no-build` na tym buildzie, z `--collect:"XPlat Code Coverage;Format=opencover"` i `--results-directory TestResults`. Coverlet (paczka `coverlet.collector` w projekcie testów) kładzie `TestResults/<guid>/coverage.opencover.xml`.
 4. **end** — pakuje raport i wysyła. Potem, przy `wait=true`, odpytuje serwer o gate i kończy proces kodem niezerowym, gdy gate jest Fail.
 
 Bez `end` serwer nie dostaje analizy. Sam `end` bez wcześniejszego `begin` w tym katalogu pada.
 
-`sonar-project.properties` skaner czyta z **bieżącego katalogu** `begin`. W jobie po `checkout` to korzeń repo. Plik pod `src/JJDevHub.Api/sonar-project.properties` leży obok, niewidoczny. Wykluczenie `**/Migrations/**` albo jest w `/d:sonar.exclusions=…` przy `begin`, albo properties leży w korzeniu. Pusta linia `sonar.cs.opencover.reportsPaths=` w takim pliku nic nie wnosi — raport w przepisie jest Coberturą.
+`sonar-project.properties` skaner czyta z **bieżącego katalogu** `begin`. W jobie po `checkout` to korzeń repo. Plik pod `src/JJDevHub.Api/sonar-project.properties` leży obok, niewidoczny. Wykluczenie `**/Migrations/**` albo jest w `/d:sonar.exclusions=…` przy `begin`, albo properties leży w korzeniu. Właściwość, którą skaner C# czyta, to `sonar.cs.opencover.reportsPaths`. `sonar.cs.cobertura.reportsPaths` nie importuje raportu Coverlet i zostawia pokrycie na 0%.
 
 `sonar.sources` ustawiasz przy skanerze frontu. Przy `dotnet sonarscanner` źródła są projektami, które build objął. Ręczne `sonar.sources=src/JJDevHub.Api` potrafi zejść się z auto-detekcją i wyciąć testy albo zdublować moduły.
 
 Projekt testowy SDK jest rozpoznawany jako testy. Migracje EF są zwykłym C# w projekcie API: bez wykluczenia wchodzą do new code i do mianownika coverage. Wygenerowany OpenAPI JSON skaner C# zwykle olewa; liczy się `Migrations`.
 
-Ścieżka `TestResults/**/coverage.cobertura.xml` musi zgadzać się z tym, co Coverlet naprawdę zapisał. Po pierwszym teście: `find TestResults -name coverage.cobertura.xml`. Zły glob daje analizę **bez** błędu skanera i coverage 0%. Przy progu 80% gate pada. Testy mogą być zielone.
+Ścieżka `TestResults/**/coverage.opencover.xml` musi zgadzać się z tym, co Coverlet naprawdę zapisał. Po pierwszym teście: `find TestResults -name coverage.opencover.xml`. Zły glob albo format Cobertura daje analizę **bez** błędu skanera i coverage 0%. Przy progu 80% gate pada. Testy mogą być zielone.
 
 `fetch-depth: 0` na `checkout` tego joba ściąga historię. Płytki klon psuje blame i to, które linie Sonar uzna za nowe. Job `build` na `ubuntu-latest` może zostać płytki. Pełna historia jest potrzebna tylko skanerowi.
 
@@ -463,15 +468,15 @@ Gate to zestaw warunków na **new code**, nie na cały historia projektu (o ile 
 - „You're not authorized” / 401 — token nie ma prawa „Execute Analysis” na tym `projectKey`, albo sekret API wsadzony do joba web.
 - Timeout przy wait — serwer jeszcze liczy (pierwszy skan, mało RAM) albo indeks nie wstał (`max_map_count`). Wydłużanie timeoutu nie naprawia padającego kontenera.
 
-Issue w UI ma typ (bug, vulnerability, code smell) i ciężar. Na PR w Community i tak oglądasz ostatni snapshot, a werdykt merga jest w checku GitHuba.
+Issue w UI ma typ (bug, vulnerability, code smell) i ciężar. Na Community oglądasz ostatni snapshot `main`. Werdykt przed merge to checki `api` i `web` na hosted runnerze, nie job Sonara.
 
 ### Check na `main` i filtr ścieżek
 
-Nazwa joba (`name: sonar-api` / `sonar-web`) jest tym, czego szukasz w branch protection. GitHub czasem pokazuje `api / sonar-api`. Zaznaczasz wpis, który już widzisz na PR, po pierwszym runie. Przed nim listy nie ma.
+Nazwa joba (`name: sonar-api` / `sonar-web`) pojawia się na pushu `main`. GitHub czasem pokazuje `api / sonar-api`. Tego wpisu nie zaznaczasz jako required check na PR: job na `pull_request` jest wyłączony, a brakujący required check blokuje merge.
 
-`api.yml` i `web.yml` mają `paths`. PR tylko z API nie uruchamia `web.yml`, więc check `sonar-web` nie powstaje. Required check, którego workflow nie wystartował, wisi i blokuje merge. To nie jest czerwony Sonar. Albo nie wymagasz checka, który na tym PR nie startuje, albo skan leci z workflow bez filtra ścieżek.
+`api.yml` i `web.yml` mają `paths`. Push na `main` tylko z API nie uruchamia `web.yml`, więc `sonar-web` na tym commicie nie powstaje. To nie jest Fail gate.
 
-Sam Sonar nie dekoruje diffu komentarzem. Blokada merga to required status check z 03, ten sam mechanizm co check `api` i `web`.
+Sam Sonar nie dekoruje diffu komentarzem. Przed merge blokują `api` i `web` z 03. Sonar pilnuje commita, który już jest na `main`.
 
 ### Gdy wynik jest zły
 
@@ -480,16 +485,16 @@ Sam Sonar nie dekoruje diffu komentarzem. Blokada merga to required status check
 | Kontener `sonarqube` w restart loop | Log o `vm.max_map_count`. Sysctl z kroku 1, potem `compose up -d` jeszcze raz. |
 | UI nie wchodzi z VM tuż po `up` | Za wcześnie. Poczekaj, aż log przestanie pisać o migracji. |
 | UI z laptopa nie wchodzi, z VM wchodzi | Bind `127.0.0.1`. SSH `-L 9000`. |
-| Job na `ubuntu-latest` — connection refused | `SONAR_HOST_URL` wskazuje loopback VM. Job ma być na `[self-hosted, jjdevhub]`. |
+| Job na `ubuntu-latest` — connection refused | `SONAR_HOST_URL` wskazuje loopback VM. Job Sonara ma być na `[self-hosted, jjdevhub]` i tylko przy pushu na `main`. |
 | Ten sam błąd na self-hosted | Runner nie jest procesem na VM (własny network namespace) albo Sonar nie słucha. Z konta usługi runnera: `curl -I http://127.0.0.1:9000`. |
 | `begin` pada 401 | Zły sekret, token web w jobie API, projekt o tym kluczu nie istnieje. |
-| Analiza weszła, coverage 0%, testy zielone | Glob Cobertury. `find TestResults -name coverage.cobertura.xml` na runnerze (albo lokalnie tą samą komendą). |
-| Gate coverage pada na web od pierwszego PR | Oba projekty na Sonar way. Web potrzebuje gate bez progu coverage, dopóki nie ma lcov. |
-| W UI nie ma zakładki PR | Community. Werdykt jest w checku, snapshot w UI jest ostatnim skanem. |
-| Skan PR nadpisał to, co wczoraj było na main | Ten sam skutek jednej gałęzi. Następny skan `main` nadpisze z powrotem. |
+| Analiza weszła, coverage 0%, testy zielone | Format albo glob. Ma być `coverage.opencover.xml` i `sonar.cs.opencover.reportsPaths`. `find TestResults -name coverage.opencover.xml`. Cobertura daje 0% bez błędu skanera. |
+| Gate coverage pada na web od pierwszego skanu | Oba projekty na Sonar way. Web potrzebuje gate bez progu coverage, dopóki nie ma lcov. |
+| W UI nie ma zakładki PR | Community, i job Sonara i tak nie leci na PR. Snapshot w UI jest ostatnim skanem `main`. |
+| Na PR nie ma checka `sonar-api` | Tak ma być. Runner `jjdevhub` nie bierze `pull_request`. |
 | Migracje psują coverage | Brak `sonar.exclusions` w tym `begin`, który naprawdę leci. Plik properties w podkatalogu się nie liczy. |
 | `end` pada, bo nie było `begin` | Build poszedł wcześniej albo katalog roboczy się zmienił w połowie joba. |
-| Check `sonar-web` wisi na PR tylko z API | Workflow web się nie uruchomił (`paths`). To nie jest Fail gate. |
+| Check `sonar-web` wisi jako required na PR | Job nie startuje na `pull_request`. Zdejmij go z required checks. |
 | Hasło admina po zmianie `.env` stare | `.env` jest od Postgresa. Hasło UI siedzi w volume. |
 
 ### Typowe pomyłki
@@ -506,18 +511,18 @@ Sam Sonar nie dekoruje diffu komentarzem. Blokada merga to required status check
 10. **Brak `qualitygate.wait`.** Job zielony, gate w UI czerwony, merge przechodzi.
 11. **Płytki checkout w jobie Sonara.** New code i autor issues się rozjeżdżają. `fetch-depth: 0` tylko tu.
 12. **Token w `echo` albo w logu skanera skopiowany do issue.** GitHub maskuje sekret w akcji; nie drukuj go sam.
-13. **Required `sonar-web` przy filtrze `paths`.** PR bez zmian we froncie nie dostaje checka i stoi.
+13. **Required `sonar-api` / `sonar-web` na PR.** Joby nie startują na `pull_request`, więc check nie powstaje i merge stoi.
 14. **Oczekiwanie, że Sonar zastąpi CodeQL.** Inny silnik. Dziury danych zostają w 04, CVE w 05.
-15. **Pływający tag `sonarqube:community` po tym, jak volume już żyje.** Przypnij wersję, zanim `pull` zrobi migrację w piątek.
+15. **Pływający tag `sonarqube:community`.** Przypnij wersję w pierwszym Compose (`26.9.0.129388-community`), zanim `pull` zrobi migrację na volume.
 
 ### Oficjalne źródła
 
 - SonarQube Server: instalacja Docker, `vm.max_map_count`, Quality Gate, definicja New Code.
 - Porównanie edycji: analiza gałęzi i pull requestu od Developer Edition. Community analizuje jedną gałąź.
-- SonarScanner for .NET: kolejność begin / build / test / end, raport Cobertura (`sonar.cs.cobertura.reportsPaths`), `sonar.qualitygate.wait`.
+- SonarScanner for .NET: kolejność begin / build / test / end, raport OpenCover (`sonar.cs.opencover.reportsPaths`), `sonar.qualitygate.wait`.
 - SonarScanner CLI: `sonar.sources`, `sonar.exclusions`, zmienne `SONAR_TOKEN` i `SONAR_HOST_URL`.
-- Coverlet: `--collect:"XPlat Code Coverage"` i plik `coverage.cobertura.xml`.
+- Coverlet: `--collect:"XPlat Code Coverage;Format=opencover"` i plik `coverage.opencover.xml`.
 
 ### Co zapamiętać
 
-Sonar w tym układzie to Community na `127.0.0.1:9000`, poza Compose huba, z własnym Postgresem. Dwa projekty: API z Coberturą i web bez progu coverage, dopóki nie ma lcov. Skaner .NET musi objąć build. Gate blokuje merge tylko wtedy, gdy `qualitygate.wait=true` zrzuci czerwony kod na check, który na tym PR w ogóle wystartował. Osobnej zakładki pull requestu na tym obrazie nie będzie.
+Sonar w tym układzie to Community `26.9.0.129388` na `127.0.0.1:9000`, poza Compose huba, z własnym Postgresem. Skan leci na runnerze `jjdevhub` tylko przy pushu na `main`. Dwa projekty: API z OpenCover i web bez progu coverage, dopóki nie ma lcov. Skaner .NET musi objąć build. `qualitygate.wait=true` zrzuca czerwony kod na check tego pusha. Osobnej zakładki pull requestu na tym obrazie nie będzie.

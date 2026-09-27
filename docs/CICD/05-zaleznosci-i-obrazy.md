@@ -96,14 +96,12 @@ cd "$REPO_ROOT"
 
 export DOTNET_NOLOGO=1
 dotnet restore JJDevHub.sln
-dotnet list JJDevHub.sln package --vulnerable --include-transitive --source https://api.nuget.org/v3/index.json 2>&1 | tee /tmp/nuget-audit.txt
+dotnet list JJDevHub.sln package --vulnerable --include-transitive --format json \
+  --source https://api.nuget.org/v3/index.json >/tmp/nuget-audit.json
 
-if grep -Eqi 'has the following vulnerable packages|Severity: (Critical|High)' /tmp/nuget-audit.txt; then
-  echo "nuget-audit: found Critical/High (or vulnerable package report)" >&2
-  exit 1
-fi
-
-if grep -Eqi 'critical|high' /tmp/nuget-audit.txt && grep -Eqi 'Vulnerable|Severity' /tmp/nuget-audit.txt; then
+# Nagłówek „has the following vulnerable packages” jest w raporcie tekstowym przy każdym
+# severity, także Low i Moderate. Tu liczy się tylko pole JSON "severity".
+if grep -Eq '"severity": "(Critical|High)"' /tmp/nuget-audit.json; then
   echo "nuget-audit: failing on Critical/High" >&2
   exit 1
 fi
@@ -111,7 +109,7 @@ fi
 echo "nuget-audit: ok"
 ```
 
-NuGet wypisuje podatne paczki tylko gdy coś znajdzie; przy czystym drzewie komunikat bywa pusty / „no vulnerable packages”. Dostosuj warunek `grep` do faktycznego outputu SDK 11 na runnerze po pierwszym runie — ważne jest **fail przy Critical/High**, nie konkretne angielskie zdanie na zawsze.
+Low i Moderate zostają w `/tmp/nuget-audit.json` i nie kończą joba. Fail jest tylko przy `"severity": "Critical"` albo `"severity": "High"`. Stderr z `dotnet list` nie mieszaj z tym plikiem — `grep` ma widzieć sam JSON.
 
 #### `infra/ci/pnpm-audit.sh`
 
@@ -162,7 +160,8 @@ trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed "$IMAGE"
 Lokalnie (opcjonalnie):
 
 ```bash
-# Trivy: https://aquasecurity.github.io/trivy/ — pakiet albo binary
+# Trivy: ta sama wersja co w workflow (v0.74.0), nie skrypt z gałęzi main.
+# https://github.com/aquasecurity/trivy/releases/tag/v0.74.0
 ./infra/ci/nuget-audit.sh
 ./infra/ci/pnpm-audit.sh
 ./infra/ci/trivy-api.sh
@@ -269,9 +268,17 @@ jobs:
         run: dotnet test tests/JJDevHub.Api.Tests/JJDevHub.Api.Tests.csproj --no-build -c Release
 
       - name: Install Trivy
+        env:
+          TRIVY_VERSION: "0.74.0"
+          TRIVY_SHA256: "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a"
         run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-            | sh -s -- -b /usr/local/bin
+          set -euo pipefail
+          tarball="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl -fsSL -o "/tmp/${tarball}" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${tarball}"
+          echo "${TRIVY_SHA256}  /tmp/${tarball}" | sha256sum -c -
+          tar -xzf "/tmp/${tarball}" -C /usr/local/bin trivy
+          trivy --version
 
       - name: Docker image + Trivy
         run: ./infra/ci/trivy-api.sh
@@ -346,9 +353,17 @@ jobs:
 
       - name: Install Trivy
         working-directory: .
+        env:
+          TRIVY_VERSION: "0.74.0"
+          TRIVY_SHA256: "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a"
         run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-            | sh -s -- -b /usr/local/bin
+          set -euo pipefail
+          tarball="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl -fsSL -o "/tmp/${tarball}" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/${tarball}"
+          echo "${TRIVY_SHA256}  /tmp/${tarball}" | sha256sum -c -
+          tar -xzf "/tmp/${tarball}" -C /usr/local/bin trivy
+          trivy --version
 
       - name: Docker image + Trivy
         working-directory: .
@@ -360,6 +375,7 @@ Uwagi:
 - Stary krok samego `docker build` w `api` / `web` zastępuje skrypt Trivy (on i tak buduje obraz).
 - `pnpm-audit.sh` sam robi `pnpm install` w `src/Clients/web` — podwójny install jest OK; jeśli chcesz przyspieszyć, wydziel w skrypcie sam `pnpm audit` i polegaj na kroku Install (wtedy skrypt nie wolaj `install` drugi raz — wybierz jedną konwencję i trzymaj ją).
 - `deploy.yml` **nie** dostaje Trivy ani `permissions` poza tym, co już ma; nie ruszaj self-hosted joba w tym numerze.
+- Instalacja Trivy to wydanie `v0.74.0` i SHA256 wpisany w YAML. Nie wracaj do `curl | sh` ze skryptu na gałęzi `main`. Przy bumpie wersji podmień oba pola i hash z `trivy_<wersja>_checksums.txt` dla `Linux-64bit.tar.gz`.
 
 ### 5. Branch protection (po pierwszym zielonym runie)
 

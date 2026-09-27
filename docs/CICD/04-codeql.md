@@ -10,7 +10,7 @@ CodeQL ma znaleźć typowe dziury w C# (API) i TypeScript (Angular) zanim trafi�
 - Tunel Cloudflare (tylko `4200`): [02-cloudflare-tunnel.md](02-cloudflare-tunnel.md).
 - CI build/test i self-hosted deploy: [03-github.md](03-github.md), workflowy [api.yml](../../.github/workflows/api.yml), [web.yml](../../.github/workflows/web.yml), [deploy.yml](../../.github/workflows/deploy.yml).
 - Kod skanowany: `src/JJDevHub.Api` (.NET 11 / C#), `src/Clients/web` (Angular 21 / TypeScript).
-- W repo **nie ma** jeszcze workflowu CodeQL ani włączonego default setup — to ten dokument.
+- Default setup CodeQL jest włączony dla C# i JavaScript/TypeScript (push i pull request na `main`). Pliku [`.github/workflows/codeql.yml`](../../.github/workflows/codeql.yml) nie ma i nie dodajesz go, dopóki ten setup jest zielony.
 
 ## Słownik pojęć z tego pliku
 
