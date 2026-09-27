@@ -13,7 +13,7 @@
     <PackageVersion Include="Microsoft.Extensions.ApiDescription.Server" Version="11.0.0-preview.7.26381.103" />
     <PackageVersion Include="Scalar.AspNetCore" Version="2.17.1" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
-    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="11.0.0-preview.6" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="11.0.0-rc.1.1" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.19.0" />
