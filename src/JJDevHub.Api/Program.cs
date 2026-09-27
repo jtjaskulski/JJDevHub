@@ -82,11 +82,14 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod());
 });
 
-var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]
-    ?? Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
+// Jaeger (08) accepts OTLP traces only. The shared endpoint is that traces address.
+// Metrics and logs must not fall back to it — they retry forever against a trace-only receiver.
+var tracesEndpoint = OtelSetting(builder.Configuration, "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
+    ?? OtelSetting(builder.Configuration, "OTEL_EXPORTER_OTLP_ENDPOINT");
+var metricsEndpoint = OtelSetting(builder.Configuration, "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT");
+var logsEndpoint = OtelSetting(builder.Configuration, "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT");
 
-var serviceName = builder.Configuration["OTEL_SERVICE_NAME"]
-    ?? Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME")
+var serviceName = OtelSetting(builder.Configuration, "OTEL_SERVICE_NAME")
     ?? "JJDevHub.Api";
 
 builder.Services.AddOpenTelemetry()
@@ -96,11 +99,11 @@ builder.Services.AddOpenTelemetry()
         tracing
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation();
-        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+        if (tracesEndpoint is not null)
         {
             tracing.AddOtlpExporter(options =>
             {
-                options.Endpoint = new Uri(otlpEndpoint);
+                options.Endpoint = new Uri(tracesEndpoint);
             });
         }
     })
@@ -110,11 +113,11 @@ builder.Services.AddOpenTelemetry()
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation()
             .AddRuntimeInstrumentation();
-        if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+        if (metricsEndpoint is not null)
         {
             metrics.AddOtlpExporter(options =>
             {
-                options.Endpoint = new Uri(otlpEndpoint);
+                options.Endpoint = new Uri(metricsEndpoint);
             });
         }
     });
@@ -123,11 +126,11 @@ builder.Logging.AddOpenTelemetry(logging =>
 {
     logging.IncludeFormattedMessage = true;
     logging.IncludeScopes = true;
-    if (!string.IsNullOrWhiteSpace(otlpEndpoint))
+    if (logsEndpoint is not null)
     {
         logging.AddOtlpExporter(options =>
         {
-            options.Endpoint = new Uri(otlpEndpoint);
+            options.Endpoint = new Uri(logsEndpoint);
         });
     }
 });
@@ -162,6 +165,12 @@ app.MapGet("/health", () => Results.Ok(new
 app.MapAuthEndpoints();
 
 app.Run();
+
+static string? OtelSetting(IConfiguration configuration, string key)
+{
+    var value = configuration[key] ?? Environment.GetEnvironmentVariable(key);
+    return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}
 
 static bool IsOpenApiDocumentGeneration(string[] args)
 {

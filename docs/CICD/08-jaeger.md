@@ -58,7 +58,7 @@ W sekcji `api` dopisz zmienne (nazwy zgodne z [06-opentelemetry.md](06-opentelem
       OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
 ```
 
-Nazwy zmiennych jak w [06-opentelemetry.md](06-opentelemetry.md) (`JJDevHub.Api`). Na VM w `/etc/jjdevhub/api.env` ustaw `OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317` (w 06 domyślnie puste).
+Nazwy zmiennych jak w [06-opentelemetry.md](06-opentelemetry.md) (`JJDevHub.Api`). Na VM w `/etc/jjdevhub/api.env` ustaw `OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317` (w 06 domyślnie puste). Ta zmienna karmi **tylko eksporter tras**. Nie ustawiaj `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` ani `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` na `http://jaeger:4317` — all-in-one odrzuca te sygnały, a SDK będzie je ponawiać. Metryki zbiera Prometheus (07). Logi OTLP włączasz adresem collectora, który logi przyjmuje.
 
 `depends_on` na `jaeger` dodaj tylko jeśli chcesz kolejność startu; eksporter i tak buforuje przy krótkim braku collectora. Nie kieruj OTLP na `prometheus` ani na host `127.0.0.1` z wnętrza kontenera `api` — z sieci Compose host loopback to nie Jaeger.
 
