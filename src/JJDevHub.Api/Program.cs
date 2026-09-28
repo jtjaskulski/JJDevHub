@@ -112,7 +112,8 @@ builder.Services.AddOpenTelemetry()
         metrics
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation()
-            .AddRuntimeInstrumentation();
+            .AddRuntimeInstrumentation()
+            .AddPrometheusExporter();
         if (metricsEndpoint is not null)
         {
             metrics.AddOtlpExporter(options =>
@@ -153,6 +154,8 @@ if (app.Environment.IsDevelopment())
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapPrometheusScrapingEndpoint("/metrics");
 
 app.MapGet("/health", () => Results.Ok(new
 {
