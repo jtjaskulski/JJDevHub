@@ -21,10 +21,9 @@ Obecne usługi w [infra/docker/docker-compose.yml](../../infra/docker/docker-com
 | Trace | Jedno żądanie (lub operacja) jako drzewo spanów z jednym `trace_id` |
 | Span | Jednostka pracy (np. HTTP request, zapytanie SQL) z czasem start/stop |
 | OTLP | OpenTelemetry Protocol — format i transport telemetrii |
-| OTLP gRPC | OTLP po gRPC; w Jaegerze all-in-one domyślnie port **4317** wewnątrz sieci Dockera |
-| Jaeger | Backend i UI do wyszukiwania i przeglądania traców |
-| all-in-one | Obraz z collectorem, query i UI w jednym procesie (wystarczy na jedną VM) |
-| `COLLECTOR_OTLP_ENABLED` | Flaga w starszych obrazach Jaegera; nowsze mają OTLP włączone domyślnie — i tak ustaw w Compose dla jasności |
+| OTLP gRPC | OTLP po gRPC; w tym Jaegerze port **4317** wewnątrz sieci Dockera |
+| Jaeger | Backend i UI do wyszukiwania i przeglądania traców. Tu jeden proces v2: collector, query i UI |
+| `max_traces` | Sufit liczby trace’ów w magazynie pamięci. Stoi w [infra/jaeger/config.yaml](../../infra/jaeger/config.yaml), nie w zmiennej środowiska |
 
 ## Kroki
 
@@ -34,15 +33,20 @@ Dopisz do [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.ym
 
 ```yaml
   jaeger:
-    image: jaegertracing/all-in-one:1.66
+    image: jaegertracing/jaeger:2.20.0
     container_name: jjdevhub-jaeger
-    environment:
-      COLLECTOR_OTLP_ENABLED: "true"
+    command: ["--config", "/etc/jaeger/config.yaml"]
+    volumes:
+      - ../jaeger/config.yaml:/etc/jaeger/config.yaml:ro
     ports:
       - "127.0.0.1:16686:16686"
     # 4317 nie publikuj na hoście — api łączy się po nazwie usługi w sieci Compose
     restart: unless-stopped
 ```
+
+Obraz to binarka Jaegera v2, nie `jaegertracing/all-in-one`. v1 jest po EOL. Nie ustawiaj `COLLECTOR_OTLP_ENABLED` ani `MEMORY_MAX_TRACES` — v2 ich nie czyta. OTLP i limit śladów są w [infra/jaeger/config.yaml](../../infra/jaeger/config.yaml): odbiornik gRPC `0.0.0.0:4317`, UI `0.0.0.0:16686`, magazyn `memory.max_traces: 10000`.
+
+Pin to **2.20.0**, nie 2.21. Od 2.21 query nie wystawia `/api/services`, a Grafana z [09-grafana.md](09-grafana.md) nadal woła to stare API. Samo `200` na `16686` nie dowodzi, że 4317 przyjmuje spany.
 
 UI tylko na loopback VM. LAN i internet nie powinny widzieć `16686`. Tunel Cloudflare tego hosta nie dostaje.
 
@@ -58,7 +62,7 @@ W sekcji `api` dopisz zmienne (nazwy zgodne z [06-opentelemetry.md](06-opentelem
       OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
 ```
 
-Nazwy zmiennych jak w [06-opentelemetry.md](06-opentelemetry.md) (`JJDevHub.Api`). Na VM w `/etc/jjdevhub/api.env` ustaw `OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317` (w 06 domyślnie puste). Ta zmienna karmi **tylko eksporter tras**. Nie ustawiaj `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` ani `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` na `http://jaeger:4317` — all-in-one odrzuca te sygnały, a SDK będzie je ponawiać. Metryki zbiera Prometheus (07). Logi OTLP włączasz adresem collectora, który logi przyjmuje.
+Nazwy zmiennych jak w [06-opentelemetry.md](06-opentelemetry.md) (`JJDevHub.Api`). Na VM w `/etc/jjdevhub/api.env` ustaw `OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317` (puste w pliku env i tak dostaje ten adres z `:-` w Compose). Ta zmienna karmi **tylko eksporter tras**. Nie ustawiaj `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` ani `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` na `http://jaeger:4317` — ten Jaeger odrzuca te sygnały, a SDK będzie je ponawiać. Metryki zbiera Prometheus (07). Logi OTLP włączasz adresem collectora, który logi przyjmuje. Sam Jaeger nie bierze sekretu z `api.env`.
 
 `depends_on` na `jaeger` dodaj tylko jeśli chcesz kolejność startu; eksporter i tak buforuje przy krótkim braku collectora. Nie kieruj OTLP na `prometheus` ani na host `127.0.0.1` z wnętrza kontenera `api` — z sieci Compose host loopback to nie Jaeger.
 
@@ -163,7 +167,7 @@ Ta sekcja tłumaczy, co robi kontener z kroku 1 i co zobaczysz w UI po `curl`. P
 
 Jaeger zapisuje **trace**: drzewo spanów jednego żądania, z czasami i atrybutami. W tym stacku jest odbiornikiem OTLP, który API z [06-opentelemetry.md](06-opentelemetry.md) już umie karmić. UI na porcie `16686` służy do pytania „co się stało w tym loginie”, nie „ile loginów na sekundę”.
 
-Trzy kawałki w obrazie `jaegertracing/all-in-one` (przepis pinuje tag `1.66`):
+Trzy kawałki w obrazie `jaegertracing/jaeger:2.20.0` (jeden proces, config z pliku):
 
 | Kawałek | Rola |
 | --- | --- |
@@ -171,7 +175,7 @@ Trzy kawałki w obrazie `jaegertracing/all-in-one` (przepis pinuje tag `1.66`):
 | Storage | Domyślnie **pamięć procesu**. Restart kontenera kasuje historię. |
 | Query + UI | Szuka trace’ów i rysuje oś czasu. HTTP na **16686**. |
 
-To jeden proces na jedną VM. Osobny collector, Cassandra czy Elasticsearch mają sens przy ruchu, którego ten hub nie ma. All-in-one nie jest bazą metryk (to Prometheus z 07) ani miejscem na linie `ILogger`.
+To jeden proces na jedną VM. Osobny collector, Cassandra czy Elasticsearch mają sens przy ruchu, którego ten hub nie ma. Ten kontener nie jest bazą metryk (to Prometheus z 07) ani miejscem na linie `ILogger`.
 
 ```
 przeglądarka / curl
@@ -218,12 +222,12 @@ Dziecka „SELECT” nie będzie. Pakiet EF nie jest w kroku 06, więc czas bazy
 
 ### Porty
 
-All-in-one słucha w kontenerze więcej, niż publikujesz:
+Proces słucha w kontenerze więcej, niż publikujesz. Thrift i Zipkin w tym `config.yaml` nie są włączone:
 
 | Port | Po co | W tym Compose |
 | --- | --- | --- |
 | 4317 | OTLP gRPC | Zostaje w sieci Compose. API woła nazwę `jaeger`. Na hoście go nie ma. |
-| 4318 | OTLP HTTP | Nie używasz. Też nie publikujesz. |
+| 4318 | OTLP HTTP | Słucha w sieci Compose (jest w `config.yaml`). API go nie używa. Na hoście go nie ma. |
 | 16686 | UI i API query | `127.0.0.1:16686:16686`. Z laptopa przez tunel SSH, nie z internetu. |
 | 6831 / 6832 UDP | Stary agent Jaeger (Thrift) | Nie włączasz. SDK mówi OTLP. |
 | 14268, 14250, 9411 | Jaeger Thrift, model proto, Zipkin | To samo: zamknięte. |
@@ -232,27 +236,15 @@ Publikacja `4317` na `0.0.0.0` pozwala każdemu w LAN wstrzyknąć fałszywy tra
 
 [09-grafana.md](09-grafana.md) zapyta Jaegera po DNS Compose (`http://jaeger:16686`). Do tego nie potrzebuje portu opublikowanego na hoście. `127.0.0.1:16686` jest dla Ciebie, nie dla Grafany.
 
-Flaga `COLLECTOR_OTLP_ENABLED=true` na tagu `1.66` jest domyślnie włączona w nowszych 1.x i tak stoi w przepisie, żeby obraz bez OTLP nie udawał żywego UI. Samo `200` na `16686` nie dowodzi, że 4317 przyjmuje spany.
+OTLP włącza receiver w [infra/jaeger/config.yaml](../../infra/jaeger/config.yaml), nie flaga `COLLECTOR_OTLP_ENABLED` z v1. Samo `200` na `16686` nie dowodzi, że 4317 przyjmuje spany. Kontener bez tego mountu albo ze starym obrazem `all-in-one` to inny Jaeger niż ten w repo.
 
 ### Pamięć i restart
 
-`SPAN_STORAGE_TYPE` domyślnie to `memory`: spany żyją w procesie. Restart `jjdevhub-jaeger`, `compose up` od zera albo reboot VM czyści historię. Volume nic nie utrwali, dopóki storage nie pisze na dysk. `compose down -v` nie jest tu warunkiem utraty — nie ma czego odpiąć.
+Magazyn to `memory` w [infra/jaeger/config.yaml](../../infra/jaeger/config.yaml). Spany żyją w procesie. Restart `jjdevhub-jaeger`, `compose up` od zera albo reboot VM czyści historię. Volume nic nie utrwali, dopóki storage nie pisze na dysk. `compose down -v` nie jest tu warunkiem utraty — nie ma czego odpiąć.
 
-Na tę VM pamięć wystarcza. Limitu liczby trace’ów domyślnie nie ma; przy dłuższym życiu procesu ustawisz `--memory.max-traces` (w Compose zwykle zmienna `MEMORY_MAX_TRACES`), żeby Jaeger nie zjadł RAM-u obok Postgresa.
+VM z [01-proxmox.md](01-proxmox.md) ma 4096 MB. API próbuje każdy request, a Prometheus co 15 s scrapuje `/metrics` i też zostawia ślad. Dlatego `max_traces: 10000` — trochę ponad doba samego scrapa, rząd wielkości ~100 MB. v1 wołało to `MEMORY_MAX_TRACES` albo `--memory.max-traces`. v2 tej zmiennej nie czyta. Podnosisz liczbę w YAML i odtwarzasz kontener.
 
-Trwały dysk, **poza tym krokiem**, to Badger:
-
-```yaml
-environment:
-  SPAN_STORAGE_TYPE: badger
-  BADGER_EPHEMERAL: "false"
-  BADGER_DIRECTORY_VALUE: /badger/data
-  BADGER_DIRECTORY_KEY: /badger/key
-volumes:
-  - jaeger_badger:/badger
-```
-
-Bez `BADGER_EPHEMERAL=false` Badger i tak trzyma pliki w tymczasowym katalogu i restart je gubi. Cassandra / Elasticsearch to już inny rozmiar klastra, nie ten numer.
+Trwały dysk jest poza tym krokiem. W v2 to inny backend w `config.yaml`, nie `SPAN_STORAGE_TYPE` / `BADGER_*` w `environment`. Cassandra albo Elasticsearch to już inny rozmiar klastra.
 
 ### Compose, nazwa usługi, plik na VM
 
@@ -296,6 +288,7 @@ Zakładka zależności / architektury przy jednym serwisie jest pojedynczym kó�
 | Objaw | Co sprawdzić |
 | --- | --- |
 | `jjdevhub-jaeger` nie ma na liście `ps` | Usługa nie weszła do Compose, który naprawdę odpaliłeś (inny plik, stary checkout na VM w `/opt/jjdevhub`). |
+| Kontener w kółko pada | Zły YAML albo brak mountu `../jaeger/config.yaml`. `docker logs jjdevhub-jaeger`. Nie podmieniaj obrazu na `jaegertracing/all-in-one`. |
 | `curl` na `127.0.0.1:16686` z VM nie łączy | Bind nie jest na loopbacku albo kontener padł. `docker logs jjdevhub-jaeger`. Obraz często nie ma `wget` w środku — sprawdzaj z hosta. |
 | UI z laptopa nie wchodzi, z VM wchodzi | Tak ma być bez tunelu SSH. `16686` nie jest na LAN. |
 | UI `200`, dropdown Service pusty | Nic nie doszło na 4317. Endpoint API, protokół `grpc`, czy API w ogóle dostało zmienną (blok `environment`, nie tylko komentarz w `api.env`). |
@@ -322,18 +315,20 @@ Zakładka zależności / architektury przy jednym serwisie jest pojedynczym kó�
 10. **`https://jaeger:4317` albo endpoint z `/v1/traces`.** gRPC: `http://`, host, port.
 11. **Porównanie Jaegera z grafem RPS.** Rate i p95 są w 07. Jaeger odpowiada na „ten jeden request”.
 12. **Remote sampling Jaegera (`SAMPLING_STRATEGIES_FILE`) przy pierwszym teście.** Decyzję i tak podejmuje SDK w API. Zostaw 100% z 06, aż zobaczysz trace.
-13. **Badger bez `BADGER_EPHEMERAL=false` i bez volume.** Restart dalej kasuje dane, tylko wolniej.
+13. **Wklejenie `SPAN_STORAGE_TYPE` / `BADGER_*` do usługi v2.** Te zmienne są z all-in-one. Ten kontener ich nie czyta. Limit jest `max_traces` w `config.yaml`.
 14. **Oczekiwanie, że `depends_on` zaczeka na port.** `service_started` to kolejność kontenerów. Pierwsze sekundy po starcie mogą być puste.
-15. **Obraz all-in-one jako magazyn na miesiące.** Pamięć jest na lab i na ten hub. Dłuższa historia to Badger albo osobny backend, nie kolejny bind portu.
+15. **Powrót do `jaegertracing/all-in-one:1.66` albo `COLLECTOR_OTLP_ENABLED`.** To v1 po EOL, bez limitu śladów i bez tego `config.yaml`. Zostaje `jaegertracing/jaeger:2.20.0` i mount pliku.
+16. **Podbicie do 2.21, bo nowszy tag.** Query gubi `/api/services`. Grafana 13 tego ścieżką szuka i Explore milknie, choć UI Jaegera żyje. Pin zostaje 2.20.0.
+17. **Pamięć jako magazyn na miesiące.** Sufit to 10 000 trace’ów, restart i tak kasuje historię. Dłuższa historia to inny backend w YAML, nie kolejny bind portu.
 
 ### Oficjalne źródła
 
-- Jaeger docs: *Getting Started*, *Deployment* (all-in-one, porty, `SPAN_STORAGE_TYPE`, Badger, `--memory.max-traces`).
+- Jaeger v2 docs: *Getting Started*, *Deployment*, *Configuration* (`jaeger_storage` / `memory.max_traces`). v1 (`all-in-one`, `COLLECTOR_OTLP_ENABLED`, `MEMORY_MAX_TRACES`) tego kontenera nie opisuje.
 - Opis OTLP w collectorze: porty 4317 i 4318.
 - OpenTelemetry: zmienne `OTEL_EXPORTER_OTLP_ENDPOINT` i `OTEL_EXPORTER_OTLP_PROTOCOL` — po stronie API, opisane w [06-opentelemetry.md](06-opentelemetry.md).
 
-Tag w przepisie to `jaegertracing/all-in-one:1.66`. Nowsze poradniki pokazują kolejny 1.x. Kontrakt all-in-one (pamięć, 4317, 16686) jest ten sam; podbijasz pin świadomie, nie „bo UI puste”.
+Tag w przepisie to `jaegertracing/jaeger:2.20.0`. 2.21 łamie API, którego używa Grafana. Podbijasz pin świadomie, nie „bo UI puste”.
 
 ### Co zapamiętać
 
-Jaeger w tym Compose to jeden kontener: collector OTLP na `jaeger:4317` i UI na `127.0.0.1:16686`. API wysyła tam span HTTP, który 06 już umie zbudować. Widać login i `/health`, nie zapytanie SQL i nie wykres RPS. Historia siedzi w pamięci procesu i znika z restartem. Tunel Cloudflare tego portu nie dostaje. Grafana w następnym numerze czyta ten sam Jaeger po sieci Dockera.
+Jaeger w tym Compose to jeden kontener v2: collector OTLP na `jaeger:4317` i UI na `127.0.0.1:16686`, config z [infra/jaeger/config.yaml](../../infra/jaeger/config.yaml). API wysyła tam span HTTP, który 06 już umie zbudować. Widać login i `/health`, nie zapytanie SQL i nie wykres RPS. Historia siedzi w pamięci procesu, najwyżej 10 000 trace’ów, i znika z restartem. Tunel Cloudflare tego portu nie dostaje. Grafana czyta ten sam Jaeger po sieci Dockera (`http://jaeger:16686`).

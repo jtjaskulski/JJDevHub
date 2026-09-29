@@ -139,7 +139,7 @@ Dopisz do [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.ym
 
 ```yaml
   grafana:
-    image: grafana/grafana:11.5.2
+    image: grafana/grafana:13.2.2
     container_name: jjdevhub-grafana
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
@@ -277,7 +277,7 @@ ssh -L 3000:127.0.0.1:3000 deploy@IP_VM
 
 Potem `http://127.0.0.1:3000`. Tunel Cloudflare zostaje przy `4200`. Metryki `up` i lista tras z Jaegera nie są stroną huba.
 
-Obraz w przepisie to `grafana/grafana:11.5.2`. Pluginy Prometheus i Jaeger są w tym obrazie. Osobnego `grafana-cli plugins install` nie ma.
+Obraz w przepisie to `grafana/grafana:13.2.2`. 11.5.2 jest po EOL i jest podatne na CVE-2025-4123 (pierwsza łatka tej linii to 11.5.4+security-01; wspierana linia to 13.2). Pluginy Prometheus i Jaeger są w tym obrazie. Plugin Jaegera woła `/api/services`, więc Jaeger zostaje na 2.20.0 z [08-jaeger.md](08-jaeger.md), nie na 2.21. Osobnego `grafana-cli plugins install` nie ma.
 
 ### Pliki, które Grafana czyta przy starcie
 
@@ -338,7 +338,7 @@ Szkielet ma jeden panel `timeseries`. `datasource.uid` i `targets[].datasource.u
 
 Publiczny `curl` na `https://hub…/health` może być zdrowy, a `up` równe 0, bo nginx nie proxy’uje `/metrics`, a Prometheus bije w `api:8080` od środka. Odwrotnie: `up` równe 1 nie mówi, czy login zwraca 200. Do tego jest histogram albo span w Jaegerze.
 
-`id: null` w JSON jest poprawne. Grafana nadaje numeryczne id w swojej bazie. `uid: jjdevhub-api-overview` zostawiasz stabilne — po nim działa link i podmiana pliku. `schemaVersion: 39` jest z epoki Grafany 10/11; pin obrazu `11.5.2` ten plik czyta. Nowszy obraz po cichu podbija schema przy zapisie; przy samym odczycie provisioningu stary schema wystarcza.
+`id: null` w JSON jest poprawne. Grafana nadaje numeryczne id w swojej bazie. `uid: jjdevhub-api-overview` zostawiasz stabilne — po nim działa link i podmiana pliku. `schemaVersion: 39` jest starsze niż Grafana 13. Obraz `13.2.2` ten plik czyta przy provisioningu; schema podbija się przy zapisie z UI, a ten dashboard i tak jest tylko do odczytu (`allowUiUpdates: false`).
 
 Zakres `now-1h` w JSON to domyślne okno po otwarciu dashboardu. Próbki `up` pojawiają się w kilkanaście sekund od pierwszego scrapa (15 s w 07), nie po godzinie.
 
@@ -408,7 +408,7 @@ Hasło ląduje w środowisku procesu. `docker inspect jjdevhub-grafana` je poka�
 12. **Job `jjdevhub` zamiast `jjdevhub-api`.** Etykieta jest z `job_name` w `prometheus.yml`.
 13. **Anonimowy dostęp „żeby nie logować się przez SSH”.** Wtedy każdy, kto dosięgnie portu, czyta metryki. Port i tak zostaje na loopbacku, konto zostaje.
 14. **Alert rule w tym kroku, z tokenem Slacka w repo.** Najpierw zielony datasource i panel `up`. Powiadomienia to osobna konfiguracja, nie ten numer.
-15. **Podbicie obrazu Grafany, bo panel pusty.** Pusty panel to zapytanie albo scrape. Tag `11.5.2` zostaje, dopóki provisioning na nim działa.
+15. **Zostawienie `grafana/grafana:11.5.2`, bo „tak jest w starej notatce”.** Ta linia jest po EOL i bez łatki CVE-2025-4123. Pin w Compose to `13.2.2`. Pusty panel to zapytanie albo scrape, nie powód, żeby cofać obraz.
 
 ### Oficjalne źródła
 
