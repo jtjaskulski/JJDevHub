@@ -73,10 +73,11 @@ services:
       - api
 
   jaeger:
-    image: jaegertracing/all-in-one:1.66.0
+    image: jaegertracing/jaeger:2.21.0
     container_name: jjdevhub-jaeger
-    environment:
-      COLLECTOR_OTLP_ENABLED: "true"
+    command: ["--config", "/etc/jaeger/config.yaml"]
+    volumes:
+      - ../jaeger/config.yaml:/etc/jaeger/config.yaml:ro
     ports:
       - "127.0.0.1:16686:16686"
     # 4317 stays on the Compose network. api reaches it as jaeger:4317.
