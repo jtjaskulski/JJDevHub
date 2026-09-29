@@ -73,7 +73,7 @@ services:
       - api
 
   jaeger:
-    image: jaegertracing/jaeger:2.21.0
+    image: jaegertracing/jaeger:2.20.0
     container_name: jjdevhub-jaeger
     command: ["--config", "/etc/jaeger/config.yaml"]
     volumes:
