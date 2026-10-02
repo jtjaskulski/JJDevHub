@@ -46,7 +46,7 @@ Dopisz do [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.ym
 
 Obraz to binarka Jaegera v2, nie `jaegertracing/all-in-one`. v1 jest po EOL. Nie ustawiaj `COLLECTOR_OTLP_ENABLED` ani `MEMORY_MAX_TRACES` — v2 ich nie czyta. OTLP i limit śladów są w [infra/jaeger/config.yaml](../../infra/jaeger/config.yaml): odbiornik gRPC `0.0.0.0:4317`, UI `0.0.0.0:16686`, magazyn `memory.max_traces: 10000`.
 
-Pin to **2.20.0**, nie 2.21. Od 2.21 query nie wystawia `/api/services`, a Grafana z [09-grafana.md](09-grafana.md) nadal woła to stare API. Samo `200` na `16686` nie dowodzi, że 4317 przyjmuje spany.
+Pin to **2.20.0** jest decyzją tego repozytorium, ale nie wynika z niezgodności z Grafaną 13.2. Preinstalowany datasource Jaegera od wersji 0.4.0 używa `/api/v3` dla usług i operacji, więc działa także z Jaegerem 2.21 po usunięciu endpointów v1. Samo `200` na `16686` nie dowodzi, że 4317 przyjmuje spany.
 
 UI tylko na loopback VM. LAN i internet nie powinny widzieć `16686`. Tunel Cloudflare tego hosta nie dostaje.
 
