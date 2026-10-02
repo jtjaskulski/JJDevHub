@@ -31,7 +31,7 @@ services:
       Jwt__Key: ${JWT_KEY}
       Jwt__ExpiryMinutes: ${JWT_EXPIRY_MINUTES:-60}
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-JJDevHub.Api}
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4317}
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
       OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:-}
       OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: ${OTEL_EXPORTER_OTLP_LOGS_ENDPOINT:-}
@@ -39,6 +39,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      jaeger:
+        condition: service_started
 
   web:
     build:
@@ -70,6 +72,37 @@ services:
     depends_on:
       - api
 
+  jaeger:
+    image: jaegertracing/jaeger:2.20.0
+    container_name: jjdevhub-jaeger
+    command: ["--config", "/etc/jaeger/config.yaml"]
+    volumes:
+      - ../jaeger/config.yaml:/etc/jaeger/config.yaml:ro
+    ports:
+      - "127.0.0.1:16686:16686"
+    # 4317 stays on the Compose network. api reaches it as jaeger:4317.
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:13.2.2
+    container_name: jjdevhub-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_HTTP_PORT: "3000"
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - jaeger
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   prometheus_data:
+  grafana_data:
