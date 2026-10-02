@@ -277,7 +277,7 @@ ssh -L 3000:127.0.0.1:3000 deploy@IP_VM
 
 Potem `http://127.0.0.1:3000`. Tunel Cloudflare zostaje przy `4200`. Metryki `up` i lista tras z Jaegera nie są stroną huba.
 
-Obraz w przepisie to `grafana/grafana:13.2.2`. 11.5.2 jest po EOL i jest podatne na CVE-2025-4123 (pierwsza łatka tej linii to 11.5.4+security-01; wspierana linia to 13.2). Pluginy Prometheus i Jaeger są w tym obrazie. Plugin Jaegera woła `/api/services`, więc Jaeger zostaje na 2.20.0 z [08-jaeger.md](08-jaeger.md), nie na 2.21. Osobnego `grafana-cli plugins install` nie ma.
+Obraz w przepisie to `grafana/grafana:13.2.2`. 11.5.2 jest po EOL i jest podatne na CVE-2025-4123 (pierwsza łatka tej linii to 11.5.4+security-01; wspierana linia to 13.2). Pluginy Prometheus i Jaeger są w tym obrazie. Od Grafany 13.2 datasource Jaegera jest preinstalowanym, samodzielnym pluginem; wersja 0.4.0+ używa `/api/v3` dla usług i operacji, więc współpracuje także z Jaegerem 2.21 po usunięciu endpointów v1. Osobnego `grafana-cli plugins install` nie ma.
 
 ### Pliki, które Grafana czyta przy starcie
 
