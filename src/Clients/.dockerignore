@@ -1,0 +1,13 @@
+mobile
+web/node_modules
+web/dist
+web/.vscode
+web/coverage
+web/out-tsc
+**/.git
+**/*.md
+web/.env
+web/.env.*
+
+# Negation applies only when a rule above excludes this path. .gitignore does not.
+!web/src/content/cv.local.json

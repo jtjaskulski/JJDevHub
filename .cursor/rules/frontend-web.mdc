@@ -1,0 +1,15 @@
+---
+description: React 19, tokeny, treść i ruch klienta web
+globs: src/Clients/web/**/*,src/Clients/shared/theme/**/*
+alwaysApply: false
+---
+
+# Web
+
+- React 19 i Vite, package manager pnpm. Ten sam React co szkielet React Native.
+- Hex, skala, odstępy i czasy tylko w `@jjdevhub/theme` (`tokens.ts`). W SCSS wyłącznie `var(--…)`.
+- Strony `/:lang/...` czytają JSON z bundla. HTTP do API zostaje przy `/login` i `/register`, zwykłym `fetch`.
+- Locale w URL: tylko `pl` i `en`. Zły język i `*` idą na `/pl`. Login i register bez prefiksu języka.
+- `cv.local.json` i `cv.json` zostają poza gitem. W repo jest `cv.example.json` z placeholderami.
+- GSAP tylko jako jedna przypięta sekwencja na home. Jedna instancja Lenisa, spięta z tickerem GSAP. `prefers-reduced-motion` wyłącza Lenisa i scrub hero.
+- Arkusz jednej strony zostaje mały. Bramka CI to `pnpm build`, bez budżetu `anyComponentStyle`.

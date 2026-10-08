@@ -1,0 +1,35 @@
+---
+description: Czysty C# — krótkie klasy, kolejność składowych, wczesny return
+globs: "**/*.cs"
+alwaysApply: false
+---
+
+# C#
+
+Typ i metoda robią jedną rzecz. Czytelnik nie schodzi w zagnieżdżenie.
+
+- Jeden publiczny typ na plik. Namespace file-scoped. Klasa `sealed`. Dane bez zachowania to `record`.
+- Klasa mieści się na jednym ekranie. Drugi powód do zmiany albo drugi ekran to nowy typ.
+- Kolejność składowych: pola, konstruktory, właściwości, metody. W grupie najpierw publiczne, potem prywatne, a statyczne przed instancją.
+- Primary constructor zostaje na deklaracji typu. Dalsze konstruktory idą za polami.
+- Metoda mieści się na ekranie i ma jeden poziom wcięcia. Kolejny poziom rozbijasz albo wychodzisz wcześniej.
+- Oczekiwany brak i błąd walidacji to wynik (`Results` albo własny typ), nie wyjątek. `catch` łapie konkretny typ i nic nie połyka.
+- Metoda `async` bierze `CancellationToken` i podaje go w każde wywołanie. Bez `.Result`, `.Wait()` i `async void`.
+- Nullable jest włączone. `null` sprawdzasz na granicy, raz. Operator `!` nie wchodzi do kodu.
+- Zależności wchodzą primary constructorem. Prywatne pole istnieje tylko, gdy wartość żyje dłużej niż metoda.
+- Nazwa mówi, co funkcja zwraca albo jaki skutek ma. Bez skrótów, `#region` i komentarza do następnej linii.
+- `var`, gdy typ stoi po prawej stronie przypisania. W przeciwnym razie typ jest jawny.
+- Test ma jeden powód do padnięcia: arrange, act, assert.
+
+```csharp
+static async Task<IResult> GetNote(Guid id, AppDb db, CancellationToken ct)
+{
+    var note = await db.Notes.FindAsync([id], ct);
+    if (note is not { Published: true })
+    {
+        return Results.NotFound();
+    }
+
+    return Results.Ok(note);
+}
+```

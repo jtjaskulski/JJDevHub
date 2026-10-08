@@ -1,0 +1,51 @@
+name: deploy
+
+on:
+  workflow_run:
+    workflows: [api, web]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      (github.event.workflow_run.event == 'push' ||
+       github.event.workflow_run.event == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.decision.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test deploy gate
+        run: node --test infra/ci/deploy-gate.test.mjs
+
+      - name: Require every applicable workflow
+        id: decision
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          TRIGGER: ${{ github.event.workflow_run.name }}
+        run: node infra/ci/deploy-gate.mjs
+
+  deploy:
+    needs: gate
+    if: needs.gate.outputs.deploy == 'true'
+    runs-on: [self-hosted, jjdevhub]
+    steps:
+      - name: Deploy SHA that passed CI
+        working-directory: /opt/jjdevhub
+        env:
+          DEPLOY_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: ./infra/ci/release-and-deploy.sh "$DEPLOY_SHA"
