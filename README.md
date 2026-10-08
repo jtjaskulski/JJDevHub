@@ -4,16 +4,6 @@ Minimal stack: one .NET 11 (Preview 7) API (Identity + JWT + PostgreSQL), React 
 
 Kafka, Keycloak, CQRS, Vault, Jenkins and the old microservices are **not** in this tree.
 
-## Restore the previous codebase
-
-The pre-rewrite tree lives on branch/tag `archive/pre-rewrite` under `legacy/`.
-
-```bash
-git checkout archive/pre-rewrite
-# or a single path:
-git checkout archive/pre-rewrite -- legacy/src/Services/JJDevHub.Content
-```
-
 ## Secrets
 
 Nothing sensitive belongs in git. Compose only interpolates variables.
