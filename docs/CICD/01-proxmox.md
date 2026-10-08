@@ -129,18 +129,14 @@ Katalog i plik są roota, grupa `docker` ma odczyt. Samo `chmod 600` przy właś
 
 ## 7. Postgres tylko na hoście
 
-Kontener `db` publikuje port `5433` na wszystkich interfejsach VM (`"5433:5432"` w Compose). Tunel z następnego dokumentu tego portu nie wystawia, ale LAN go widzi.
-
-Docelowy bind:
+Kontener `db` w [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml) publikuje port tylko na loopbacku VM:
 
 ```yaml
 ports:
   - "127.0.0.1:5433:5432"
 ```
 
-Tej zmiany **nie ma jeszcze w git**. Nie edytuj jej tylko w katalogu `/opt/jjdevhub`: skrypt [infra/ci/release-and-deploy.sh](../../infra/ci/release-and-deploy.sh) robi `git checkout` gałęzi `release/YYYY-MM-DD.N` i lokalna poprawka zniknie albo zablokuje checkout, gdy drzewo jest brudne. Bind `127.0.0.1` dodaj osobnym commitem na `main`, zanim oprzesz się na cronie.
-
-Do pierwszego startu obecny Compose wystarcza. Nie publikuj `5433` w tunelu.
+Z samej VM `localhost:5433` działa. Z LAN-u port nie jest widoczny. API w Compose i tak łączy się po nazwie usługi `db`, nie przez ten port. Tunel z następnego dokumentu `5433` nie publikuje.
 
 ## 8. Pierwszy start
 

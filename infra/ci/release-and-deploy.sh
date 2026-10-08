@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ENV_FILE="${JJDEVHUB_ENV_FILE:-/etc/jjdevhub/api.env}"
+STATE_FILE="${JJDEVHUB_STATE_FILE:-/var/lib/jjdevhub/last-release-sha}"
+PUSH_RELEASE="${JJDEVHUB_PUSH_RELEASE:-0}"
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "missing env file: $ENV_FILE" >&2
+  echo "copy infra/docker/.env.example and fill secrets; on the server use /etc/jjdevhub/api.env (chmod 600)" >&2
+  exit 1
+fi
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+# One deploy at a time. Cron and the runner share this clone; the state check
+# and the write at the end must not run in parallel.
+LOCK_FILE="${JJDEVHUB_LOCK_FILE:-/var/lib/jjdevhub/deploy.lock}"
+mkdir -p "$(dirname "$LOCK_FILE")"
+exec 9>"$LOCK_FILE"
+flock 9
+
+# Optional argument: commit to deploy. Cron and manual runs omit it and track origin/main.
+target_sha="${1:-}"
+
+git fetch origin main
+
+if [[ -n "$target_sha" ]]; then
+  git cat-file -e "${target_sha}^{commit}"
+  remote_sha="$(git rev-parse "${target_sha}^{commit}")"
+else
+  remote_sha="$(git rev-parse origin/main)"
+fi
+
+if [[ -f "$STATE_FILE" ]]; then
+  saved_sha="$(tr -d '[:space:]' < "$STATE_FILE")"
+  if [[ -n "$saved_sha" && "$saved_sha" == "$remote_sha" ]]; then
+    echo "already deployed $remote_sha"
+    exit 0
+  fi
+  # A later green run of an older commit must not roll back a newer deploy.
+  if [[ -n "$saved_sha" ]] \
+    && git cat-file -e "${saved_sha}^{commit}" 2>/dev/null \
+    && git merge-base --is-ancestor "$remote_sha" "$saved_sha"; then
+    echo "already deployed $saved_sha"
+    exit 0
+  fi
+fi
+
+date_utc="$(date -u +%Y-%m-%d)"
+n=1
+while git show-ref --verify --quiet "refs/heads/release/${date_utc}.${n}" \
+  || git show-ref --verify --quiet "refs/remotes/origin/release/${date_utc}.${n}"; do
+  n=$((n + 1))
+done
+
+branch="release/${date_utc}.${n}"
+
+git checkout --detach "$remote_sha"
+git branch "$branch" "$remote_sha"
+git checkout "$branch"
+
+if [[ "$PUSH_RELEASE" == "1" ]]; then
+  git push origin "$branch"
+fi
+
+docker compose --env-file "$ENV_FILE" -f "$REPO_ROOT/infra/docker/docker-compose.yml" up -d --build --wait --wait-timeout 180
+
+# Jaeger is distroless, so Compose has no in-container healthcheck for it.
+# --wait only treats that service as ready once the process is running.
+# Require the published endpoints before recording the SHA.
+wait_http() {
+  local name="$1" url="$2"
+  local deadline=$((SECONDS + 60))
+  local status
+  while (( SECONDS < deadline )); do
+    status="$(docker inspect -f '{{.State.Status}}' "$name" 2>/dev/null || echo missing)"
+    case "$status" in
+      exited|dead|restarting)
+        echo "deploy: $name is $status" >&2
+        docker logs --tail 80 "$name" >&2 || true
+        exit 1
+        ;;
+    esac
+    if curl -fsS -o /dev/null --max-time 2 "$url"; then
+      echo "deploy: $name ready at $url"
+      return 0
+    fi
+    sleep 2
+  done
+  echo "deploy: timeout waiting for $url" >&2
+  docker logs --tail 80 "$name" >&2 || true
+  exit 1
+}
+
+wait_http jjdevhub-api "http://127.0.0.1:5080/health"
+wait_http jjdevhub-jaeger "http://127.0.0.1:16686/"
+
+state_dir="$(dirname "$STATE_FILE")"
+mkdir -p "$state_dir"
+printf '%s\n' "$remote_sha" > "$STATE_FILE"
+echo "deployed $remote_sha as $branch"
