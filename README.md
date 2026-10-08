@@ -110,16 +110,6 @@ Minimalny stos: jedno API .NET 11 (Preview 7, Identity + JWT + PostgreSQL), klie
 
 Kafka, Keycloak, CQRS, Vault, Jenkins i stare mikroserwisy są poza tym drzewem.
 
-## Przywracanie poprzedniego kodu
-
-Drzewo sprzed przepisania jest na branchu/tagu `archive/pre-rewrite` pod `legacy/`.
-
-```bash
-git checkout archive/pre-rewrite
-# albo jedna ścieżka:
-git checkout archive/pre-rewrite -- legacy/src/Services/JJDevHub.Content
-```
-
 ## Sekrety
 
 Nic wrażliwego nie należy do gita. Compose tylko podstawia zmienne.
