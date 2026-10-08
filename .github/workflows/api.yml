@@ -17,7 +17,6 @@ on:
       - "infra/ci/nuget-audit.sh"
       - "infra/ci/observability-smoke.sh"
       - "infra/ci/trivy-api.sh"
-      - ".trivyignore.yaml"
       - ".github/workflows/api.yml"
   push:
     branches: [main]
@@ -36,7 +35,6 @@ on:
       - "infra/ci/nuget-audit.sh"
       - "infra/ci/observability-smoke.sh"
       - "infra/ci/trivy-api.sh"
-      - ".trivyignore.yaml"
       - ".github/workflows/api.yml"
   workflow_dispatch:
 

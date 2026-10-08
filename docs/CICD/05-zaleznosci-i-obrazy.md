@@ -158,8 +158,7 @@ cd "$REPO_ROOT"
 IMAGE="${TRIVY_API_IMAGE:-jjdevhub-api:ci}"
 
 docker build -f infra/docker/Dockerfile -t "$IMAGE" .
-trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed \
-  --ignorefile .trivyignore.yaml "$IMAGE"
+trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed "$IMAGE"
 ```
 
 #### `infra/ci/trivy-web.sh`
@@ -179,7 +178,7 @@ trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed "$IMAGE"
 
 `--ignore-unfixed` pomija CVE bez dostępnej poprawki w upstreamie. Jeśli wolisz failować także na unfixed, usuń flagę — świadomie, bo job będzie częściej czerwony.
 
-[.trivyignore.yaml](../../.trivyignore.yaml) dotyczy tylko skanu API. Osiem HIGH siedzi w `usr/bin/pebble` (Go stdlib w Ubuntu z `mcr.microsoft.com/dotnet/aspnet:11.0-preview`); `JJDevHub.Api.deps.json` jest czysty, a entrypoint to `dotnet`, nie pebble. YAML nie ładuje się sam — stąd `--ignorefile`. Wpisy gasną `2026-12-31`. Skan web tego pliku nie używa.
+Skan API nie ma pliku wyjątków. HIGH i CRITICAL z poprawką w upstreamie kończą job.
 
 [pnpm-audit-exceptions.yaml](../../src/Clients/web/pnpm-audit-exceptions.yaml) ma pustą listę `advisories`. High z `pnpm audit` kończy job; nie ma wyłączeń. `auditConfig.ignoreGhsas` w `package.json` nie ma daty i wycina advisory z raportu, zanim bramka je zobaczy — skrypt taki wpis odrzuca.
 
@@ -243,7 +242,6 @@ on:
       - "infra/docker/docker-compose.yml"
       - "infra/ci/nuget-audit.sh"
       - "infra/ci/trivy-api.sh"
-      - ".trivyignore.yaml"
       - ".github/workflows/api.yml"
   push:
     branches: [main]
@@ -259,7 +257,6 @@ on:
       - "infra/docker/docker-compose.yml"
       - "infra/ci/nuget-audit.sh"
       - "infra/ci/trivy-api.sh"
-      - ".trivyignore.yaml"
       - ".github/workflows/api.yml"
   workflow_dispatch:
 
@@ -509,7 +506,7 @@ Trivy raportuje CVE w:
 
 Inne tryby (na naukę): `trivy fs .` (filesystem bez Dockera), `trivy config` (IaC). W JJDevHub wystarczy `trivy image` na obu Dockerfile’ach.
 
-Czytanie wyniku: ID CVE, severity, pakiet, zainstalowana wersja, fixed version. Remediacja: nowszy base image, bump paczki, albo `.trivyignore` z uzasadnieniem (ostrożnie).
+Czytanie wyniku: ID CVE, severity, pakiet, zainstalowana wersja, fixed version. Remediacja: nowszy base image albo bump paczki.
 
 ### `permissions` i `concurrency` w Actions
 
