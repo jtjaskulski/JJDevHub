@@ -174,15 +174,7 @@ advisories:
   )
 })
 
-test('committed waiver is scoped, explained, and dated', () => {
+test('committed exceptions list has no waivers', () => {
   const text = readFileSync(new URL('../../src/Clients/web/pnpm-audit-exceptions.yaml', import.meta.url), 'utf8')
-  const entries = parseExceptions(text)
-  assert.equal(entries.length, 1)
-  assert.equal(entries[0].id, 'GHSA-ch52-4w7c-c8xp')
-  assert.equal(entries[0].package, 'http-cache-semantics')
-  assert.equal(entries[0].version, '4.2.0')
-  assert.equal(entries[0].devOnly, true)
-  assert.deepEqual(entries[0].paths, ['@angular/cli>'])
-  assert.equal(entries[0].expiredAt, '2026-12-31')
-  assert.ok(entries[0].reason.length >= 40)
+  assert.deepEqual(parseExceptions(text), [])
 })

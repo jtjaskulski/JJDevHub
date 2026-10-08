@@ -181,7 +181,7 @@ trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed "$IMAGE"
 
 [.trivyignore.yaml](../../.trivyignore.yaml) dotyczy tylko skanu API. Osiem HIGH siedzi w `usr/bin/pebble` (Go stdlib w Ubuntu z `mcr.microsoft.com/dotnet/aspnet:11.0-preview`); `JJDevHub.Api.deps.json` jest czysty, a entrypoint to `dotnet`, nie pebble. YAML nie ładuje się sam — stąd `--ignorefile`. Wpisy gasną `2026-12-31`. Skan web tego pliku nie używa.
 
-[pnpm-audit-exceptions.yaml](../../src/Clients/web/pnpm-audit-exceptions.yaml) to czasowe wyłączenia `pnpm audit --audit-level=high`. `auditConfig.ignoreGhsas` w `package.json` nie ma daty i wycina advisory z raportu, zanim bramka je zobaczy — skrypt taki wpis odrzuca. Każdy wyjątek ma id GHSA, paczkę, wersję, `dev_only`, fragment ścieżki, uzasadnienie i `expired_at`. Wpis jest ważny w tym dniu (UTC) i od następnego dnia High znowu kończy job. Klient web jest na Vite i React, więc wyjątek pod segmentem `@angular/cli` tu nie obowiązuje. `dev_only` odrzuca jawne `dev: false`, ale pnpm często pomija `finding.dev`, więc to segment ścieżki trzyma wyjątek przy konkretnym narzędziu.
+[pnpm-audit-exceptions.yaml](../../src/Clients/web/pnpm-audit-exceptions.yaml) ma pustą listę `advisories`. High z `pnpm audit` kończy job; nie ma wyłączeń. `auditConfig.ignoreGhsas` w `package.json` nie ma daty i wycina advisory z raportu, zanim bramka je zobaczy — skrypt taki wpis odrzuca.
 
 Lokalnie (opcjonalnie):
 
@@ -487,7 +487,7 @@ pnpm audit --audit-level=high
 npm audit --audit-level=high
 ```
 
-Exit code ≠ 0 przy znalezieniu poziomu ≥ progu. `audit` korzysta z rejestru advisories; bywa rozjazd względem GitHub Advisory — dlatego dependency review + audit razem mają sens. Czasowe wyłączenie High nie idzie do `auditConfig.ignoreGhsas` (brak daty, advisory znika z raportu). Leży w [pnpm-audit-exceptions.yaml](../../src/Clients/web/pnpm-audit-exceptions.yaml) i obowiązuje tylko do `expired_at`.
+Exit code ≠ 0 przy znalezieniu poziomu ≥ progu. `audit` korzysta z rejestru advisories; bywa rozjazd względem GitHub Advisory — dlatego dependency review + audit razem mają sens. [pnpm-audit-exceptions.yaml](../../src/Clients/web/pnpm-audit-exceptions.yaml) jest pusty, a `auditConfig.ignoreGhsas` bramka odrzuca.
 
 Ograniczenia audytu: false positive, brak fix version, spór „czy to w ogóle osiągalne w naszym kodzie”. Polityka zespołu: High+ fail w CI, Medium w raporcie tygodniowym.
 
