@@ -2,22 +2,6 @@ name: api
 
 on:
   pull_request:
-    paths:
-      - "src/api/**"
-      - "tests/JJDevHub.Api.Tests/**"
-      - "nuget.config"
-      - "Directory.Build.props"
-      - "Directory.Packages.props"
-      - "global.json"
-      - "JJDevHub.sln"
-      - "infra/docker/Dockerfile"
-      - "infra/docker/docker-compose.yml"
-      - "infra/jaeger/**"
-      - "infra/grafana/**"
-      - "infra/ci/nuget-audit.sh"
-      - "infra/ci/observability-smoke.sh"
-      - "infra/ci/trivy-api.sh"
-      - ".github/workflows/api.yml"
   push:
     branches: [main]
     paths:

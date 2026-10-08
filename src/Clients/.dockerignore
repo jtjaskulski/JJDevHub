@@ -9,5 +9,5 @@ web/out-tsc
 web/.env
 web/.env.*
 
-# BuildKit drops gitignored files. This one must reach the image when it sits on the VM.
+# Negation applies only when a rule above excludes this path. .gitignore does not.
 !web/src/content/cv.local.json

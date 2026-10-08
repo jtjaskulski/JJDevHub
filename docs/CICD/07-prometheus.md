@@ -302,7 +302,13 @@ Osobnej sieci `networks:` nie deklarujesz. Serwisy z jednego pliku Compose widz�
 
 Plik leży w [infra/prometheus/prometheus.yml](../../infra/prometheus/prometheus.yml). Mount w Compose to `../prometheus/prometheus.yml`, bo plik Compose jest w `infra/docker/`. Zapis `./prometheus/…` szuka katalogu obok `docker-compose.yml` i kontener wstaje z błędem braku configu albo z cudzym plikiem. Ścieżka volume jest względem pliku Compose, nie względem katalogu, z którego wołasz polecenie.
 
-Edycja YAML na hoście **nie** wchodzi sama. W przepisie nie ma `--web.enable-lifecycle`, więc HTTP `/-/reload` nie działa. Albo odtwórz kontener (`compose up -d`), albo wyślij SIGHUP:
+Edycja YAML na hoście **nie** wchodzi sama. Bind-mount `prometheus.yml` nie zmienia definicji usługi Compose, więc samo `up -d` potrafi zostawić działający proces ze starymi targetami. W przepisie nie ma `--web.enable-lifecycle`, więc HTTP `/-/reload` nie działa. Albo odtwórz kontener tymi samymi plikami Compose i env:
+
+```bash
+docker compose --env-file /etc/jjdevhub/api.env -f infra/docker/docker-compose.yml up -d --force-recreate prometheus
+```
+
+albo wyślij SIGHUP:
 
 ```bash
 docker kill --signal=SIGHUP jjdevhub-prometheus
@@ -378,7 +384,7 @@ Restart API zeruje countery w procesie. `rate` ten reset znosi. Różnica dwóch
 | `up` jest 0, `/health` na `:4200` działa | Scrape nie używa nginx. Patrz błąd na Targets, nie kod health. |
 | Po `compose down -v` wykres startuje od zera | Volume `prometheus_data` poszedł z flagą `-v`. |
 | UI z laptopa nie wchodzi, z VM wchodzi | Bind `127.0.0.1`. Tak ma być bez tunelu SSH. |
-| Zmiana YAML nic nie zmienia w Targets | Brak przeładowania. `up -d` albo SIGHUP. Nie `/-/reload`, dopóki sam nie włączysz lifecycle. |
+| Zmiana YAML nic nie zmienia w Targets | Brak przeładowania. `up -d --force-recreate prometheus` (te same pliki Compose i env) albo SIGHUP. Nie `/-/reload`, dopóki sam nie włączysz lifecycle. |
 
 ### Typowe pomyłki
 

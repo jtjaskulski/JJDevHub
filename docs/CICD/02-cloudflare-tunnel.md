@@ -54,7 +54,11 @@ Innych hostname'ów nie twórz dla API ani Postgresa.
 
 W strefie: **SSL/TLS** → tryb **Full**. Ruch przeglądarka → Cloudflare jest HTTPS. Odcinek Cloudflare → `cloudflared` też. Na nginx zostaje HTTP na porcie 80 wewnątrz kontenera — to zamierzone, originem jest `http://127.0.0.1:4200`.
 
-Na routerze **nie** przekierowuj 80 ani 443 na VM. Firewall VM może zostać zamknięty na te porty z internetu. `cloudflared` sam nawiązuje połączenie wychodzące (443).
+Na routerze **nie** przekierowuj 80 ani 443 na VM. Firewall VM może zostać zamknięty na te porty z internetu.
+
+Konektor tunelu wychodzi na **7844**: UDP przy QUIC albo TCP przy HTTP/2. To nie jest port 443. Samo zezwolenie na wyjście 443 nie zestawi tunelu.
+
+Port 443 zostaje osobno: pobranie pakietu `.deb` i ruch do panelu Cloudflare.
 
 ## 5. Sprawdzenie
 

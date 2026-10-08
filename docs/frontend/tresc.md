@@ -49,7 +49,7 @@ Sam `git checkout` **nie** przywiezie `cv.local.json`. Na VM trzeba położyć p
 
 `web/src/content/cv.local.json`
 
-Bez niego obraz zbuduje się z example (placeholdery w hero i na `/cv`). Samo położenie pliku na dysku VM nie wystarcza: BuildKit wyrzuca z kontekstu pliki z `.gitignore`, a `cv.local.json` tam jest. Wyjątek jest w [src/Clients/.dockerignore](../../src/Clients/.dockerignore) (`!web/src/content/cv.local.json`). Dockerfile kopiuje katalog `web/` i `pnpm build` odpala `prebuild` — skrypt widzi lokalny plik tylko wtedy, gdy ten wyjątek jest już w zbudowanym checkoutcie.
+Bez niego obraz zbuduje się z example (placeholdery w hero i na `/cv`). Samo położenie pliku na dysku VM nie wystarcza, gdy reguła Docker ignore go wyklucza. Dla kontekstu buildu `src/Clients` BuildKit stosuje [src/Clients/.dockerignore](../../src/Clients/.dockerignore), nie `.gitignore`. Wpis w gitignore nie zatrzymuje `cv.local.json` ani sekretu przed wysłaniem do buildera. Negacja `!web/src/content/cv.local.json` jest potrzebna tylko wtedy, gdy jakaś reguła w tym pliku ten CV wyklucza. Sekrety spoza CV trzeba wykluczyć jawną regułą dockerignore. Dockerfile kopiuje katalog `web/` i `pnpm build` odpala `prebuild` — skrypt widzi lokalny plik, gdy ten plik jest w kontekście buildu.
 
 ## Locale w runtime
 

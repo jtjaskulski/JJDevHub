@@ -221,7 +221,7 @@ Wymaga włączonego dependency graph / Dependabot w Settings. Działa na PR; na 
 
 ### 4. Dopiski do `api.yml` i `web.yml`
 
-Nie powielaj logiki skanów w YAML — wołaj skrypty. Zachowaj istniejące path filters i kroki build/test.
+Nie powielaj logiki skanów w YAML — wołaj skrypty. Zachowaj filtry `paths` na `push` do `main` i kroki build/test. Na `pull_request` filtrów nie ma: checki `api` i `web` mają powstać na każdym PR.
 
 Docelowy kształt [api.yml](../../.github/workflows/api.yml) (pełny plik po zmianach):
 
@@ -230,19 +230,6 @@ name: api
 
 on:
   pull_request:
-    paths:
-      - "src/api/**"
-      - "tests/JJDevHub.Api.Tests/**"
-      - "nuget.config"
-      - "Directory.Build.props"
-      - "Directory.Packages.props"
-      - "global.json"
-      - "JJDevHub.sln"
-      - "infra/docker/Dockerfile"
-      - "infra/docker/docker-compose.yml"
-      - "infra/ci/nuget-audit.sh"
-      - "infra/ci/trivy-api.sh"
-      - ".github/workflows/api.yml"
   push:
     branches: [main]
     paths:
@@ -315,16 +302,6 @@ name: web
 
 on:
   pull_request:
-    paths:
-      - "src/Clients/web/**"
-      - "src/Clients/.dockerignore"
-      - "src/Clients/shared/theme/**"
-      - "infra/docker/docker-compose.yml"
-      - "infra/ci/pnpm-audit.sh"
-      - "infra/ci/pnpm-audit-gate.mjs"
-      - "infra/ci/pnpm-audit-gate.test.mjs"
-      - "infra/ci/trivy-web.sh"
-      - ".github/workflows/web.yml"
   push:
     branches: [main]
     paths:

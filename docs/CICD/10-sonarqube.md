@@ -176,7 +176,7 @@ Skaner .NET czyta `sonar-project.properties` z katalogu, w którym odpalasz `beg
 
 W Sonar UI: **Quality Gates**. **Sonar way** ma próg coverage na new code (zwykle 80%). Dla `jjdevhub-api` jest sensowny, gdy raport OpenCover dochodzi. Dla `jjdevhub-web` ten sam próg obleje każdy skan: `pnpm test:ci` nie oddaje lcov, a krok 6 raportu coverage nie wysyła. Sklonuj gate, zdejmij warunek coverage i przypisz go tylko do web. API zostaw na Sonar way (albo na klonie z progiem, który akceptujesz). Jeden gate z coverage na obu projektach robi z `sonar-web` stały czerwony check.
 
-Gate Fail = nieprzechodzący check w CI, o ile skaner ma `qualitygate.wait=true` (krok 8).
+Gate Fail przy `qualitygate.wait=true` czerwieni job analizy na pushu `main` (krok 8). To jest werdykt już zmergowanego commita. Nie blokuje merge, który ten push spowodował.
 
 ### 5. Workflow API — skan na self-hosted
 
@@ -292,7 +292,7 @@ GitHub → **Settings** → **Branches** → reguła `main` ([03-github.md](03-g
 
 Te dwa joby nie startują na `pull_request`. Wymagany check, którego workflow na PR nie tworzy, wisi i blokuje merge. Werdykt Sonara jest na pushu `main` po merge: czerwony `sonar-api` / `sonar-web` widać na tym commicie, nie jako bramkę przed wciśnięciem merge.
 
-Filtr `paths` zostaje. Push na `main` tylko z API nie uruchamia `web.yml`, więc `sonar-web` na tym pushu nie powstaje — i nie musi, skoro nie jest required na PR.
+Filtr `paths` zostaje na pushu do `main`. Na `pull_request` go nie ma, więc required checki `api` i `web` powstają na każdym PR. Push na `main` tylko z API nie uruchamia `web.yml`, więc `sonar-web` na tym pushu nie powstaje — i nie musi, skoro nie jest required na PR.
 
 ### 8. Quality Gate w CI (fail joba)
 
@@ -302,7 +302,7 @@ Domyślnie scanner kończy się 0 nawet przy failed gate, jeśli nie włączysz 
 /d:sonar.qualitygate.wait=true
 ```
 
-Dodaj tę właściwość do `dotnet sonarscanner begin` i do `sonar-scanner-cli` (`-Dsonar.qualitygate.wait=true`). Job czerwony = Gate Fail = merge zablokowany przy required check.
+Dodaj tę właściwość do `dotnet sonarscanner begin` i do `sonar-scanner-cli` (`-Dsonar.qualitygate.wait=true`). Job czerwony = Gate Fail na commicie `main` po merge. Nie blokuje tego merge i nie jest required checkiem PR.
 
 ## Jak sprawdzić, że działa
 
@@ -378,9 +378,9 @@ Obraz z kroku 1 to **Community**. Analiza gałęzi i osobny widok pull requestu 
 
 Z tego wynikają trzy rzeczy, których UI nie pokaże:
 
-- Nie ma listy PR-ów w projekcie. Ostatni skan nadpisuje poprzedni. Skan z PR i skan z `main` wymieniają się na tym samym ekranie.
+- Nie ma listy PR-ów w projekcie. Ostatni skan nadpisuje poprzedni. Ten przepis analizuje commit z `main` po merge, więc w UI zostaje ta analiza.
 - Parametry `sonar.pullrequest.key` / `sonar.pullrequest.branch` serwer Community odrzuca. Nie doklejaj ich „żeby zobaczyć PR”.
-- Check na GitHubie i tak działa. Runner robi checkout kodu z PR, skaner liczy gate **tej** migawki, `qualitygate.wait=true` kończy job niezerem, gdy próg nie przeszedł. Czerwień jest na checku `sonar-api`, nie jako komentarz Sonara pod diffem.
+- Check na GitHubie powstaje na tym pushu `main`, nie na pull requeście. Runner robi checkout commita z `main`, nie kodu z PR. Skaner liczy gate tej migawki, a `qualitygate.wait=true` kończy job niezerem, gdy próg nie przeszedł. Czerwień jest na checku `sonar-api` / `sonar-web` już zmergowanego commita, nie jako bramka przed merge i nie jako komentarz Sonara pod diffem.
 
 Wtyczka community-branch (osobne repo, bez wsparcia SonarSource) umie domalować gałęzie. Ten przepis jej nie używa. SonarCloud byłby tym samym modelem w SaaS, z PR-ami w cenie planu — tu zostaje serwer na VM.
 
@@ -464,7 +464,7 @@ Gate to zestaw warunków na **new code**, nie na cały historia projektu (o ile 
 
 - **Passed** — progi spełnione. Job z `wait=true` jest zielony.
 - **Failed** — w UI: projekt → warunki gate (który próg) i lista issues na new code. Coverage 0% przy zielonych testach to prawie zawsze zły plik raportu, nie „Sonar nie lubi xUnit”.
-- Job zielony i w UI gate czerwony — brak `qualitygate.wait`. Skaner wysłał raport i wyszedł z kodem 0. Required check tego nie złapie. Flaga jest w `begin` (API) i przy CLI (web). Domyślnie jej nie ma.
+- Job zielony i w UI gate czerwony — brak `qualitygate.wait`. Skaner wysłał raport i wyszedł z kodem 0. Flaga jest w `begin` (API) i przy CLI (web). Domyślnie jej nie ma. Z flagą czerwienieje job na pushu `main`; merge, który już wszedł, i tak nie jest cofany.
 - „You're not authorized” / 401 — token nie ma prawa „Execute Analysis” na tym `projectKey`, albo sekret API wsadzony do joba web.
 - Timeout przy wait — serwer jeszcze liczy (pierwszy skan, mało RAM) albo indeks nie wstał (`max_map_count`). Wydłużanie timeoutu nie naprawia padającego kontenera.
 
@@ -508,7 +508,7 @@ Sam Sonar nie dekoruje diffu komentarzem. Przed merge blokują `api` i `web` z 0
 7. **Build przed begin** albo test na artefaktach z joba hosted. Skaner nie widział tej kompilacji.
 8. **Sonar way na web bez lcov.** Czerwony check z definicji. Najpierw gate bez coverage.
 9. **`sonar.pullrequest.*` na Community.** Serwer odrzuca analizę. Check i tak bierze się z `qualitygate.wait` i kodu wyjścia.
-10. **Brak `qualitygate.wait`.** Job zielony, gate w UI czerwony, merge przechodzi.
+10. **Brak `qualitygate.wait`.** Job na `main` zostaje zielony, a gate w UI jest czerwony. Merge już przeszedł; flaga czerwieni analizę po merge, nie zatrzymuje go.
 11. **Płytki checkout w jobie Sonara.** New code i autor issues się rozjeżdżają. `fetch-depth: 0` tylko tu.
 12. **Token w `echo` albo w logu skanera skopiowany do issue.** GitHub maskuje sekret w akcji; nie drukuj go sam.
 13. **Required `sonar-api` / `sonar-web` na PR.** Joby nie startują na `pull_request`, więc check nie powstaje i merge stoi.

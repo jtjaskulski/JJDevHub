@@ -13,7 +13,7 @@ Dwa workflowy tylko budują i testują, bez sekretów produkcyjnych:
 - [`.github/workflows/api.yml`](../../.github/workflows/api.yml) — smoke Jaegera i Grafany ([observability-smoke.sh](../../infra/ci/observability-smoke.sh)), potem restore, build, test i `docker build` API
 - [`.github/workflows/web.yml`](../../.github/workflows/web.yml) — `pnpm` test/build i obraz Reacta
 
-Oba startują na PR i na pushu do `main`, ale z filtrem ścieżek. Push, który nie tyka API, nie uruchomi `api`. To samo dotyczy `web`.
+Oba startują na każdym pull requeście, bez filtra `paths` na `pull_request`. Push na `main` nadal ma filtr ścieżek: commit, który nie tyka API, nie uruchomi `api`. To samo dotyczy `web`. Pominięty workflow na pushu nie jest wiszącym checkiem na PR.
 
 Cron co godzinę, jeśli `origin/main` zmienił SHA:
 
@@ -31,7 +31,7 @@ GitHub → **Settings** → **Branches** → reguła dla `main`:
 - **Require a pull request before merging**
 - **Require status checks to pass**: `api` i `web`
 
-Check pojawia się na liście dopiero po pierwszym uruchomieniu danego workflowu. Dopóki push nie dotknie ścieżek z filtra, checka nie będzie — wtedy wymagaj tylko tych, które już raz przeszły, i dopisz drugi po pierwszym zielonym runie.
+Oba checki lecą na każdym PR, więc oba można wymagać od razu, gdy nazwa pojawi się na liście (GitHub dopisuje ją po pierwszym uruchomieniu workflowu). Wcześniejszy zielony run innego SHA nowego PR nie zalicza. Push na `main` nadal może pominąć workflow, którego diff nie trafia w `paths`. To pominięcie nie zostawia wiszącego required checka na pull requeście.
 
 ## 2. Runner na VM
 

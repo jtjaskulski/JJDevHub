@@ -22,7 +22,7 @@ Nothing sensitive belongs in git. Compose only interpolates variables.
 |------|---------|
 | [`infra/docker/.env.example`](infra/docker/.env.example) | Placeholders (committed) |
 | `infra/docker/.env` | Local laptop copy (gitignored). `cp .env.example .env` then edit |
-| `/etc/jjdevhub/api.env` | Server (`chmod 600`). Survives `git checkout` of `release/*` |
+| `/etc/jjdevhub/api.env` | Server (`root:docker`, mode `640`). `chmod 600` drops the deploy user's read and breaks Compose/cron. Survives `git checkout` of `release/*` |
 
 Generate a JWT key: `openssl rand -base64 48`
 
@@ -138,7 +138,7 @@ Nic wrażliwego nie należy do gita. Compose tylko podstawia zmienne.
 |------|------|
 | [`infra/docker/.env.example`](infra/docker/.env.example) | Placeholdery (w gicie) |
 | `infra/docker/.env` | Lokalna kopia na laptopie (gitignored). `cp .env.example .env`, potem edycja |
-| `/etc/jjdevhub/api.env` | Serwer (`chmod 600`). Przeżywa `git checkout` gałęzi `release/*` |
+| `/etc/jjdevhub/api.env` | Serwer (`root:docker`, tryb `640`). `chmod 600` odbiera odczyt kontu deploy i psuje Compose oraz cron. Przeżywa `git checkout` gałęzi `release/*` |
 
 Klucz JWT: `openssl rand -base64 48`
 

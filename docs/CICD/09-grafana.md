@@ -225,7 +225,7 @@ Negatyw: z internetu `https://hub.example.com` **nie** serwuje Grafany; origin n
 
 ## Następny numer
 
-[10-sonarqube.md](10-sonarqube.md) — SonarQube na VM, Quality Gate jako check PR, coverage z `dotnet test`.
+[10-sonarqube.md](10-sonarqube.md) — SonarQube na VM, analiza po merge commita na `main`, coverage z `dotnet test`.
 
 ---
 
