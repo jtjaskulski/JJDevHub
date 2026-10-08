@@ -164,7 +164,7 @@ Cron zostawał zapasem na tym samym pliku stanu.
 
 ### Po dodaniu ścieżki SHA
 
-Doszedł [.github/workflows/deploy.yml](../../.github/workflows/deploy.yml). Job startuje tylko przy `conclusion == success`, `head_branch == main` i evencie `push` albo `workflow_dispatch`. Woła skrypt z `workflow_run.head_sha`.
+Doszedł [.github/workflows/deploy.yml](../../.github/workflows/deploy.yml). Job `gate` startuje tylko przy `conclusion == success`, `head_branch == main` i evencie `push` albo `workflow_dispatch`. Deploy woła skrypt z `workflow_run.head_sha`.
 
 Skrypt dostał opcjonalny argument. Bez niego cron dalej bierze `origin/main`. Z argumentem deployuje ten commit, po `git fetch` i `git cat-file -e`. Jeśli zapisany SHA jest tym samym commitem albo już go zawiera (`git merge-base --is-ancestor`), skrypt kończy się `already deployed` i nie robi checkoutu. Drugi zielony workflow tego samego pusha nie przebudowuje obrazów, a wolniejsze CI starszego commita nie cofa nowszego deployu.
 
@@ -174,7 +174,7 @@ Job na runnerze, z `/opt/jjdevhub`:
 ./infra/ci/release-and-deploy.sh "$DEPLOY_SHA"
 ```
 
-`DEPLOY_SHA` to `workflow_run.head_sha`. Push, który rusza i `api`, i `web`, odpala deploy dwa razy; drugi przebieg wychodzi przez plik stanu. Push tylko w API deployuje po samym `api`, bo `web` ma filtr ścieżek. Katalog `/opt/jjdevhub` ma być czysty. Po zmergowaniu na `main` raz `git pull` na VM, zanim pierwszy `workflow_run` wywoła skrypt.
+`DEPLOY_SHA` to `workflow_run.head_sha`. Job `gate` puszcza deploy dopiero, gdy każdy workflow wymagany przez ten commit ma zielony run tego samego SHA: wymagany jest ten, którego `on.push.paths` trafia w diff wobec pierwszego rodzica, plus workflow, który właśnie się skończył. Sam `api` nie wdraża, gdy `web` dla tego SHA jeszcze leci albo spadł; `web` pominięty filtrem nie blokuje. Drugi zielony przebieg i tak kończy się przez plik stanu. Katalog `/opt/jjdevhub` ma być czysty. Po zmergowaniu na `main` raz `git pull` na VM, zanim pierwszy `workflow_run` wywoła skrypt.
 
 ### Blokada crona i runnera
 

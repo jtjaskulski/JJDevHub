@@ -9,7 +9,7 @@ CodeQL ma znaleźć typowe dziury w C# (API) i TypeScript (React) zanim trafią 
 - VM, Docker i Compose: [01-proxmox.md](01-proxmox.md), plik [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml).
 - Tunel Cloudflare (tylko `4200`): [02-cloudflare-tunnel.md](02-cloudflare-tunnel.md).
 - CI build/test i self-hosted deploy: [03-github.md](03-github.md), workflowy [api.yml](../../.github/workflows/api.yml), [web.yml](../../.github/workflows/web.yml), [deploy.yml](../../.github/workflows/deploy.yml).
-- Kod skanowany: `src/JJDevHub.Api` (.NET 11 / C#), `src/Clients/web` (React 19 / TypeScript).
+- Kod skanowany: `src/api` (.NET 11 / C#), `src/Clients/web` (React 19 / TypeScript).
 - Default setup CodeQL jest włączony dla C# i JavaScript/TypeScript (push i pull request na `main`). Pliku [`.github/workflows/codeql.yml`](../../.github/workflows/codeql.yml) nie ma i nie dodajesz go, dopóki ten setup jest zielony.
 
 ## Słownik pojęć z tego pliku
@@ -42,7 +42,7 @@ W tej samej stronie: **Code scanning** → **Set up** → **Default**.
 
 1. GitHub wykryje języki. Zaznacz **C#** oraz **JavaScript/TypeScript** (w UI bywa jedna pozycja „JavaScript / TypeScript”).
 2. Ścieżki źródłowe zostaw domyślne albo wskaż:
-   - C#: korzeń rozwiązania / `src/JJDevHub.Api`,
+   - C#: korzeń rozwiązania / `src/api`,
    - TypeScript: `src/Clients/web`.
 3. Harmonogram: domyślny (zwykle sobota + skan po pushu na domyślną gałąź) wystarczy.
 4. Query suites: **default**.
@@ -205,9 +205,9 @@ Alert z przepływem danych ma trzy role:
 
 Zapytanie QL szuka ścieżki source → sink, która **nie** przechodzi przez znaną barierę. Trzy konsekwencje:
 
-1. Linq do EF (`UserManager`, `IdentityDbContext` w [AppDbContext.cs](../../src/JJDevHub.Api/Data/AppDbContext.cs)) buduje zapytanie z parametrami. Zwykłe `FirstOrDefaultAsync(u => u.Email == email)` nie jest sinkiem SQL injection.
+1. Linq do EF (`UserManager`, `IdentityDbContext` w [AppDbContext.cs](../../src/api/Data/AppDbContext.cs)) buduje zapytanie z parametrami. Zwykłe `FirstOrDefaultAsync(u => u.Email == email)` nie jest sinkiem SQL injection.
 2. Jeśli biblioteka nie jest opisana w modelach CodeQL, ścieżka urywa się za wcześnie (cichy false negative) albo kończy się alertem na nieszkodliwym wywołaniu (false positive). EF Core i React są modelowane; własnej paczki modelującej na start nie piszesz.
-3. Brak alertu znaczy „żadne zapytanie z włączonego suite nie znalazło ścieżki”, a nie „aplikacja jest bezpieczna”. Autoryzacja typu „użytkownik A nie czyta rekordu użytkownika B” jest decyzją domenową. `RequireAuthorization()` na `GET /api/auth/me` w [AuthEndpoints.cs](../../src/JJDevHub.Api/Auth/AuthEndpoints.cs) CodeQL odnotuje jako atrybut, ale nie udowodni, że model uprawnień jest kompletny.
+3. Brak alertu znaczy „żadne zapytanie z włączonego suite nie znalazło ścieżki”, a nie „aplikacja jest bezpieczna”. Autoryzacja typu „użytkownik A nie czyta rekordu użytkownika B” jest decyzją domenową. `RequireAuthorization()` na `GET /api/auth/me` w [AuthEndpoints.cs](../../src/api/Auth/AuthEndpoints.cs) CodeQL odnotuje jako atrybut, ale nie udowodni, że model uprawnień jest kompletny.
 
 Metadane zapytania, które widać po kliknięciu reguły:
 
@@ -263,9 +263,9 @@ Osobna baza na język. Matryca w YAML odpala je równolegle; `fail-fast: false` 
 
 **C#** (`csharp`) — projekty, które wejdą do bazy:
 
-- [src/JJDevHub.Api](../../src/JJDevHub.Api) — minimal API, Identity, JWT, EF Core + Npgsql,
+- [src/api](../../src/api) — minimal API, Identity, JWT, EF Core + Npgsql,
 - [tests/JJDevHub.Api.Tests](../../tests/JJDevHub.Api.Tests) — bo `dotnet build JJDevHub.sln` buduje też testy,
-- migracje w `src/JJDevHub.Api/Data/Migrations` — wygenerowany C#, częste źródło szumu.
+- migracje w `src/api/Data/Migrations` — wygenerowany C#, częste źródło szumu.
 
 Zapytania, które mają tu realną szansę zagadać, gdy kod się zmieni: surowy SQL (`ExecuteSqlRaw` / `FromSqlRaw` i string sklejony z requestu), wstrzyknięcie do procesu, ścieżka pliku z wejścia HTTP, SSRF (`HttpClient` z URL-em od klienta), zahardkodowany sekret, słaba kryptografia, deserializacja binarna. Odpowiedź JSON z tego API nie jest stroną HTML, więc reguły XSS dla Razor zostaną ciche, dopóki nie zaczniesz zwracać markupu.
 
@@ -388,7 +388,7 @@ Source: query param. Sink: HTML wstawiony z pominięciem escapowania JSX. Zwykł
 
 ### Sekret w źródle a sekret w konfiguracji
 
-[Program.cs](../../src/JJDevHub.Api/Program.cs) czyta `Jwt:Key` z konfiguracji i odrzuca klucz krótszy niż 32 znaki. To jest kształt, który zapytania o zahardkodowane poświadczenia zostawiają w spokoju: w repo nie ma wartości sekretu, jest nazwa sekcji.
+[Program.cs](../../src/api/Program.cs) czyta `Jwt:Key` z konfiguracji i odrzuca klucz krótszy niż 32 znaki. To jest kształt, który zapytania o zahardkodowane poświadczenia zostawiają w spokoju: w repo nie ma wartości sekretu, jest nazwa sekcji.
 
 Literal w kodzie, obok nazwy w stylu `key` / `password` / `secret`, te zapytania zgłaszają:
 
@@ -402,7 +402,7 @@ Miejsce na wartość to env na VM (`/etc/jjdevhub/api.env` z dokumentu deployu),
 
 Bez pliku konfiguracji językowy job ogląda cały checkout (C# — to, co zbudowałeś; JS/TS — wszystkie źródła). Dwa katalogi warto w końcu wyciszyć, gdy alerty z nich zaczną zaśmiecać listę:
 
-- `src/JJDevHub.Api/Data/Migrations` — kod z `dotnet ef`,
+- `src/api/Data/Migrations` — kod z `dotnet ef`,
 - wygenerowany klient HTTP, jeśli kiedyś wróci do `src/Clients/web` — dziś login i register wołają `fetch` i takiego pliku nie ma.
 
 Robi to konfiguracja CodeQL, nie filtr `on:`. Przy advanced setup:
@@ -411,7 +411,7 @@ Robi to konfiguracja CodeQL, nie filtr `on:`. Przy advanced setup:
 # .github/codeql/codeql-config.yml
 name: JJDevHub CodeQL
 paths-ignore:
-  - src/JJDevHub.Api/Data/Migrations
+  - src/api/Data/Migrations
   - src/Clients/web/src/app/api/jjdevhub-api.client.ts
 ```
 
@@ -423,7 +423,7 @@ paths-ignore:
     config-file: ./.github/codeql/codeql-config.yml
 ```
 
-`paths-ignore` działa w obu jobach matrycy, więc migracje wypadają z C#, a klient z TypeScript. Pułapka: jeden `paths:` ustawiony na `src/Clients/web` oślepi job C#, bo ta ścieżka nie zawiera `src/JJDevHub.Api`. Osobne pliki konfiguracji na język mają sens dopiero wtedy. `node_modules`, `dist`, `bin` i `obj` i tak nie są w git; ignorowanie ich w konfiguracji nic nie zmienia, dopóki ktoś nie zacznie ich commitował.
+`paths-ignore` działa w obu jobach matrycy, więc migracje wypadają z C#, a klient z TypeScript. Pułapka: jeden `paths:` ustawiony na `src/Clients/web` oślepi job C#, bo ta ścieżka nie zawiera `src/api`. Osobne pliki konfiguracji na język mają sens dopiero wtedy. `node_modules`, `dist`, `bin` i `obj` i tak nie są w git; ignorowanie ich w konfiguracji nic nie zmienia, dopóki ktoś nie zacznie ich commitował.
 
 Testy zostaw w skanie. Gdy trafienie siedzi wyłącznie w `tests/JJDevHub.Api.Tests` i celowo składa zły string, dismiss z powodem **Used in tests**. Helper skopiowany później do `src/` dostanie już własny, otwarty alert.
 

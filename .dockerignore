@@ -10,4 +10,7 @@ obj/
 **/android/build/
 **/ios/Pods/
 .env
+**/.env
+**/.env.*
+!**/.env.example
 *.user

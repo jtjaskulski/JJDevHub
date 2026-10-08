@@ -6,7 +6,7 @@
 
 ## Co już jest w repo
 
-- API: [src/JJDevHub.Api/Program.cs](../../src/JJDevHub.Api/Program.cs), projekt [JJDevHub.Api.csproj](../../src/JJDevHub.Api/JJDevHub.Api.csproj), wersje centralne [Directory.Packages.props](../../Directory.Packages.props).
+- API: [src/api/Program.cs](../../src/api/Program.cs), projekt [JJDevHub.Api.csproj](../../src/api/JJDevHub.Api.csproj), wersje centralne [Directory.Packages.props](../../Directory.Packages.props).
 - Compose: usługa `api` w [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml) — env z `/etc/jjdevhub/api.env` (wzór [infra/docker/.env.example](../../infra/docker/.env.example)).
 - Obraz API: [infra/docker/Dockerfile](../../infra/docker/Dockerfile).
 - VM i sekrety: [01-proxmox.md](01-proxmox.md). Tunel tylko na `4200`: [02-cloudflare-tunnel.md](02-cloudflare-tunnel.md). CI: [03-github.md](03-github.md). Security CI: [04-codeql.md](04-codeql.md), [05-zaleznosci-i-obrazy.md](05-zaleznosci-i-obrazy.md).
@@ -39,7 +39,7 @@ W [Directory.Packages.props](../../Directory.Packages.props) dopisz wersje (dobi
 <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.19.1" />
 ```
 
-W [JJDevHub.Api.csproj](../../src/JJDevHub.Api/JJDevHub.Api.csproj):
+W [JJDevHub.Api.csproj](../../src/api/JJDevHub.Api.csproj):
 
 ```xml
 <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
@@ -167,7 +167,7 @@ sudoedit /etc/jjdevhub/api.env
 
 ```bash
 dotnet restore JJDevHub.sln
-dotnet build src/JJDevHub.Api/JJDevHub.Api.csproj -c Release
+dotnet build src/api/JJDevHub.Api.csproj -c Release
 dotnet test tests/JJDevHub.Api.Tests/JJDevHub.Api.Tests.csproj -c Release
 ```
 
@@ -187,7 +187,7 @@ Opcjonalny smoke z fałszywym endpointem (ma logować błędy eksportu / retry, 
 ```bash
 OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317 \
 OTEL_EXPORTER_OTLP_PROTOCOL=grpc \
-dotnet run --project src/JJDevHub.Api
+dotnet run --project src/api
 ```
 
 ## Jak sprawdzić, że działa
@@ -228,7 +228,7 @@ OpenTelemetry (CNCF) to wspólny opis telemetrii: jak proces nazywa operację, j
 | Instrumentacje | Gotowe haki: ASP.NET Core, `HttpClient`, runtime .NET. Nie ruszasz endpointów auth. |
 | Eksporter | Dokąd wysłać. Tu: OTLP gRPC, i tylko gdy endpoint jest niepusty. Prometheus dochodzi w następnym numerze. |
 
-Cel: instrumentujesz raz. Backend (Jaeger, Tempo, Grafana Cloud, Honeycomb) wymieniasz adresem, nie przepisując [AuthEndpoints.cs](../../src/JJDevHub.Api/Auth/AuthEndpoints.cs).
+Cel: instrumentujesz raz. Backend (Jaeger, Tempo, Grafana Cloud, Honeycomb) wymieniasz adresem, nie przepisując [AuthEndpoints.cs](../../src/api/Auth/AuthEndpoints.cs).
 
 ```
 przeglądarka
@@ -251,7 +251,7 @@ Bez adresu strzałka w dół urywa się w procesie. Aplikacja dalej odpowiada na
 
 ### Jedno żądanie, trzy sygnały
 
-Weź `POST /api/auth/login` tak, jak jest dziś: nginx proxy’uje `/api/` na `api:8080` ([nginx.conf](../../src/Clients/web/nginx.conf)), endpoint w [AuthEndpoints.cs](../../src/JJDevHub.Api/Auth/AuthEndpoints.cs) woła Identity i [TokenService](../../src/JJDevHub.Api/Auth/TokenService.cs), a baza to EF Core + Npgsql.
+Weź `POST /api/auth/login` tak, jak jest dziś: nginx proxy’uje `/api/` na `api:8080` ([nginx.conf](../../src/Clients/web/nginx.conf)), endpoint w [AuthEndpoints.cs](../../src/api/Auth/AuthEndpoints.cs) woła Identity i [TokenService](../../src/api/Auth/TokenService.cs), a baza to EF Core + Npgsql.
 
 **Trace.** Instrumentacja ASP.NET otwiera jeden span serwerowy na czas obsługi HTTP. Wspólny `trace_id`, własny `span_id`. Atrybuty opisują metodę, szablon trasy (`/api/auth/login`, nie konkretny email) i kod statusu. Długość paska na osi czasu to cały request: odczyt użytkownika, weryfikacja hasła, złożenie JWT. W tym numerze **nie ma** osobnego spana SQL — pakiet EF Core nie wchodzi do listy z kroku 1. Czas bazy jest w środku paska HTTP, bez rozbicia. To jest właściwy pierwszy kształt, nie zepsuty eksport.
 
@@ -261,7 +261,7 @@ Weź `POST /api/auth/login` tak, jak jest dziś: nginx proxy’uje `/api/` na `a
 
 `GET /health` ma ten sam kształt, tylko krótszy: jeden span, jedna obserwacja histogramu, zwykle bez logu aplikacji. Kontener `web` w Compose sprawdza siebie przez `wget` na `/` nginxu, nie na `/health` API. Spany `/health` biorą się z ręcznego `curl` i z tego, co proxy’uje nginx, a nie z healthchecka frontu.
 
-`MigrateAsync()` w [Program.cs](../../src/JJDevHub.Api/Program.cs) leci przy starcie, zanim Kestrel przyjmie ruch, i nie jest żądaniem HTTP. Bez instrumentacji EF nie zobaczysz go jako spana. Pad migracji ubija proces, zanim jakikolwiek eksport zdąży coś pokazać.
+`MigrateAsync()` w [Program.cs](../../src/api/Program.cs) leci przy starcie, zanim Kestrel przyjmie ruch, i nie jest żądaniem HTTP. Bez instrumentacji EF nie zobaczysz go jako spana. Pad migracji ubija proces, zanim jakikolwiek eksport zdąży coś pokazać.
 
 ### Activity, nagłówek traceparent, nginx
 

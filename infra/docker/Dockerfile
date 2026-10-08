@@ -4,10 +4,10 @@ WORKDIR /src
 ENV NUGET_PACKAGES=/root/.nuget/packages
 
 COPY nuget.config Directory.Build.props Directory.Packages.props global.json ./
-COPY src/JJDevHub.Api/ src/JJDevHub.Api/
+COPY src/api/ src/api/
 
-RUN dotnet restore src/JJDevHub.Api/JJDevHub.Api.csproj --configfile nuget.config
-RUN dotnet publish src/JJDevHub.Api/JJDevHub.Api.csproj -c Release -o /app --no-restore
+RUN dotnet restore src/api/JJDevHub.Api.csproj --configfile nuget.config
+RUN dotnet publish src/api/JJDevHub.Api.csproj -c Release -o /app --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:11.0-preview AS runtime
 # Tag still ships openssl 3.5.5-1ubuntu3.5 (CVE-2026-84782). Ubuntu has 3.5.5-1ubuntu3.6+.

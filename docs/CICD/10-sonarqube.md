@@ -157,12 +157,12 @@ dotnet test tests/JJDevHub.Api.Tests/JJDevHub.Api.Tests.csproj -c Release \
 
 Coverlet zapisze `TestResults/**/coverage.opencover.xml`. Skaner C# nie importuje Cobertury (`sonar.cs.cobertura.reportsPaths` nie wchodzi do analizy), więc domyślny `coverage.cobertura.xml` zostawia gate z pokryciem 0%.
 
-Plik `src/JJDevHub.Api/sonar-project.properties` (albo parametry tylko w CLI — poniżej w workflow):
+Plik `src/api/sonar-project.properties` (albo parametry tylko w CLI — poniżej w workflow):
 
 ```properties
 sonar.projectKey=jjdevhub-api
 sonar.projectName=JJDevHub API
-sonar.sources=src/JJDevHub.Api
+sonar.sources=src/api
 sonar.tests=tests/JJDevHub.Api.Tests
 sonar.exclusions=**/bin/**,**/obj/**,**/Migrations/**
 sonar.cs.opencover.reportsPaths=TestResults/**/coverage.opencover.xml
@@ -170,7 +170,7 @@ sonar.cs.opencover.reportsPaths=TestResults/**/coverage.opencover.xml
 
 Ścieżkę doprecyzuj po pierwszym `dotnet test` (`find TestResults -name coverage.opencover.xml`).
 
-Skaner .NET czyta `sonar-project.properties` z katalogu, w którym odpalasz `begin` (w jobie to korzeń repo po `checkout`). Plik położony tylko w `src/JJDevHub.Api/` sam się nie włączy. Wykluczenia migracji podaj w `begin` (`/d:sonar.exclusions=**/bin/**,**/obj/**,**/Migrations/**`) albo połóż properties w korzeniu i nie mieszaj go ze skanem web. `sonar.sources` przy `dotnet sonarscanner` pomiń — źródła biorą się z projektów zbudowanych między begin a end.
+Skaner .NET czyta `sonar-project.properties` z katalogu, w którym odpalasz `begin` (w jobie to korzeń repo po `checkout`). Plik położony tylko w `src/api/` sam się nie włączy. Wykluczenia migracji podaj w `begin` (`/d:sonar.exclusions=**/bin/**,**/obj/**,**/Migrations/**`) albo połóż properties w korzeniu i nie mieszaj go ze skanem web. `sonar.sources` przy `dotnet sonarscanner` pomiń — źródła biorą się z projektów zbudowanych między begin a end.
 
 ### 4. Quality Gate
 
@@ -434,9 +434,9 @@ New code na Community ustawiasz jako „previous version” albo liczbę dni. Ni
 
 Bez `end` serwer nie dostaje analizy. Sam `end` bez wcześniejszego `begin` w tym katalogu pada.
 
-`sonar-project.properties` skaner czyta z **bieżącego katalogu** `begin`. W jobie po `checkout` to korzeń repo. Plik pod `src/JJDevHub.Api/sonar-project.properties` leży obok, niewidoczny. Wykluczenie `**/Migrations/**` albo jest w `/d:sonar.exclusions=…` przy `begin`, albo properties leży w korzeniu. Właściwość, którą skaner C# czyta, to `sonar.cs.opencover.reportsPaths`. `sonar.cs.cobertura.reportsPaths` nie importuje raportu Coverlet i zostawia pokrycie na 0%.
+`sonar-project.properties` skaner czyta z **bieżącego katalogu** `begin`. W jobie po `checkout` to korzeń repo. Plik pod `src/api/sonar-project.properties` leży obok, niewidoczny. Wykluczenie `**/Migrations/**` albo jest w `/d:sonar.exclusions=…` przy `begin`, albo properties leży w korzeniu. Właściwość, którą skaner C# czyta, to `sonar.cs.opencover.reportsPaths`. `sonar.cs.cobertura.reportsPaths` nie importuje raportu Coverlet i zostawia pokrycie na 0%.
 
-`sonar.sources` ustawiasz przy skanerze frontu. Przy `dotnet sonarscanner` źródła są projektami, które build objął. Ręczne `sonar.sources=src/JJDevHub.Api` potrafi zejść się z auto-detekcją i wyciąć testy albo zdublować moduły.
+`sonar.sources` ustawiasz przy skanerze frontu. Przy `dotnet sonarscanner` źródła są projektami, które build objął. Ręczne `sonar.sources=src/api` potrafi zejść się z auto-detekcją i wyciąć testy albo zdublować moduły.
 
 Projekt testowy SDK jest rozpoznawany jako testy. Migracje EF są zwykłym C# w projekcie API: bez wykluczenia wchodzą do new code i do mianownika coverage. Wygenerowany OpenAPI JSON skaner C# zwykle olewa; liczy się `Migrations`.
 
@@ -503,7 +503,7 @@ Sam Sonar nie dekoruje diffu komentarzem. Przed merge blokują `api` i `web` z 0
 2. **`:9000` w tunelu albo `admin`/`admin` na stałe.** Kod i historia analiz na zewnątrz.
 3. **Jeden `projectKey` na API i Reacta.** Jeden coverage, pomieszane reguły. Dwa klucze, dwa tokeny.
 4. **JDBC do `jjdevhub-db`.** Osobna baza, osobny volume, bez publikacji portu.
-5. **Properties tylko pod `src/JJDevHub.Api`, begin w korzeniu.** Wykluczenia migracji nie działają. Coverage wygląda gorzej, niż jest.
+5. **Properties tylko pod `src/api`, begin w korzeniu.** Wykluczenia migracji nie działają. Coverage wygląda gorzej, niż jest.
 6. **`sonar.sources` przy skanerze .NET.** Źródła daje build między begin a end.
 7. **Build przed begin** albo test na artefaktach z joba hosted. Skaner nie widział tej kompilacji.
 8. **Sonar way na web bez lcov.** Czerwony check z definicji. Najpierw gate bez coverage.

@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\JJDevHub.Api\JJDevHub.Api.csproj" />
+    <ProjectReference Include="..\..\src\api\JJDevHub.Api.csproj" />
   </ItemGroup>
 
 </Project>

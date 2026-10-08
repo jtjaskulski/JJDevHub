@@ -40,7 +40,7 @@ Dopisz pakiet (CPM + csproj), obok paczek z 06:
 
 (wersja beta bywa konieczna dla eksportera Prometheus AspNetCore — sprawdź nuget.org i użyj najnowszej zgodnej z resztą OTel 1.12.x).
 
-[JJDevHub.Api.csproj](../../src/JJDevHub.Api/JJDevHub.Api.csproj):
+[JJDevHub.Api.csproj](../../src/api/JJDevHub.Api.csproj):
 
 ```xml
 <PackageReference Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" />

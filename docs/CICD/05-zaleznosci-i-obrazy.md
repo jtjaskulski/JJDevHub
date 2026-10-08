@@ -231,7 +231,7 @@ name: api
 on:
   pull_request:
     paths:
-      - "src/JJDevHub.Api/**"
+      - "src/api/**"
       - "tests/JJDevHub.Api.Tests/**"
       - "nuget.config"
       - "Directory.Build.props"
@@ -246,7 +246,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "src/JJDevHub.Api/**"
+      - "src/api/**"
       - "tests/JJDevHub.Api.Tests/**"
       - "nuget.config"
       - "Directory.Build.props"

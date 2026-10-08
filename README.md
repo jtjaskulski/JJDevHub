@@ -44,7 +44,7 @@ docker compose up --build
 API without the API container (Postgres still in Compose):
 
 ```bash
-dotnet run --project src/JJDevHub.Api
+dotnet run --project src/api
 ```
 
 Register / login:
@@ -91,7 +91,7 @@ Enable **branch protection** on `main` (GitHub → Settings → Branches): requi
 
 **Self-hosted release** (hourly cron): if `origin/main` moved, create `release/YYYY-MM-DD.N` and `docker compose up --build` with `--env-file /etc/jjdevhub/api.env`. See [`infra/ci/jjdevhub-release.cron`](infra/ci/jjdevhub-release.cron) and [`infra/ci/release-and-deploy.sh`](infra/ci/release-and-deploy.sh).
 
-A green `api` or `web` run on `main` starts [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) on the self-hosted runner (`jjdevhub`) and deploys that commit. The hourly cron stays the fallback when the runner is offline.
+A green `api` or `web` run on `main` deploys that commit from [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) only after every workflow required by the same SHA has succeeded. Path filters still skip the workflow the commit does not touch. The hourly cron stays the fallback when the runner is offline.
 
 Step-by-step (PL): [Proxmox](docs/CICD/01-proxmox.md), [Cloudflare Tunnel](docs/CICD/02-cloudflare-tunnel.md), [GitHub runner](docs/CICD/03-github.md).
 
@@ -207,7 +207,7 @@ Włącz **branch protection** na `main` (GitHub → Settings → Branches): prze
 
 **Wydanie self-hosted** (cron co godzinę): jeśli ruszył się `origin/main`, utwórz `release/YYYY-MM-DD.N` i `docker compose up --build` z `--env-file /etc/jjdevhub/api.env`. Patrz [`infra/ci/jjdevhub-release.cron`](infra/ci/jjdevhub-release.cron) i [`infra/ci/release-and-deploy.sh`](infra/ci/release-and-deploy.sh).
 
-Zielony run `api` albo `web` na `main` startuje [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) na self-hosted runnerze (`jjdevhub`) i wdraża ten commit. Godzinny cron zostaje zapasem, gdy runner jest offline.
+Zielony run `api` albo `web` na `main` wdraża ten commit z [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) dopiero, gdy każdy workflow wymagany przez ten sam SHA skończy się sukcesem. Filtr ścieżek nadal pomija workflow, którego commit nie dotyka. Godzinny cron zostaje zapasem, gdy runner jest offline.
 
 Krok po kroku: [Proxmox](docs/CICD/01-proxmox.md), [Cloudflare Tunnel](docs/CICD/02-cloudflare-tunnel.md), [runner GitHub](docs/CICD/03-github.md).
 
