@@ -1,0 +1,13 @@
+---
+description: Workflow GitHub — filtry ścieżek i deploy tylko na VM
+globs: .github/**/*
+alwaysApply: false
+---
+
+# Workflow
+
+- `api.yml` i `web.yml` zostają na PR i na pushu do `main`, z filtrem ścieżek. Push, który nie tyka API, nie uruchamia `api`. To samo dla `web`.
+- `deploy.yml` startuje na self-hosted runnerze `jjdevhub`, gdy `api` albo `web` na `main` jest zielone. Nie ustawiaj deployu na `ubuntu-latest`.
+- Godzinny cron zostaje zapasem, gdy runner jest offline.
+- Nie dokładaj `pull_request` do jobów na produkcyjnej VM (deploy, Sonar na `127.0.0.1:9000`).
+- W workflow nie ma sekretów produkcyjnych. Env serwera to `/etc/jjdevhub/api.env`.

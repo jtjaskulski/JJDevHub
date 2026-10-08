@@ -1,0 +1,13 @@
+bin/
+obj/
+.git/
+.idea/
+**/node_modules/
+**/.angular/
+**/dist/
+.pnpm-store/
+**/android/.gradle/
+**/android/build/
+**/ios/Pods/
+.env
+*.user

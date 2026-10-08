@@ -1,0 +1,15 @@
+---
+description: README po angielsku, potem ta sama treść po polsku
+globs: README.md
+alwaysApply: false
+---
+
+# README
+
+Dwa pełne dokumenty w jednym pliku, w tej kolejności:
+
+1. Angielski, od `# JJDevHub` do końca układu katalogów.
+2. Linia `---`.
+3. Polski, znowu od `# JJDevHub`, te same sekcje w tej samej kolejności.
+
+Przy każdej zmianie aktualizuj obie wersje w tym samym edicie. Komendy, ścieżki, URL-e i nazwy plików są w obu wersjach identyczne. Tłumaczysz nagłówki i zdania, nie snippetów basha.

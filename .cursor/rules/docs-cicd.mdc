@@ -1,0 +1,11 @@
+---
+description: Jak pisać i wdrażać dokumenty CI/CD
+globs: docs/CICD/**/*.md
+alwaysApply: false
+---
+
+# Dokumenty CI/CD
+
+- Pisz po polsku. Jeden numer (`01`–`10`) na sesję — nie łącz kroków.
+- Opisuj to, co już jest w repo, ze ścieżką do pliku. Nie wklejaj wersji archiwum runnera ani komend z panelu GitHuba.
+- Nie dopisuj Kafka, Keycloak, CQRS, Vault ani Jenkinsa do ciągu `01`–`10`.
