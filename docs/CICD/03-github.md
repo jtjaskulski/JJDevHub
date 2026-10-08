@@ -11,7 +11,7 @@ Godzinny cron zostaje jako zapas, gdy runner jest offline. Nie stawiaj nasłuchu
 Dwa workflowy tylko budują i testują, bez sekretów produkcyjnych:
 
 - [`.github/workflows/api.yml`](../../.github/workflows/api.yml) — smoke Jaegera i Grafany ([observability-smoke.sh](../../infra/ci/observability-smoke.sh)), potem restore, build, test i `docker build` API
-- [`.github/workflows/web.yml`](../../.github/workflows/web.yml) — `pnpm` test/build i obraz Angulara
+- [`.github/workflows/web.yml`](../../.github/workflows/web.yml) — `pnpm` test/build i obraz Reacta
 
 Oba startują na PR i na pushu do `main`, ale z filtrem ścieżek. Push, który nie tyka API, nie uruchomi `api`. To samo dotyczy `web`.
 

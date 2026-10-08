@@ -1,16 +1,16 @@
 # Lenis — smooth scroll
 
-Pakiet `lenis` w kliencie web. Jedna instancja na całą aplikację, start w root `App.ngOnInit`.
+Pakiet `lenis` w kliencie web. Jedna instancja na całą aplikację, start w `useEffect` roota `App`.
 
-## Serwis
+## Moduł
 
-[lenis.service.ts](../../src/Clients/web/src/app/motion/lenis.service.ts):
+[lenis.ts](../../src/Clients/web/src/app/motion/lenis.ts):
 
-- `start()` — no-op, gdy już działa, gdy `prefers-reduced-motion: reduce`, albo gdy brak `ResizeObserver`
+- `startLenis()` — no-op, gdy już działa, gdy `prefers-reduced-motion: reduce`, albo gdy brak `ResizeObserver`
 - `new Lenis({ autoRaf: false, smoothWheel: true })`
 - `lenis.on('scroll', ScrollTrigger.update)` — ScrollTrigger widzi pozycję Lenisa
 - `gsap.ticker.add` woła `lenis.raf(time * 1000)`; `lagSmoothing(0)`
-- `stop()` przy `DestroyRef` — usuwa ticker i `lenis.destroy()`
+- `stopLenis()` przy odmontowaniu — usuwa ticker i `lenis.destroy()`
 
 `ensureGsapPlugins()` idzie przed startem, żeby ScrollTrigger był zarejestrowany.
 

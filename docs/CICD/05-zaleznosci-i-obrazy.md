@@ -77,7 +77,7 @@ updates:
       day: monday
 ```
 
-`nuget` z `directory: "/"` widzi [Directory.Packages.props](../../Directory.Packages.props) i projekty w solution. `npm` celuje wyłącznie w Angular (`src/Clients/web`), nie w inne foldery. Dwa wpisy `docker` odpowiadają dwóm Dockerfile’om (katalog, w którym leży plik `Dockerfile`).
+`nuget` z `directory: "/"` widzi [Directory.Packages.props](../../Directory.Packages.props) i projekty w solution. `npm` celuje wyłącznie w klienta React (`src/Clients/web`), nie w inne foldery. Dwa wpisy `docker` odpowiadają dwóm Dockerfile’om (katalog, w którym leży plik `Dockerfile`).
 
 Po merge: **Settings → Code security → Dependabot** — włącz **Dependabot version updates** (i alerts, jeśli chcesz osobne powiadomienia CVE). W ciągu harmonogramu pojawią się PR od `dependabot[bot]`.
 
@@ -181,7 +181,7 @@ trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed "$IMAGE"
 
 [.trivyignore.yaml](../../.trivyignore.yaml) dotyczy tylko skanu API. Osiem HIGH siedzi w `usr/bin/pebble` (Go stdlib w Ubuntu z `mcr.microsoft.com/dotnet/aspnet:11.0-preview`); `JJDevHub.Api.deps.json` jest czysty, a entrypoint to `dotnet`, nie pebble. YAML nie ładuje się sam — stąd `--ignorefile`. Wpisy gasną `2026-12-31`. Skan web tego pliku nie używa.
 
-[pnpm-audit-exceptions.yaml](../../src/Clients/web/pnpm-audit-exceptions.yaml) to czasowe wyłączenia `pnpm audit --audit-level=high`. `auditConfig.ignoreGhsas` w `package.json` nie ma daty i wycina advisory z raportu, zanim bramka je zobaczy — skrypt taki wpis odrzuca. Każdy wyjątek ma id GHSA, paczkę, wersję, `dev_only`, fragment ścieżki, uzasadnienie i `expired_at`. Wpis jest ważny w tym dniu (UTC) i od następnego dnia High znowu kończy job. Teraz jest jeden: `GHSA-ch52-4w7c-c8xp` na `http-cache-semantics@4.2.0` (shared cache, `max-stale`), tylko na ścieżkach z segmentem `@angular/cli>`, nie na innych konsumentach `make-fetch-happen` i nie w bundlu przeglądarki. `dev_only` odrzuca jawne `dev: false`, ale pnpm często pomija `finding.dev`, więc to segment ścieżki trzyma wyjątek w drzewie CLI. Gaśnie `2026-12-31`.
+[pnpm-audit-exceptions.yaml](../../src/Clients/web/pnpm-audit-exceptions.yaml) to czasowe wyłączenia `pnpm audit --audit-level=high`. `auditConfig.ignoreGhsas` w `package.json` nie ma daty i wycina advisory z raportu, zanim bramka je zobaczy — skrypt taki wpis odrzuca. Każdy wyjątek ma id GHSA, paczkę, wersję, `dev_only`, fragment ścieżki, uzasadnienie i `expired_at`. Wpis jest ważny w tym dniu (UTC) i od następnego dnia High znowu kończy job. Klient web jest na Vite i React, więc wyjątek pod segmentem `@angular/cli` tu nie obowiązuje. `dev_only` odrzuca jawne `dev: false`, ale pnpm często pomija `finding.dev`, więc to segment ścieżki trzyma wyjątek przy konkretnym narzędziu.
 
 Lokalnie (opcjonalnie):
 

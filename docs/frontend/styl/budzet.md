@@ -1,12 +1,5 @@
 # Budżet stylów
 
-Limity produkcyjne w [angular.json](../../../src/Clients/web/angular.json), konfiguracja `production` → `budgets`:
+Vite nie ma budżetu `anyComponentStyle` z Angulara. Zostaje ta sama dyscyplina: arkusz jednej strony (home z hero i kaflami, CV, szczegóły kursów) mieści się obok reszty layoutu i nie rozrasta się bez powodu.
 
-| Typ | Warning | Error |
-| --- | --- | --- |
-| `initial` | 500kB | 1MB |
-| `anyComponentStyle` | **24kB** | **40kB** |
-
-`anyComponentStyle` podniesiono względem domyślnego Angulara, żeby pomieścić SCSS stron (home z hero + kafle, CV, szczegóły kursów) bez sztucznego rozbijania arkuszy. Nadal pilnuje, żeby pojedynczy `styleUrl` komponentu nie urósł bez kontroli.
-
-Przy `ng build` (produkcja) przekroczenie error zatrzyma build CI ([web.yml](../../../.github/workflows/web.yml)).
+Bramka CI to `pnpm build` w [web.yml](../../../.github/workflows/web.yml). Padnięty build zatrzymuje job. Osobnego progu rozmiaru CSS w Vite nie ma.

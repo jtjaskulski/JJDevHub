@@ -16,8 +16,8 @@ Padding pionowy jak na listach: `--space-9` góra, `--space-11` dół, boki `--s
 4. **Body** — akapity z JSON (`string[]`), `line-height` ~1.55, odstęp `--space-4` między `p`
 5. **Bloki kursu** — lista lekcji (linki zewnętrzne do GitHuba), rozdziały, sekcja „w planach” z leadem
 
-Paragrafy w `@for` często mają `animate.enter="list-enter"` przy pojawieniu się w DOM.
+Paragrafy listy często mają klasę `list-enter` przy pojawieniu się w DOM.
 
 ## Dane
 
-Treść artykułu nie leci z API. Lookup: `ContentService.courseBySlug` / `compendiumBySlug` / `noteBySlug` albo `cv` dla strony CV. Brak sluga → pusty / brak wpisu według logiki komponentu (bez osobnego 404 w routerze).
+Treść artykułu nie leci z API. Lookup: `courseBySlug` / `compendiumBySlug` / `noteBySlug` albo `cvFor` dla strony CV. Brak sluga przekierowuje na listę (bez osobnego 404 w routerze).

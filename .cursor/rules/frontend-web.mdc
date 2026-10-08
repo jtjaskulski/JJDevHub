@@ -1,16 +1,15 @@
 ---
-description: Angular 21, tokeny, treść, NSwag i ruch klienta web
-globs: src/Clients/{web,shared/theme}/**/*
+description: React 19, tokeny, treść i ruch klienta web
+globs: src/Clients/web/**/*,src/Clients/shared/theme/**/*
 alwaysApply: false
 ---
 
 # Web
 
-- Angular 21, package manager pnpm. Nie dodawaj `@angular/animations`.
+- React 19 i Vite, package manager pnpm. Ten sam React co szkielet React Native.
 - Hex, skala, odstępy i czasy tylko w `@jjdevhub/theme` (`tokens.ts`). W SCSS wyłącznie `var(--…)`.
-- Strony `/:lang/...` czytają JSON z bundla. HTTP do API zostaje przy `/login` i `/register`.
-- Locale w URL: tylko `pl` i `en`. Zły język i `**` idą na `/pl`. Login i register bez prefiksu języka.
+- Strony `/:lang/...` czytają JSON z bundla. HTTP do API zostaje przy `/login` i `/register`, zwykłym `fetch`.
+- Locale w URL: tylko `pl` i `en`. Zły język i `*` idą na `/pl`. Login i register bez prefiksu języka.
 - `cv.local.json` i `cv.json` zostają poza gitem. W repo jest `cv.example.json` z placeholderami.
-- Klient API to `src/Clients/web/src/app/api/jjdevhub-api.client.ts`. Po zmianie endpointów: build API, potem `DOTNET_ROLL_FORWARD=Major dotnet nswag run src/JJDevHub.Api/nswag.json`. Nie edytuj wygenerowanego klienta ręcznie.
 - GSAP tylko jako jedna przypięta sekwencja na home. Jedna instancja Lenisa, spięta z tickerem GSAP. `prefers-reduced-motion` wyłącza Lenisa i scrub hero.
-- Budżet `anyComponentStyle`: warning 24 kB, error 40 kB.
+- Arkusz jednej strony zostaje mały. Bramka CI to `pnpm build`, bez budżetu `anyComponentStyle`.

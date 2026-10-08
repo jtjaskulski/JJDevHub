@@ -2,14 +2,14 @@
 
 ## Po co ten krok
 
-CodeQL ma znaleźć typowe dziury w C# (API) i TypeScript (Angular) zanim trafią na `main`. Wynik ląduje w zakładce **Security → Code scanning** na GitHubie. Ten krok nie wdraża nic na VM z [01-proxmox.md](01-proxmox.md) i nie rusza deployu z [03-github.md](03-github.md).
+CodeQL ma znaleźć typowe dziury w C# (API) i TypeScript (React) zanim trafią na `main`. Wynik ląduje w zakładce **Security → Code scanning** na GitHubie. Ten krok nie wdraża nic na VM z [01-proxmox.md](01-proxmox.md) i nie rusza deployu z [03-github.md](03-github.md).
 
 ## Co już jest w repo
 
 - VM, Docker i Compose: [01-proxmox.md](01-proxmox.md), plik [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml).
 - Tunel Cloudflare (tylko `4200`): [02-cloudflare-tunnel.md](02-cloudflare-tunnel.md).
 - CI build/test i self-hosted deploy: [03-github.md](03-github.md), workflowy [api.yml](../../.github/workflows/api.yml), [web.yml](../../.github/workflows/web.yml), [deploy.yml](../../.github/workflows/deploy.yml).
-- Kod skanowany: `src/JJDevHub.Api` (.NET 11 / C#), `src/Clients/web` (Angular 21 / TypeScript).
+- Kod skanowany: `src/JJDevHub.Api` (.NET 11 / C#), `src/Clients/web` (React 19 / TypeScript).
 - Default setup CodeQL jest włączony dla C# i JavaScript/TypeScript (push i pull request na `main`). Pliku [`.github/workflows/codeql.yml`](../../.github/workflows/codeql.yml) nie ma i nie dodajesz go, dopóki ten setup jest zielony.
 
 ## Słownik pojęć z tego pliku
@@ -206,7 +206,7 @@ Alert z przepływem danych ma trzy role:
 Zapytanie QL szuka ścieżki source → sink, która **nie** przechodzi przez znaną barierę. Trzy konsekwencje:
 
 1. Linq do EF (`UserManager`, `IdentityDbContext` w [AppDbContext.cs](../../src/JJDevHub.Api/Data/AppDbContext.cs)) buduje zapytanie z parametrami. Zwykłe `FirstOrDefaultAsync(u => u.Email == email)` nie jest sinkiem SQL injection.
-2. Jeśli biblioteka nie jest opisana w modelach CodeQL, ścieżka urywa się za wcześnie (cichy false negative) albo kończy się alertem na nieszkodliwym wywołaniu (false positive). EF Core i Angular są modelowane; własnej paczki modelującej na start nie piszesz.
+2. Jeśli biblioteka nie jest opisana w modelach CodeQL, ścieżka urywa się za wcześnie (cichy false negative) albo kończy się alertem na nieszkodliwym wywołaniu (false positive). EF Core i React są modelowane; własnej paczki modelującej na start nie piszesz.
 3. Brak alertu znaczy „żadne zapytanie z włączonego suite nie znalazło ścieżki”, a nie „aplikacja jest bezpieczna”. Autoryzacja typu „użytkownik A nie czyta rekordu użytkownika B” jest decyzją domenową. `RequireAuthorization()` na `GET /api/auth/me` w [AuthEndpoints.cs](../../src/JJDevHub.Api/Auth/AuthEndpoints.cs) CodeQL odnotuje jako atrybut, ale nie udowodni, że model uprawnień jest kompletny.
 
 Metadane zapytania, które widać po kliknięciu reguły:
@@ -239,7 +239,7 @@ Czas: małe repo zamyka się zwykle w kilku–kilkunastu minutach. C# z ręcznym
 | --- | --- | --- | --- |
 | `none` | Baza ze źródeł, bez kompilacji. | Tryb **default setup**. Nie potrzebuje SDK z [global.json](../../global.json). | Jedyny sensowny tryb. Ekstraktor parsuje `.ts` / `.html` / `.js`. |
 | `autobuild` | CodeQL sam zgaduje `dotnet build` / Maven / Gradle. | Hosted runner często nie ma .NET 11 preview, więc zgadywanie pada na restore. | Nie używasz. |
-| `manual` | Build wpisujesz sam, między init a analyze. | Przepis advanced. Te same komendy co [api.yml](../../.github/workflows/api.yml), więc ekstraktor widzi tę samą kompilację co CI, łącznie z projektami z [JJDevHub.sln](../../JJDevHub.sln). | Zbędny. `pnpm build` Angularem nie poprawia bazy CodeQL. |
+| `manual` | Build wpisujesz sam, między init a analyze. | Przepis advanced. Te same komendy co [api.yml](../../.github/workflows/api.yml), więc ekstraktor widzi tę samą kompilację co CI, łącznie z projektami z [JJDevHub.sln](../../JJDevHub.sln). | Zbędny. `pnpm build` Vite nie poprawia bazy CodeQL. |
 
 `none` dla C# jest pełnoprawnym trybem (C/C++, C#, Java i Rust umieją budować bazę bez kompilatora). Sięgasz po `manual`, gdy log ekstrakcji C# jest pusty albo pomija projekty, a nie „bo dokumentacja kiedyś wymagała buildu”.
 
@@ -269,16 +269,14 @@ Osobna baza na język. Matryca w YAML odpala je równolegle; `fail-fast: false` 
 
 Zapytania, które mają tu realną szansę zagadać, gdy kod się zmieni: surowy SQL (`ExecuteSqlRaw` / `FromSqlRaw` i string sklejony z requestu), wstrzyknięcie do procesu, ścieżka pliku z wejścia HTTP, SSRF (`HttpClient` z URL-em od klienta), zahardkodowany sekret, słaba kryptografia, deserializacja binarna. Odpowiedź JSON z tego API nie jest stroną HTML, więc reguły XSS dla Razor zostaną ciche, dopóki nie zaczniesz zwracać markupu.
 
-**JavaScript/TypeScript** (`javascript-typescript`) — ekstraktor idzie po plikach w checkout, nie po jednym projekcie Angulara:
+**JavaScript/TypeScript** (`javascript-typescript`) — ekstraktor idzie po plikach w checkout, nie po jednym projekcie Reacta:
 
-- [src/Clients/web](../../src/Clients/web) — Angular 21, cel z kroków wyżej,
+- [src/Clients/web](../../src/Clients/web) — React 19 + Vite, cel z kroków wyżej,
 - [src/Clients/mobile](../../src/Clients/mobile) — React Native, też TypeScript; default setup z ścieżką ustawioną tylko na `src/Clients/web` go pominie, advanced YAML z kroku 4 (bez `paths`) go zobaczy,
 - [src/Clients/shared](../../src/Clients/shared) — współdzielony motyw,
-- wygenerowany klient [jjdevhub-api.client.ts](../../src/Clients/web/src/app/api/jjdevhub-api.client.ts).
-
 Identyfikatory `javascript` i `typescript` są aliasami `javascript-typescript`. Wpisanie `javascript` **nie** wyłącza analizy `.ts`.
 
-Angular domyślnie escapuje interpolację `{{ }}`. Sinkami, których szukają reguły XSS, są m.in. `[innerHTML]`, `DomSanitizer.bypassSecurityTrustHtml` / `TrustUrl` / `TrustResourceUrl`, `document.write`, `eval`. W tym repo tych wywołań dziś nie ma — cichy skan frontu jest zgodny ze stanem kodu, a nie dowodem, że UI jest skończone.
+React escapuje tekst w JSX. Sinkami, których szukają reguły XSS, są m.in. `dangerouslySetInnerHTML`, `document.write`, `eval`. W tym repo tych wywołań dziś nie ma — cichy skan frontu jest zgodny ze stanem kodu, a nie dowodem, że UI jest skończone.
 
 Jest jeszcze język `actions` (zapytania pod kątem wstrzyknięcia w `run:` workflowów). Przepis go nie włącza.
 
@@ -377,23 +375,16 @@ Różnica między tymi dwoma wywołaniami jest dokładnie tym, czego pilnuje zap
 
 Sprawdzenie, że skaner żyje: taki endpoint na **osobnej gałęzi**, push, alert w code scanning, usunięcie commita przed jakimkolwiek merge. Na `main` tego nie zostawiasz.
 
-### Przykład: HTML w Angularze
+### Przykład: HTML w Reactcie
 
 Tego kodu w `src/Clients/web` też nie ma. Reguły XSS dla DOM szukają właśnie takiej pary:
 
-```typescript
-constructor(private sanitizer: DomSanitizer) {}
-
-html = this.sanitizer.bypassSecurityTrustHtml(
-  this.route.snapshot.queryParamMap.get("q") ?? "",
-);
+```tsx
+const q = new URLSearchParams(location.search).get("q") ?? "";
+return <div dangerouslySetInnerHTML={{ __html: q }} />;
 ```
 
-```html
-<div [innerHTML]="html"></div>
-```
-
-Source: query param. Sink: HTML zaufany w brew temu, co deklaruje nazwa `bypassSecurityTrust*`. Interpolacja `{{ q }}` escapuje tekst i tej ścieżki nie tworzy. `bypassSecurityTrustHtml` na stałym literale z Twojego pliku (bez danych z URL-a) bywa false positive — dismiss z komentarzem, albo zostawiasz alert, jeśli literał i tak nie powinien iść do DOM.
+Source: query param. Sink: HTML wstawiony z pominięciem escapowania JSX. Zwykły `{q}` w JSX escapuje tekst i tej ścieżki nie tworzy. `dangerouslySetInnerHTML` na stałym literale z Twojego pliku (bez danych z URL-a) bywa false positive — dismiss z komentarzem, albo zostawiasz alert, jeśli literał i tak nie powinien iść do DOM.
 
 ### Sekret w źródle a sekret w konfiguracji
 
@@ -412,7 +403,7 @@ Miejsce na wartość to env na VM (`/etc/jjdevhub/api.env` z dokumentu deployu),
 Bez pliku konfiguracji językowy job ogląda cały checkout (C# — to, co zbudowałeś; JS/TS — wszystkie źródła). Dwa katalogi warto w końcu wyciszyć, gdy alerty z nich zaczną zaśmiecać listę:
 
 - `src/JJDevHub.Api/Data/Migrations` — kod z `dotnet ef`,
-- `src/Clients/web/src/app/api/jjdevhub-api.client.ts` — klient NSwag.
+- wygenerowany klient HTTP, jeśli kiedyś wróci do `src/Clients/web` — dziś login i register wołają `fetch` i takiego pliku nie ma.
 
 Robi to konfiguracja CodeQL, nie filtr `on:`. Przy advanced setup:
 
@@ -474,7 +465,7 @@ codeql database analyze db-csharp \
   --download \
   codeql/csharp-queries:codeql-suites/csharp-security-extended.qls
 
-# Angular: bez ng build
+# React: bez vite build
 codeql database create db-js \
   --language=javascript-typescript \
   --source-root=src/Clients/web \
@@ -520,7 +511,7 @@ select call, "Raw SQL API."
 1. **Default i advanced naraz.** Dwa skany, dwa checki, niespójny triaż.
 2. **Build przed init** albo build tylko w jobie `api.yml`. Tracer CodeQL nagrywa kompilację wyłącznie między init a analyze tego samego joba.
 3. **`build-mode: manual` bez komend build.** Baza C# pusta, job potrafi być zielony.
-4. **Wymuszony `pnpm build` przed analizą Angularem.** Wydłuża job, bazy nie wzbogaca.
+4. **Wymuszony `pnpm build` przed analizą Reacta.** Wydłuża job, bazy nie wzbogaca.
 5. **Alias `javascript` „żeby pominąć TypeScript”.** Alias i tak analizuje `.ts`.
 6. **Pomieszane majory action** (`init@v3`, `analyze@v4`) albo podbicie tylko jednego kroku.
 7. **Brak `security-events: write`.** Analyze dochodzi do końca zapytań i pady na uploadzie.

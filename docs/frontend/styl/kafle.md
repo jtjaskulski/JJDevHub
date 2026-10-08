@@ -23,7 +23,7 @@ Siatka: `repeat(auto-fit|auto-fill, minmax(14–16rem, 1fr))`, gap `--space-4` /
 | Compendium | term + 3 linie definicji (`-webkit-line-clamp: 3`) |
 | Notes | data, tytuł, summary |
 
-Na home kafle kursów i wiersze notatek dostają też `animate.enter` / `leave` — [przejscia-widoku.md](../przejscia-widoku.md).
+Na home kafle kursów i wiersze notatek dostają też klasę `list-enter` — [przejscia-widoku.md](../przejscia-widoku.md).
 
 ## Nie-kafel
 

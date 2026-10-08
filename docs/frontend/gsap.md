@@ -8,9 +8,9 @@ GSAP 3 jest zależnością weba (`gsap` w [package.json](../../src/Clients/web/p
 
 ## Gdzie jest timeline
 
-[home.ts](../../src/Clients/web/src/app/pages/home/home.ts), po `afterNextRender`:
+[HomePage.tsx](../../src/Clients/web/src/app/pages/home/HomePage.tsx), w `useLayoutEffect`:
 
-1. Bierze elementy `#heroPin`, `#heroName`, `#heroRole` i `#chapter` z szablonu ([home.html](../../src/Clients/web/src/app/pages/home/home.html)).
+1. Bierze refy pinu, imienia, roli i rozdziałów.
 2. Czyta czasy z obiektu `tokens` (`@jjdevhub/theme`): `duration.heroFade`, `duration.heroPin` — nie z CSS.
 3. Buduje `gsap.timeline` ze `scrollTrigger`:
    - `trigger` = kontener pin

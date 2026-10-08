@@ -2,7 +2,7 @@
 
 Aplikacja zostaje na Twoim komputerze. Ten dokument stawia osobną maszynę wirtualną, Dockera i pierwszy `docker compose up`. Publikacja w internecie jest w [cloudflare-tunnel.md](02-cloudflare-tunnel.md). Deploy po pushu na `main` jest w [github.md](03-github.md).
 
-Gałąź w repo to `main`. Stack to Postgres 16, API .NET i Angular za nginx — plik [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml).
+Gałąź w repo to `main`. Stack to Postgres 16, API .NET i React za nginx — plik [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml).
 
 ## Dlaczego VM, nie LXC
 

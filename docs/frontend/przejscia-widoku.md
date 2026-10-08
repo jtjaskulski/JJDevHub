@@ -1,32 +1,23 @@
 # Przejścia widoku
 
-Dwie warstwy, obie bez `@angular/animations`.
+Dwie warstwy, obie w CSS i w natywnym API przeglądarki.
 
 ## 1. Router — View Transitions API
 
-W [app.config.ts](../../src/Clients/web/src/app/app.config.ts):
+W [App.tsx](../../src/Clients/web/src/app/App.tsx) `NavLink`, `Link` i `navigate` dostają `viewTransition`.
 
-```ts
-provideRouter(routes, withViewTransitions())
-```
+Gdy przeglądarka wspiera View Transitions API, React Router owija zmianę DOM w natywne przejście. Własnych keyframesów trasy nie konfigurujemy — zostaje domyślne zachowanie.
 
-Przy nawigacji Angular owija zmianę DOM w natywne view transition (gdy przeglądarka wspiera). Nie konfigurujemy tu własnych keyframesów przejścia trasy — domyślne zachowanie routera.
+## 2. Elementy list — klasa `list-enter`
 
-## 2. Elementy list — `animate.enter` / `animate.leave`
-
-Szablony używają atrybutów Angulara na elementach w `@for`:
-
-- `animate.enter="list-enter"`
-- `animate.leave="list-leave"`
-
-Klasy CSS są w [styles.scss](../../src/Clients/web/src/styles.scss):
+Listy dostają klasę `list-enter` w momencie renderu. Klasy CSS są w [styles.scss](../../src/Clients/web/src/styles.scss):
 
 | Klasa | Efekt | Czas / easing |
 | --- | --- | --- |
 | `.list-enter` | opacity 0→1, `translateY(--space-3)` → 0 | `--duration-reveal-fast`, `--easing-reveal` |
 | `.list-leave` | odwrotnie, lekko w górę | `--duration-reveal-fast`, `--easing-standard` |
 
-Występują m.in. na home (kafle, wiersze notatek), listach courses / notes / compendium, rozdziałach CV, paragrafach szczegółów.
+`list-enter` jest na home (kafle, wiersze notatek), listach courses / notes / compendium, rozdziałach CV i paragrafach szczegółów. `.list-leave` zostaje w arkuszu na ten sam ruch w drugą stronę.
 
 ## 3. Scroll reveal (nie router)
 

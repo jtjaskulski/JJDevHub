@@ -1,6 +1,6 @@
-# Frontend — Angular w JJDevHub
+# Frontend — React w JJDevHub
 
-Klient webowy żyje w [src/Clients/web](../../src/Clients/web). To Angular 21 + pnpm. Wygląd (kolory, skala typu, odstępy, czasy) pochodzi ze wspólnego pakietu [@jjdevhub/theme](../../src/Clients/shared/theme), bez drugiego zapisu heksów w SCSS.
+Klient webowy żyje w [src/Clients/web](../../src/Clients/web). To React 19 + Vite + pnpm. Wygląd (kolory, skala typu, odstępy, czasy) pochodzi ze wspólnego pakietu [@jjdevhub/theme](../../src/Clients/shared/theme), bez drugiego zapisu heksów w SCSS.
 
 Treść kursów i etykiet jest w JSON w repo. Dane osobowe CV nie — tylko lokalny plik przed buildem, jak sekrety API. Szczegóły: [tresc.md](tresc.md).
 
@@ -10,12 +10,12 @@ Lokalny start i Docker: [src/Clients/web/README.md](../../src/Clients/web/README
 
 ## Mapa stron
 
-Prefiks języka jest w URL. `/` przekierowuje na `/pl`. Segmenty stałe: `cv`, `courses`, `compendium`, `notes`. Trasy: [app.routes.ts](../../src/Clients/web/src/app/app.routes.ts).
+Prefiks języka jest w URL. `/` przekierowuje na `/pl`. Segmenty stałe: `cv`, `courses`, `compendium`, `notes`. Trasy: [App.tsx](../../src/Clients/web/src/app/App.tsx).
 
 | URL | Komponent | Co pokazuje |
 | --- | --- | --- |
 | `/` | redirect | → `/pl` |
-| `/:lang` | `Home` | ciemny hero z imieniem z CV, kafle kursów, skrót notatek |
+| `/:lang` | `HomePage` | ciemny hero z imieniem z CV, kafle kursów, skrót notatek |
 | `/:lang/cv` | `CvPage` | doświadczenie, edukacja, aktywność z CV |
 | `/:lang/courses` | `CoursesPage` | lista wykładów |
 | `/:lang/courses/:slug` | `CourseDetailPage` | sylabus / rozdziały / „w planach” |
@@ -25,15 +25,15 @@ Prefiks języka jest w URL. `/` przekierowuje na `/pl`. Segmenty stałe: `cv`, `
 | `/:lang/notes/:slug` | `NoteDetailPage` | treść notatki |
 | `/login`, `/register` | auth | poza `/:lang`, bez linków w nawigacji |
 
-Nieprawidłowy `:lang` → `/pl` ([lang.guard.ts](../../src/Clients/web/src/app/routing/lang.guard.ts)). Catch-all `**` też na `/pl`.
+Nieprawidłowy `:lang` → `/pl`. Catch-all `*` też na `/pl`.
 
-Shell (nav, footer, przełącznik PL/EN): [app.html](../../src/Clients/web/src/app/app.html) + [app.ts](../../src/Clients/web/src/app/app.ts). Przełącznik podmienia tylko pierwszy segment URL.
+Shell (nav, footer, przełącznik PL/EN): [App.tsx](../../src/Clients/web/src/app/App.tsx). Przełącznik podmienia tylko pierwszy segment URL.
 
 ## Spis dokumentów
 
 | Plik | Temat |
 | --- | --- |
-| [angular.md](angular.md) | wersja, shell, trasy, bootstrap tokenów |
+| [react.md](react.md) | wersja, shell, trasy, bootstrap tokenów |
 | [gsap.md](gsap.md) | przypięty hero na wejściu |
 | [lenis.md](lenis.md) | smooth scroll + ticker GSAP |
 | [przejscia-widoku.md](przejscia-widoku.md) | View Transitions i `animate.enter` / `leave` |
@@ -51,5 +51,5 @@ Shell (nav, footer, przełącznik PL/EN): [app.html](../../src/Clients/web/src/a
 - GSAP 3 + ScrollTrigger — jedna przypięta sekwencja na home
 - Lenis — jedna instancja, spięta z tickerem GSAP
 - CSS `animation-timeline: view()` — klasa `.reveal` na pozostałych rozdziałach
-- `withViewTransitions()` + `animate.enter` / `animate.leave` — bez `@angular/animations`
+- View Transitions API (`viewTransition` na linkach) + klasa `list-enter`
 - `prefers-reduced-motion` wyłącza Lenisa i scrub hero

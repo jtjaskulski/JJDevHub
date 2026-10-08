@@ -5,7 +5,7 @@ alwaysApply: true
 
 # JJDevHub
 
-- Stos: jedno API .NET 11 (Preview 7, Identity + JWT + PostgreSQL), klient Angular 21, szkielet React Native.
+- Stos: jedno API .NET 11 (Preview 7, Identity + JWT + PostgreSQL), klient web React 19 + Vite, szkielet React Native.
 - Poza tym drzewem: Kafka, Keycloak, CQRS, Vault, Jenkins i stare mikroserwisy. Stary kod jest na `archive/pre-rewrite` pod `legacy/`.
 - `docs/CICD/` idzie po numerach `01`–`10`. W jednej sesji rób jeden numer. `docs/CICD/przyszlosc.md` nie jest do wdrożenia.
 - README: angielski, potem `---`, potem polski — szczegóły w regule `readme`. Pliki w `docs/` po polsku. Commity i branche po angielsku (`feature/kebab-case`, zdanie rozkazujące).

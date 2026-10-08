@@ -454,7 +454,7 @@ Job `sonar-web` najpierw, w `src/Clients/web`, robi `pnpm install` i `pnpm test:
 
 `--network host` daje kontenerowi skanera loopback VM, czyli Sonara na `:9000`. Bez tej flagi `127.0.0.1` to sam kontener skanera i połączenie pada, choć z hosta UI działa.
 
-Wykluczenia: `node_modules` (po `pnpm install` katalog jest na dysku), `**/*.spec.ts` (testy nie są kodem produktu), `jjdevhub-api.client.ts` (klient NSwag, generowany). Zostawienie klienta w skanie sypie zapachami, których nie poprawisz ręcznie.
+Wykluczenia: `node_modules` (po `pnpm install` katalog jest na dysku), `**/*.spec.ts` (testy nie są kodem produktu), ewentualny wygenerowany klient HTTP. W tym drzewie go nie ma: login i register wołają `fetch`.
 
 `SONAR_TOKEN` i `SONAR_HOST_URL` skaner CLI czyta ze środowiska. W przepisie wchodzą przez `-e` do kontenera. Nie wypisuj ich w `echo`.
 
@@ -501,7 +501,7 @@ Sam Sonar nie dekoruje diffu komentarzem. Przed merge blokują `api` i `web` z 0
 
 1. **Sonar w `infra/docker/docker-compose.yml` huba.** Każdy deploy przebudowuje albo rusza JVM. Zostaje `/opt/sonarqube`.
 2. **`:9000` w tunelu albo `admin`/`admin` na stałe.** Kod i historia analiz na zewnątrz.
-3. **Jeden `projectKey` na API i Angulara.** Jeden coverage, pomieszane reguły. Dwa klucze, dwa tokeny.
+3. **Jeden `projectKey` na API i Reacta.** Jeden coverage, pomieszane reguły. Dwa klucze, dwa tokeny.
 4. **JDBC do `jjdevhub-db`.** Osobna baza, osobny volume, bez publikacji portu.
 5. **Properties tylko pod `src/JJDevHub.Api`, begin w korzeniu.** Wykluczenia migracji nie działają. Coverage wygląda gorzej, niż jest.
 6. **`sonar.sources` przy skanerze .NET.** Źródła daje build między begin a end.

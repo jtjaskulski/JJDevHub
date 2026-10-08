@@ -1,6 +1,6 @@
 # Treść — JSON w webie
 
-Treść stron jest w bundlu Angulara. Import przy buildzie, **bez** HTTP. Model: [content.model.ts](../../src/Clients/web/src/app/content/content.model.ts). Składanie: [ContentService](../../src/Clients/web/src/app/content/content.service.ts).
+Treść stron jest w bundlu Vite. Import przy buildzie, **bez** HTTP. Model: [content.model.ts](../../src/Clients/web/src/app/content/content.model.ts). Składanie: [content.ts](../../src/Clients/web/src/app/content/content.ts).
 
 ## Co jest w repo
 
@@ -39,7 +39,7 @@ Bez adresu, telefonu, prawa jazdy i klauzuli RODO w założeniu danych lokalnych
 1. Jeśli istnieje `cv.local.json` → kopiuje go do `cv.json`
 2. W przeciwnym razie → kopiuje `cv.example.json`
 
-Hooki w [package.json](../../src/Clients/web/package.json): `prestart`, `prebuild`, `pretest` i `pretest:ci` wołają ten skrypt. GitHub Actions odpala `pnpm test:ci` zanim zrobi `pnpm build`, więc bez `pretest:ci` runner nie ma `cv.json` i pada na imporcie. Na runnerze nie ma `cv.local.json`, więc skrypt bierze `cv.example.json`. `ContentService` robi `import cvFile from '../../content/cv.json'`.
+Hooki w [package.json](../../src/Clients/web/package.json): `prestart`, `prebuild`, `pretest` i `pretest:ci` wołają ten skrypt. GitHub Actions odpala `pnpm test:ci` zanim zrobi `pnpm build`, więc bez `pretest:ci` runner nie ma `cv.json` i pada na imporcie. Na runnerze nie ma `cv.local.json`, więc skrypt bierze `cv.example.json`. [content.ts](../../src/Clients/web/src/app/content/content.ts) robi `import cvFile from '../../content/cv.json'`.
 
 ## Serwer / obraz Dockera
 
@@ -53,4 +53,4 @@ Bez niego obraz zbuduje się z example (placeholdery w hero i na `/cv`). Samo po
 
 ## Locale w runtime
 
-`ContentService` trzyma `pl` / `en` z prefiksu URL. `site` i `cv` to osobne computed; `content` je łączy. Przełącznik języka w shellu zmienia tylko segment `:lang` — te same slugi tras.
+`localeFromPathname` bierze `pl` / `en` z prefiksu URL. `siteFor` i `cvFor` są osobno. Przełącznik języka w shellu zmienia tylko segment `:lang` — te same slugi tras.

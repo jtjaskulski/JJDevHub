@@ -1,6 +1,6 @@
 # Typografia
 
-Krój na webie: **Inter Variable** z `@fontsource-variable/inter` (wpis w `angular.json` → `styles` przed `styles.scss`). Token trzyma nazwę rodziny `Inter` (`--font-family`); body używa `'Inter Variable', var(--font-family), system-ui, sans-serif`.
+Krój na webie: **Inter Variable** z `@fontsource-variable/inter` (import w [main.tsx](../../../src/Clients/web/src/main.tsx), przed [styles.scss](../../../src/Clients/web/src/styles.scss)). Token trzyma nazwę rodziny `Inter` (`--font-family`); body używa `'Inter Variable', var(--font-family), system-ui, sans-serif`.
 
 Podłączenie pliku fontu na Androidzie / iOS zostaje na etap mobilki — token już ma `font.family: 'Inter'`.
 

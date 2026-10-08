@@ -1,0 +1,78 @@
+{
+  "pl": {
+    "name": "Imię Nazwisko",
+    "role": "Stanowisko",
+    "email": "you@example.com",
+    "experienceTitle": "Doświadczenie",
+    "educationTitle": "Edukacja",
+    "extrasTitle": "Aktywność",
+    "experience": [
+      {
+        "title": "Stanowisko",
+        "company": "Firma",
+        "period": "I 2020–obecnie",
+        "paragraphs": [
+          "Krótki opis obowiązków i technologii.",
+          "Drugi akapit z osiągnięciami."
+        ]
+      }
+    ],
+    "education": [
+      {
+        "title": "Kierunek",
+        "institution": "Uczelnia",
+        "period": "2012–2016",
+        "paragraphs": [
+          "Dodatkowe informacje o studiach."
+        ]
+      }
+    ],
+    "extras": [
+      {
+        "title": "Aktywność",
+        "period": "2013–2015",
+        "paragraphs": [
+          "Opis aktywności studenckiej lub wystąpienia."
+        ]
+      }
+    ]
+  },
+  "en": {
+    "name": "First Last",
+    "role": "Job title",
+    "email": "you@example.com",
+    "experienceTitle": "Experience",
+    "educationTitle": "Education",
+    "extrasTitle": "Activity",
+    "experience": [
+      {
+        "title": "Job title",
+        "company": "Company",
+        "period": "Jan 2020–present",
+        "paragraphs": [
+          "Short description of responsibilities and stack.",
+          "Second paragraph with outcomes."
+        ]
+      }
+    ],
+    "education": [
+      {
+        "title": "Degree",
+        "institution": "University",
+        "period": "2012–2016",
+        "paragraphs": [
+          "Additional study details."
+        ]
+      }
+    ],
+    "extras": [
+      {
+        "title": "Activity",
+        "period": "2013–2015",
+        "paragraphs": [
+          "Student activity or talk description."
+        ]
+      }
+    ]
+  }
+}

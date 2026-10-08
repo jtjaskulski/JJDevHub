@@ -1,6 +1,6 @@
 # JJDevHub
 
-Minimal stack: one .NET 11 (Preview 7) API (Identity + JWT + PostgreSQL), Angular 21 web client, React Native scaffold.
+Minimal stack: one .NET 11 (Preview 7) API (Identity + JWT + PostgreSQL), React 19 web client (Vite), React Native scaffold.
 
 Kafka, Keycloak, CQRS, Vault, Jenkins and the old microservices are **not** in this tree.
 
@@ -71,17 +71,7 @@ pnpm start
 
 http://localhost:4200 — `/api`, `/health`, `/openapi` and `/scalar` are proxied to `:5080`. Stop the Compose `web` service first if port 4200 is already taken.
 
-Regenerate the Angular API client after endpoint changes:
-
-```bash
-dotnet tool restore
-dotnet build src/JJDevHub.Api          # writes src/JJDevHub.Api/openapi/JJDevHub.Api.json
-DOTNET_ROLL_FORWARD=Major dotnet nswag run src/JJDevHub.Api/nswag.json
-```
-
-(`DOTNET_ROLL_FORWARD=Major` is needed when the SDK on PATH is 11 and NSwag still targets .NET 10.)
-
-The client is `src/Clients/web/src/app/api/jjdevhub-api.client.ts` (`JjdevhubApiClient`).
+Login and register call `/api/auth` with `fetch`. Content pages do not.
 
 Mobile (pnpm):
 
@@ -95,7 +85,7 @@ pnpm android
 
 ## CI / CD
 
-**GitHub Actions** on PR and `main`: [`.github/workflows/api.yml`](.github/workflows/api.yml) restores, builds, tests, and `docker build`s the API (Testcontainers starts its own Postgres). [`.github/workflows/web.yml`](.github/workflows/web.yml) runs `pnpm` test/build and builds the Angular image. No production secrets in the workflows.
+**GitHub Actions** on PR and `main`: [`.github/workflows/api.yml`](.github/workflows/api.yml) restores, builds, tests, and `docker build`s the API (Testcontainers starts its own Postgres). [`.github/workflows/web.yml`](.github/workflows/web.yml) runs `pnpm` test/build and builds the React image. No production secrets in the workflows.
 
 Enable **branch protection** on `main` (GitHub → Settings → Branches): require the `api` check before merge.
 
@@ -112,21 +102,21 @@ Old Jenkinsfile: only on `archive/pre-rewrite`. Next steps for a CV/enterprise p
 ```
 src/JJDevHub.Api/                 Minimal API (.NET 11 preview), EF Core Identity, JWT
 src/JJDevHub.Api/openapi/         OpenAPI document generated at Debug build
-src/Clients/web/                  Angular 21 (pnpm) + Dockerfile/nginx
-src/Clients/web/src/app/api/      NSwag TypeScript client
+src/Clients/web/                  React 19 + Vite (pnpm) + Dockerfile/nginx
+src/Clients/shared/theme/         shared color and type tokens
 src/Clients/mobile/JJDevHubMobile React Native 0.84
 tests/JJDevHub.Api.Tests/         API tests (Testcontainers)
 infra/docker/                     Postgres 16 + API + web
 infra/ci/                         release cron + deploy script
 .github/workflows/api.yml         GitHub Actions (API)
-.github/workflows/web.yml         GitHub Actions (Angular / pnpm)
+.github/workflows/web.yml         GitHub Actions (React / pnpm)
 ```
 
 ---
 
 # JJDevHub
 
-Minimalny stos: jedno API .NET 11 (Preview 7, Identity + JWT + PostgreSQL), klient webowy Angular 21, szkielet React Native.
+Minimalny stos: jedno API .NET 11 (Preview 7, Identity + JWT + PostgreSQL), klient webowy React 19 (Vite), szkielet React Native.
 
 Kafka, Keycloak, CQRS, Vault, Jenkins i stare mikroserwisy są poza tym drzewem.
 
@@ -197,17 +187,7 @@ pnpm start
 
 http://localhost:4200 — `/api`, `/health`, `/openapi` i `/scalar` są proxowane na `:5080`. Jeśli port 4200 jest zajęty, zatrzymaj najpierw usługę `web` z Compose.
 
-Po zmianie endpointów wygeneruj klienta API Angulara od nowa:
-
-```bash
-dotnet tool restore
-dotnet build src/JJDevHub.Api          # zapisuje src/JJDevHub.Api/openapi/JJDevHub.Api.json
-DOTNET_ROLL_FORWARD=Major dotnet nswag run src/JJDevHub.Api/nswag.json
-```
-
-(`DOTNET_ROLL_FORWARD=Major` jest potrzebne, gdy SDK na PATH to 11, a NSwag nadal celuje w .NET 10.)
-
-Klient to `src/Clients/web/src/app/api/jjdevhub-api.client.ts` (`JjdevhubApiClient`).
+Login i register wołają `/api/auth` przez `fetch`. Strony treści nie.
 
 Mobilka (pnpm):
 
@@ -221,7 +201,7 @@ pnpm android
 
 ## CI / CD
 
-**GitHub Actions** na PR i na `main`: [`.github/workflows/api.yml`](.github/workflows/api.yml) robi restore, build, testy i `docker build` API (Testcontainers stawia własnego Postgresa). [`.github/workflows/web.yml`](.github/workflows/web.yml) odpala `pnpm` test/build i buduje obraz Angulara. W workflow nie ma sekretów produkcyjnych.
+**GitHub Actions** na PR i na `main`: [`.github/workflows/api.yml`](.github/workflows/api.yml) robi restore, build, testy i `docker build` API (Testcontainers stawia własnego Postgresa). [`.github/workflows/web.yml`](.github/workflows/web.yml) odpala `pnpm` test/build i buduje obraz Reacta. W workflow nie ma sekretów produkcyjnych.
 
 Włącz **branch protection** na `main` (GitHub → Settings → Branches): przed merge wymagaj checka `api`.
 
@@ -238,12 +218,12 @@ Stary Jenkinsfile jest tylko na `archive/pre-rewrite`. Dalsza ścieżka CV/enter
 ```
 src/JJDevHub.Api/                 Minimal API (.NET 11 preview), EF Core Identity, JWT
 src/JJDevHub.Api/openapi/         dokument OpenAPI generowany przy buildzie Debug
-src/Clients/web/                  Angular 21 (pnpm) + Dockerfile/nginx
-src/Clients/web/src/app/api/      klient TypeScript z NSwag
+src/Clients/web/                  React 19 + Vite (pnpm) + Dockerfile/nginx
+src/Clients/shared/theme/         wspólne tokeny koloru i typu
 src/Clients/mobile/JJDevHubMobile React Native 0.84
 tests/JJDevHub.Api.Tests/         testy API (Testcontainers)
 infra/docker/                     Postgres 16 + API + web
 infra/ci/                         cron wydania + skrypt deployu
 .github/workflows/api.yml         GitHub Actions (API)
-.github/workflows/web.yml         GitHub Actions (Angular / pnpm)
+.github/workflows/web.yml         GitHub Actions (React / pnpm)
 ```

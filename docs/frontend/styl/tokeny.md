@@ -5,13 +5,13 @@ Hex, skala typografii, odstępy, promienie, czasy i easing żyją w pakiecie **`
 - [src/Clients/shared/theme/tokens.ts](../../../src/Clients/shared/theme/tokens.ts)
 - [src/Clients/shared/theme/package.json](../../../src/Clients/shared/theme/package.json) (`exports`: `"."` → `./tokens.ts`)
 
-Nie ma tu Angulara ani React Native — zwykły obiekt TypeScript.
+Nie ma tu Reacta ani React Native — zwykły obiekt TypeScript.
 
 ## Web
 
 [src/Clients/web/package.json](../../../src/Clients/web/package.json): `"@jjdevhub/theme": "file:../shared/theme"`.
 
-Przy starcie [main.ts](../../../src/Clients/web/src/main.ts) woła `cssCustomProperties()` i wpisuje wynik na `documentElement`. SCSS i style komponentów czytają **tylko** `var(--…)`. Drugiego zapisu heksów w arkuszach nie ma.
+Przy starcie [main.tsx](../../../src/Clients/web/src/main.tsx) woła `cssCustomProperties()` i wpisuje wynik na `documentElement`. SCSS i style komponentów czytają **tylko** `var(--…)`. Drugiego zapisu heksów w arkuszach nie ma.
 
 Home timeline GSAP importuje `tokens` bezpośrednio (ms dla pin/fade), bo ScrollTrigger nie czyta CSS custom properties tak wygodnie — źródło i tak jest to samo `tokens.ts`.
 
