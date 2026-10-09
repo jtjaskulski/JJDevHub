@@ -25,7 +25,7 @@ jobs:
     outputs:
       deploy: ${{ steps.decision.outputs.deploy }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Test deploy gate
         run: node --test infra/ci/deploy-gate.test.mjs
