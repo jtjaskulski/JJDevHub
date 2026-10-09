@@ -2,7 +2,7 @@
 
 ## Po co ten krok
 
-Prometheus ([07-prometheus.md](07-prometheus.md)) trzyma metryki, Jaeger ([08-jaeger.md](08-jaeger.md)) trzyma trace. Grafana czyta oba w jednym UI: wykres scrapa i wyszukiwanie trace’ów w Explore. Panel z kroku 4 pokazuje `up` — waterfall Jaegera jest obok, nie otwiera się z tego wykresu sam. Bez Grafany skaczesz między `:9090` a `:16686`. Port tylko na `127.0.0.1`. Tunel Cloudflare ([02-cloudflare-tunnel.md](02-cloudflare-tunnel.md)) **nie** publikuje Grafany.
+Prometheus ([07-prometheus.md](07-prometheus.md)) trzyma metryki, Jaeger ([08-jaeger.md](08-jaeger.md)) trzyma trace. Grafana czyta oba w jednym UI: wykres scrapa i wyszukiwanie trace’ów w Explore. Panel z kroku 4 pokazuje `up` — waterfall Jaegera jest obok, nie otwiera się z tego wykresu sam. Bez Grafany skaczesz między `:9090` a `:16686`. Port na hoście zostaje `127.0.0.1:3000`. Publiczny UI to `https://grafana.jjdevhub.com/` w tym samym tunelu ([02-cloudflare-tunnel.md](02-cloudflare-tunnel.md)).
 
 ## Co już jest w repo
 
@@ -195,9 +195,11 @@ docker compose --env-file /etc/jjdevhub/api.env -f infra/docker/docker-compose.y
 
 Lokalnie analogicznie z `infra/docker/.env`.
 
-### 8. Tunel bez zmian
+### 8. Tunel
 
-Żadnego Public Hostname na `:3000`. Dostęp: SSH do VM i przeglądarka na `http://127.0.0.1:3000`, albo lokalny port-forward:
+Publiczny UI to `https://grafana.jjdevhub.com/` → `http://127.0.0.1:3000`. `GF_SERVER_ROOT_URL` musi być tym adresem, inaczej HTML wstanie, a pliki aplikacji nie. Szczegóły: [02-cloudflare-tunnel.md](02-cloudflare-tunnel.md).
+
+Z VM albo przez port-forward, bez publicznego hosta:
 
 ```bash
 ssh -L 3000:127.0.0.1:3000 deploy@IP_VM
@@ -212,11 +214,11 @@ curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3000/login
 
 Zaloguj się (`GRAFANA_ADMIN_*`). **Connections → Data sources**: Prometheus i Jaeger na zielono (Save & test). **Dashboards → JJDevHub → JJDevHub API overview**: panel `up` żyje po scrapie z 07. **Explore → Jaeger**: service `JJDevHub.Api` po ruchu z API (08).
 
-Negatyw: z internetu `https://hub.example.com` **nie** serwuje Grafany; origin nadal tylko web na 4200.
+Hub `https://hub.example.com` nie serwuje Grafany. Publiczny UI jest na `https://grafana.jjdevhub.com/`.
 
 ## Czego w tym pliku nie ruszać
 
-- Nie publikuj `3000` na wszystkich interfejsach ani w Cloudflare Tunnel
+- Nie publikuj `3000` na wszystkich interfejsach. Publiczny hostname to `grafana.jjdevhub.com` w [02-cloudflare-tunnel.md](02-cloudflare-tunnel.md), origin zostaje `127.0.0.1:3000`
 - Nie trzymaj haseł admina w git
 - Nie usuwaj provisioningu na rzecz „tylko klikniętego” datasource bez UID — dashboardy w git się rozjadą
 - Nie kieruj datasource’ów na hosty spoza sieci Compose (`localhost` z kontenera)
@@ -377,7 +379,7 @@ docker exec -it jjdevhub-grafana grafana-cli admin reset-admin-password 'nowe-ha
 
 Albo skasowanie volume `grafana_data` (znikają użytkownicy i dashboardy klikane tylko w UI; JSON z gita wraca po starcie) i ponowny `up` już z nowym env.
 
-`GF_USERS_ALLOW_SIGN_UP=false` wyłącza rejestrację. Anonimowego dostępu nie włączasz (`GF_AUTH_ANONYMOUS_ENABLED` zostaje nieustawione). `GF_SERVER_ROOT_URL` też nie — UI wisi na korzeniu `:3000`, nie na ścieżce za hubem.
+`GF_USERS_ALLOW_SIGN_UP=false` wyłącza rejestrację. Anonimowego dostępu nie włączasz (`GF_AUTH_ANONYMOUS_ENABLED` zostaje nieustawione). `GF_SERVER_ROOT_URL` to `https://grafana.jjdevhub.com/` — korzeń własnego hostname'a, nie ścieżka pod hubem.
 
 Hasło ląduje w środowisku procesu. `docker inspect jjdevhub-grafana` je pokaże. To ten sam model co `Jwt__Key` w kontenerze API: sekret na VM, nie w repozytorium.
 

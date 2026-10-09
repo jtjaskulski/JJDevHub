@@ -141,11 +141,11 @@ Tag obrazu `prom/prometheus:v3.2.1` podmień na aktualny stabilny z Docker Hub p
 
 Sieć: domyślna sieć Compose łączy `prometheus` z `api` po nazwie serwisu. Osobnego `networks:` nie musisz deklarować, dopóki wszystkie serwisy są w jednym pliku bez custom network.
 
-### 4. Cloudflare — świadomie bez Prometheusa
+### 4. Cloudflare
 
-W Zero Trust / Public Hostname tunelu **nie** dodawaj hostname na `9090` ani path `/metrics`. Origin zostaje `http://127.0.0.1:4200` jak w [02-cloudflare-tunnel.md](02-cloudflare-tunnel.md).
+Publiczny UI to `https://prometheus.jjdevhub.com/` → `http://127.0.0.1:9090` w tym samym tunelu. Path `/metrics` na hubie zostaje nieopublikowany. Szczegóły: [02-cloudflare-tunnel.md](02-cloudflare-tunnel.md).
 
-Dostęp do UI Prometheusa tylko z VM:
+Bind na hoście zostaje `127.0.0.1`. Z laptopa bez tunelu Cloudflare nadal działa port-forward:
 
 ```bash
 ssh -L 9090:127.0.0.1:9090 deploy@TWOJA_VM
@@ -168,13 +168,13 @@ docker compose --env-file /etc/jjdevhub/api.env -f infra/docker/docker-compose.y
 2. `curl -fsS http://127.0.0.1:9090/-/healthy` — Prometheus healthy.
 3. UI `http://127.0.0.1:9090` → **Status → Targets** — job `jjdevhub-api` w stanie **UP**, scrape co ~15 s.
 4. **Query** (w starszych obrazach zakładka Graph) → np. zapytanie `http_server_request_duration_seconds_count` albo inna metryka widoczna w `/metrics` — rosnące wartości po `curl` na `/health`.
-5. Z innej maszyny w LAN: `curl http://IP_VM:9090` ma **nie** działać (bind tylko localhost). Publiczny tunel: `https://hub…/metrics` ma **nie** serwować metryk (nginx nie proxy’uje `/metrics`; nie ma hostname’a na 9090).
+5. Z innej maszyny w LAN: `curl http://IP_VM:9090` ma **nie** działać (bind tylko localhost). Hub `https://hub…/metrics` nie serwuje metryk. UI jest na `https://prometheus.jjdevhub.com/`.
 6. `docker compose … ps` pokazuje `jjdevhub-prometheus`.
 
 ## Czego w tym pliku nie ruszać
 
 - Jaegera, Grafany, SonarQube — numery 08–10.
-- Publikacji `9090` ani `/metrics` w Cloudflare Access / Public Hostname.
+- Publikacji `/metrics` na hubie i binda `9090` na `0.0.0.0`. Osobny hostname `prometheus.jjdevhub.com` jest w [02-cloudflare-tunnel.md](02-cloudflare-tunnel.md).
 - Zmiany bindów Postgresa i logiki deployu poza dodaniem serwisu i volume.
 - Usuwania eksportu OTLP z 06 — Prometheus scrape i OTLP mają współistnieć.
 - Frontendu i workflowów `api`/`web` poza naturalnym przebudowaniem obrazu API.
