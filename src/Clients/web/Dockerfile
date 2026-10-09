@@ -17,7 +17,7 @@ RUN pnpm install --frozen-lockfile
 COPY web/ ./
 RUN pnpm build
 
-FROM nginx:1.30-alpine AS runtime
+FROM nginx:1.31-alpine AS runtime
 # Tag still ships libexpat 2.8.4-r0 (CVE-2026-93990), pcre2 10.48-r0 (CVE-2026-103111),
 # and tiff 4.7.1-r0 (CVE-2026-4775).
 # Alpine 3.24 has libexpat 2.8.5-r0, pcre2 10.49-r0, and tiff 4.7.2-r0.
