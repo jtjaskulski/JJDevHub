@@ -2,7 +2,17 @@
 
 VM z [proxmox.md](01-proxmox.md) nie potrzebuje publicznego IP. `cloudflared` wychodzi z VM do Cloudflare, a Cloudflare kończy TLS i wysyła ruch HTTP na nginx.
 
-Jeden origin: `http://127.0.0.1:4200`. Kontener `web` proxy'uje `/api/`, `/health`, `/openapi/` i `/scalar` do API. Postgresa (`5433`) tunelem nie publikujesz.
+Origin aplikacji: `http://127.0.0.1:4200`. Kontener `web` proxy'uje `/api/`, `/health`, `/openapi/` i `/scalar` do API. Postgresa (`5433`) tunelem nie publikujesz.
+
+Osobne hostname'y, każdy na korzeniu swojej subdomeny, idą w ten sam tunel:
+
+| Hostname | Origin na VM |
+| --- | --- |
+| `https://grafana.jjdevhub.com/` | `http://127.0.0.1:3000` |
+| `https://jaeger.jjdevhub.com/` | `http://127.0.0.1:16686` |
+| `https://prometheus.jjdevhub.com/` | `http://127.0.0.1:9090` |
+
+Porty zostają na loopbacku. `cloudflared` stoi na VM i widzi `127.0.0.1`. Routera nie przekierowujesz.
 
 ## 1. Domena
 
@@ -47,6 +57,18 @@ W tym samym tunelu: **Public Hostname** → **Add a public hostname**.
 | URL | `127.0.0.1:4200` |
 
 Zapisz. Rekord DNS (proxied CNAME na tunel) panel dopisuje sam. Nie dodawaj drugiego rekordu A na adres domowy.
+
+W tym samym tunelu dodaj trzy hostname'y obserwowalności. Path pusty, typ HTTP.
+
+| Subdomain | Domain | URL |
+| --- | --- | --- |
+| `grafana` | `jjdevhub.com` | `127.0.0.1:3000` |
+| `jaeger` | `jjdevhub.com` | `127.0.0.1:16686` |
+| `prometheus` | `jjdevhub.com` | `127.0.0.1:9090` |
+
+Grafana bez `GF_SERVER_ROOT_URL=https://grafana.jjdevhub.com/` ładuje HTML i nie ściąga plików aplikacji. Prometheus dostaje `--web.external-url=https://prometheus.jjdevhub.com/`. Oba są w [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml); puste zmienne w `/etc/jjdevhub/api.env` biorą te adresy z domyślnych wartości Compose. Jaeger na korzeniu `jaeger.jjdevhub.com` nie potrzebuje ścieżki bazowej.
+
+Prometheus i Jaeger nie mają logowania. Na tych trzech hostname'ach włącz Cloudflare Access (Allow tylko na twoje konto). Huba (`4200`) Accessem nie zasłaniaj — aplikacja ma własne JWT.
 
 Innych hostname'ów nie twórz dla API ani Postgresa.
 

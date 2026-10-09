@@ -7,7 +7,7 @@ Po [06-opentelemetry.md](06-opentelemetry.md) API potrafi wysyłać spany. Po [0
 ## Co już jest w repo
 
 - VM, Docker i `docker compose` — [01-proxmox.md](01-proxmox.md), katalog `/opt/jjdevhub`, sekrety w `/etc/jjdevhub/api.env`
-- Tunel Cloudflare wystawia tylko `127.0.0.1:4200` (nginx/`web`) — [02-cloudflare-tunnel.md](02-cloudflare-tunnel.md). Portów Jaegera **nie** dodajesz do Public Hostname
+- Tunel Cloudflare: hub na `127.0.0.1:4200`, UI Jaegera na `https://jaeger.jjdevhub.com/` → `127.0.0.1:16686` — [02-cloudflare-tunnel.md](02-cloudflare-tunnel.md). OTLP `4317` zostaje tylko w sieci Compose
 - Deploy self-hosted runnerem — [03-github.md](03-github.md), skrypt [infra/ci/release-and-deploy.sh](../../infra/ci/release-and-deploy.sh) woła `docker compose … -f infra/docker/docker-compose.yml up -d --build`
 - Instrumentacja OTLP w API — [06-opentelemetry.md](06-opentelemetry.md). Endpoint eksportera ustawiasz zmiennymi środowiskowymi kontenera `api`
 - Scrape metryk — [07-prometheus.md](07-prometheus.md). Usługa `prometheus` w Compose; Jaeger jej nie zastępuje i nie trzyma szeregów czasowych
@@ -122,7 +122,7 @@ curl -s -X POST http://127.0.0.1:4200/api/auth/login \
 
 ### 5. Tunel — nic nie zmieniaj
 
-W [02-cloudflare-tunnel.md](02-cloudflare-tunnel.md) origin zostaje `http://127.0.0.1:4200`. Nie dodawaj hostname na `16686`, `4317` ani `9090` (Prometheus).
+W [02-cloudflare-tunnel.md](02-cloudflare-tunnel.md) hub zostaje `http://127.0.0.1:4200`. UI Jaegera to osobny hostname `jaeger.jjdevhub.com` → `127.0.0.1:16686`. `4317` do tunelu nie wchodzi.
 
 ## Jak sprawdzić, że działa
 
