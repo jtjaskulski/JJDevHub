@@ -6,7 +6,8 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 ENV CI=true
 
-RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
+# Node 26 no longer ships corepack, so `corepack enable` exits 127.
+RUN npm install -g pnpm@10.33.0
 
 COPY shared/theme ./shared/theme
 COPY web/package.json web/pnpm-lock.yaml ./web/
