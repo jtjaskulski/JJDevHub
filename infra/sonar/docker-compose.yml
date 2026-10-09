@@ -28,6 +28,7 @@ services:
       SONAR_JDBC_USERNAME: sonar
       SONAR_JDBC_PASSWORD: ${SONAR_DB_PASSWORD}
       SONAR_SEARCH_JAVAADDITIONALOPTS: "-Djava.net.preferIPv4Stack=true"
+      JAVA_TOOL_OPTIONS: "-Djava.net.preferIPv4Stack=true"
     ports:
       - "127.0.0.1:9000:9000"
     volumes:
