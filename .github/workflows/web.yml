@@ -73,3 +73,47 @@ jobs:
       - name: Docker image + Trivy
         working-directory: .
         run: ./infra/ci/trivy-web.sh
+
+  sonar:
+    name: sonar-web
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, jjdevhub]
+    defaults:
+      run:
+        working-directory: src/Clients/web
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: src/Clients/web/package.json
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: src/Clients/web/pnpm-lock.yaml
+
+      - name: Install and test
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm test:ci
+
+      - name: Sonar scan
+        working-directory: .
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_WEB }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          docker run --rm --network host \
+            -e SONAR_HOST_URL \
+            -e SONAR_TOKEN \
+            -v "$PWD:/usr/src" \
+            sonarsource/sonar-scanner-cli \
+            -Dsonar.projectKey=jjdevhub-web \
+            -Dsonar.sources=src/Clients/web/src \
+            -Dsonar.exclusions='**/node_modules/**,**/*.spec.ts,**/jjdevhub-api.client.ts' \
+            -Dsonar.qualitygate.wait=true

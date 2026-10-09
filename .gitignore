@@ -5,6 +5,7 @@
 [Rr]elease/
 artifacts/
 TestResults/
+.sonarqube/
 *.user
 *.suo
 *.userosscache
