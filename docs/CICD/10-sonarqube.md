@@ -250,6 +250,38 @@ W [`.github/workflows/web.yml`](../../.github/workflows/web.yml) dodaj job `sona
         with:
           fetch-depth: 0
 
+      - name: Install libatomic
+        run: |
+          set -euo pipefail
+          if ldconfig -p 2>/dev/null | grep -q 'libatomic\.so\.1'; then
+            exit 0
+          fi
+          libdir="${HOME}/.local/lib"
+          if [[ -e "${libdir}/libatomic.so.1" ]]; then
+            echo "LD_LIBRARY_PATH=${libdir}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}" >> "${GITHUB_ENV}"
+            exit 0
+          fi
+          if sudo -n true 2>/dev/null; then
+            sudo apt-get update
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y libatomic1
+            exit 0
+          fi
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          chmod 755 "$tmp"
+          (
+            cd "$tmp"
+            apt-get download libatomic1
+            dpkg-deb -x ./*.deb "${tmp}/extracted"
+          )
+          mkdir -p "$libdir"
+          find "${tmp}/extracted" -name 'libatomic.so*' -exec cp -a {} "${libdir}/" \;
+          if [[ ! -e "${libdir}/libatomic.so.1" ]]; then
+            echo "libatomic.so.1 missing after unpacking libatomic1" >&2
+            exit 1
+          fi
+          echo "LD_LIBRARY_PATH=${libdir}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}" >> "${GITHUB_ENV}"
+
       - uses: pnpm/action-setup@v4
         with:
           package_json_file: src/Clients/web/package.json
@@ -283,6 +315,8 @@ W [`.github/workflows/web.yml`](../../.github/workflows/web.yml) dodaj job `sona
 ```
 
 `--network host` na Linuxie self-hosted pozwala CLI dosięgnąć `127.0.0.1:9000`. Coverage frontu (lcov) dołóż później, jeśli `pnpm test:ci` zacznie emitować raport — na start Gate może opierać się o issues bez coverage web.
+
+Krok `Install libatomic` jest tylko w jobie `sonar-web`. `pnpm/action-setup` na runnerze bez Node 22.13+ w `PATH` stawia binarkę `@pnpm/exe`. Ona i Node ze `setup-node` ładują `libatomic.so.1`. Obraz `ubuntu-latest` (job `web`) ją ma. Minimalny Debian albo Ubuntu z [01-proxmox.md](01-proxmox.md) często nie. Krok instaluje pakiet `libatomic1`, zanim wstanie pnpm. Gdy `sudo` pyta o hasło, rozpakowuje `.deb` do `$HOME/.local/lib` i dopisuje `LD_LIBRARY_PATH` na resztę joba.
 
 ### 7. Branch protection
 
@@ -486,6 +520,7 @@ Sam Sonar nie dekoruje diffu komentarzem. Przed merge blokują `api` i `web` z 0
 | UI nie wchodzi z VM tuż po `up` | Za wcześnie. Poczekaj, aż log przestanie pisać o migracji. |
 | UI z laptopa nie wchodzi, z VM wchodzi | Bind `127.0.0.1`. SSH `-L 9000`. |
 | Job na `ubuntu-latest` — connection refused | `SONAR_HOST_URL` wskazuje loopback VM. Job Sonara ma być na `[self-hosted, jjdevhub]` i tylko przy pushu na `main`. |
+| `sonar-web`: `libatomic.so.1`, kod 127 przy `pnpm/action-setup` | Na VM nie ma `libatomic1`. Krok `Install libatomic` w [web.yml](../../.github/workflows/web.yml) ma iść przed setupem pnpm. Samo `apt-get install -y libatomic1` na koncie runnera też zdejmuje ten błąd. |
 | Ten sam błąd na self-hosted | Runner nie jest procesem na VM (własny network namespace) albo Sonar nie słucha. Z konta usługi runnera: `curl -I http://127.0.0.1:9000`. |
 | `begin` pada 401 | Zły sekret, token web w jobie API, projekt o tym kluczu nie istnieje. |
 | Analiza weszła, coverage 0%, testy zielone | Format albo glob. Ma być `coverage.opencover.xml` i `sonar.cs.opencover.reportsPaths`. `find TestResults -name coverage.opencover.xml`. Cobertura daje 0% bez błędu skanera. |
