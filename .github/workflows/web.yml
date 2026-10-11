@@ -87,6 +87,38 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install libatomic
+        run: |
+          set -euo pipefail
+          if ldconfig -p 2>/dev/null | grep -q 'libatomic\.so\.1'; then
+            exit 0
+          fi
+          libdir="${HOME}/.local/lib"
+          if [[ -e "${libdir}/libatomic.so.1" ]]; then
+            echo "LD_LIBRARY_PATH=${libdir}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}" >> "${GITHUB_ENV}"
+            exit 0
+          fi
+          if sudo -n true 2>/dev/null; then
+            sudo apt-get update
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y libatomic1
+            exit 0
+          fi
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          chmod 755 "$tmp"
+          (
+            cd "$tmp"
+            apt-get download libatomic1
+            dpkg-deb -x ./*.deb "${tmp}/extracted"
+          )
+          mkdir -p "$libdir"
+          find "${tmp}/extracted" -name 'libatomic.so*' -exec cp -a {} "${libdir}/" \;
+          if [[ ! -e "${libdir}/libatomic.so.1" ]]; then
+            echo "libatomic.so.1 missing after unpacking libatomic1" >&2
+            exit 1
+          fi
+          echo "LD_LIBRARY_PATH=${libdir}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}" >> "${GITHUB_ENV}"
+
       - uses: pnpm/action-setup@v6
         with:
           package_json_file: src/Clients/web/package.json
