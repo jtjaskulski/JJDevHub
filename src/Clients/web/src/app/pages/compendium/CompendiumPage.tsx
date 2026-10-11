@@ -1,35 +1,47 @@
-import { Link, useLocation } from 'react-router';
+import { useLocation } from 'react-router';
+
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 
 import { localeFromPathname, siteFor } from '../../content/content';
-import './compendium.scss';
+import { listColumn } from '../../layout';
+import { ListRow } from '../ListRow';
+import { PageHeader } from '../PageHeader';
 
 export function CompendiumPage() {
   const { pathname } = useLocation();
   const locale = localeFromPathname(pathname);
   const section = siteFor(locale).compendium;
 
+  if (section.items.length === 0) {
+    return (
+      <section className={listColumn}>
+        <PageHeader title={section.title} lead={section.lead} />
+        <Empty>
+          <EmptyHeader>
+            <EmptyTitle>{section.title}</EmptyTitle>
+            <EmptyDescription>{section.lead}</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </section>
+    );
+  }
+
   return (
-    <section className="compendium-page page">
-      <header className="page-head reveal">
-        <h1>{section.title}</h1>
-        <p>{section.lead}</p>
-        <p className="glossary">
-          <a href={section.glossaryUrl} target="_blank" rel="noopener noreferrer">
-            {section.glossaryLabel}
-          </a>
-        </p>
-      </header>
-      <div className="grid">
+    <section className={listColumn}>
+      <PageHeader title={section.title} lead={section.lead} />
+      <p>
+        <a href={section.glossaryUrl} target="_blank" rel="noopener noreferrer" className="text-small">
+          {section.glossaryLabel}
+        </a>
+      </p>
+      <div className="flex flex-col">
         {section.items.map((term) => (
-          <Link
+          <ListRow
             key={term.slug}
-            className="tile list-enter"
             to={`/${locale}/compendium/${term.slug}`}
-            viewTransition
-          >
-            <h2>{term.term}</h2>
-            <p>{term.definition[0]}</p>
-          </Link>
+            title={term.term}
+            summary={term.definition[0]}
+          />
         ))}
       </div>
     </section>

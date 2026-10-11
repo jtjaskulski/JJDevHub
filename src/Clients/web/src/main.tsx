@@ -1,18 +1,21 @@
 import '@fontsource-variable/inter';
-import { cssCustomProperties } from '@jjdevhub/theme';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
 
 import { App } from './app/App';
 import { AuthProvider } from './app/auth/auth';
-import './styles.scss';
+import { applyColorScheme, readColorScheme } from './app/theme/scheme';
+import './styles.css';
 
-for (const [name, value] of Object.entries(cssCustomProperties())) {
-  document.documentElement.style.setProperty(name, value);
+applyColorScheme(readColorScheme());
+
+const root = document.getElementById('root');
+if (!root) {
+  throw new Error('Root element is missing.');
 }
 
-createRoot(document.getElementById('root')!).render(
+createRoot(root).render(
   <StrictMode>
     <AuthProvider>
       <BrowserRouter>

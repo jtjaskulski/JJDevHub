@@ -1,3 +1,4 @@
+import { MotionConfig } from 'motion/react';
 import { Navigate, Route, Routes } from 'react-router';
 
 import { GuestRoute } from './GuestRoute';
@@ -16,8 +17,9 @@ import { RegisterPage } from './pages/register/RegisterPage';
 
 export function App() {
   return (
-    <Shell>
-      <Routes>
+    <MotionConfig reducedMotion="user">
+      <Shell>
+        <Routes>
         <Route path="/" element={<Navigate to="/pl" replace />} />
         <Route
           path="/login"
@@ -46,7 +48,8 @@ export function App() {
           <Route path="notes/:slug" element={<NoteDetailPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/pl" replace />} />
-      </Routes>
-    </Shell>
+        </Routes>
+      </Shell>
+    </MotionConfig>
   );
 }

@@ -203,7 +203,7 @@ Intranet dochodzi później w tym samym kliencie web, gdy treść siedzi w API. 
 
 ## Przypadki użycia
 
-1. **Home.** `/:lang`, ciemny hero, jeden scroll dokumentu. `prefers-reduced-motion` zostawia hero statyczny. Drugiej przypiętej sekwencji na podstronach nie ma. Web: [motion/02-hero.md](motion/02-hero.md). Telefon: [reanimated.md](reanimated.md).
+1. **Home.** `/:lang`, jedna przypięta klatka na `darkChapter`: imię, rola, linia stosu, pas „Teraz” i dwa rozdziały. Potem wykłady i notatki. `prefers-reduced-motion` zostawia klatkę statyczną. Web: [motion/02-hero.md](motion/02-hero.md). Telefon: [reanimated.md](reanimated.md).
 2. **Lista kursów.** Siatka kart, duży oddech, mało ramek. Pusta lista to wczesny widok pustego stanu, opisany w teście.
 3. **Szczegół notatki.** Artykuł: jeden `h1`, szerokość z [tailwind/03-uklad.md](tailwind/03-uklad.md), treść z JSON-a bundla.
 4. **Logowanie.** `/login` poza językiem. Formularz z button i input shadcn. Błąd pola widać przy polu. Żądanie idzie `fetch` na `/api` przez proxy w dev.
@@ -214,7 +214,8 @@ Intranet dochodzi później w tym samym kliencie web, gdy treść siedzi w API. 
 ## Zasady
 
 - Liczby kolorów, skali, odstępów, radiusu i czasów stoją w `src/Clients/shared/theme/tokens.ts`. Tailwind `@theme` i NativeWind mapują ten plik. Drugiej palety w klasach arbitralnych nie ma.
-- Paleta: płótno `#f5f5f7`, atrament `#1d1d1f`, akcent `#0071e3`. Krój: Inter. Duży oddech, mało ramek. Hero home jest ciemny (tło `#000000`, tekst `#f5f5f7` — pełna skala w [motyw.md](motyw.md)).
+- Paleta jasna: płótno `#f3efe6`, atrament `#1a1814`, akcent `#9a3412`. Paleta ciemna: płótno `#141210`, atrament `#f3efe6`, akcent `#d4784a`. Krój: Inter. Pełna skala w [motyw.md](motyw.md). Masthead home używa `darkChapter`, nie pełnoekranowego teatru.
+- Przełącznik trybu stoi w shellu obok języka. Zapis: `jjdevhub.theme`. Brak zapisu oznacza `prefers-color-scheme`. Oba tryby podmieniają te same zmienne CSS. Klas `dark:` nie ma.
 - Ekrany weba i telefonu są osobne. Wspólny jest kontrakt tokenów.
 - Strony treści czytają `pl.json`, `en.json` i wygenerowany `cv.json` z bundla. HTTP do API zostaje przy `/login` i `/register`, zwykłym `fetch`.
 - `cv.local.json` i wygenerowany `cv.json` zostają poza gitem. W repo jest `cv.example.json`.

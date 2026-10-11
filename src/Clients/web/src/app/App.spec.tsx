@@ -37,4 +37,10 @@ describe('App', () => {
     renderAt('/en');
     expect(document.documentElement.lang).toBe('en');
   });
+
+  it('switches color scheme from the shell', () => {
+    renderAt('/pl');
+    screen.getByRole('button', { name: 'Ciemny' }).click();
+    expect(document.documentElement.style.colorScheme).toBe('dark');
+  });
 });

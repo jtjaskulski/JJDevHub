@@ -1,33 +1,37 @@
-import { Link, useLocation } from 'react-router';
+import { useLocation } from 'react-router';
+
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 
 import { localeFromPathname, siteFor } from '../../content/content';
-import './courses.scss';
+import { listColumn } from '../../layout';
+import { CourseCard } from '../CourseCard';
+import { PageHeader } from '../PageHeader';
 
 export function CoursesPage() {
   const { pathname } = useLocation();
   const locale = localeFromPathname(pathname);
   const section = siteFor(locale).courses;
 
+  if (section.items.length === 0) {
+    return (
+      <section className={listColumn}>
+        <PageHeader title={section.title} lead={section.lead} />
+        <Empty>
+          <EmptyHeader>
+            <EmptyTitle>{section.title}</EmptyTitle>
+            <EmptyDescription>{section.lead}</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </section>
+    );
+  }
+
   return (
-    <section className="courses-page page">
-      <header className="page-head reveal">
-        <h1>{section.title}</h1>
-        <p>{section.lead}</p>
-      </header>
-      <div className="tile-grid">
+    <section className={listColumn}>
+      <PageHeader title={section.title} lead={section.lead} />
+      <div className="flex flex-col">
         {section.items.map((course) => (
-          <Link
-            key={course.slug}
-            className="tile list-enter"
-            to={`/${locale}/courses/${course.slug}`}
-            viewTransition
-          >
-            <h2>{course.title}</h2>
-            <p className="tile-sub">{course.subtitle}</p>
-            {course.summary.map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
-            ))}
-          </Link>
+          <CourseCard key={course.slug} locale={locale} course={course} />
         ))}
       </div>
     </section>

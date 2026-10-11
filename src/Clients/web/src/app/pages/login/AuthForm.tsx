@@ -1,7 +1,10 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
 import { describeApiError } from '../../auth/auth';
-import './login.scss';
 
 type AuthFormProps = {
   title: string;
@@ -52,12 +55,13 @@ export function AuthForm({
   const buttonLabel = pending ? pendingLabel : submitLabel;
 
   return (
-    <section className="auth-page card">
-      <h2>{title}</h2>
-      <form onSubmit={onFormSubmit}>
-        <label>
-          Email
-          <input
+    <section className="mx-auto flex w-full max-w-md flex-col gap-5 px-4 py-8">
+      <h1 className="text-h3 font-medium tracking-h3">{title}</h1>
+      <form className="flex flex-col gap-4" onSubmit={onFormSubmit}>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
             name="email"
             type="email"
             value={email}
@@ -65,10 +69,11 @@ export function AuthForm({
             autoComplete="username"
             onChange={(event) => setEmailFromInput(event.target.value)}
           />
-        </label>
-        <label>
-          Password
-          <input
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
             name="password"
             type="password"
             value={password}
@@ -77,13 +82,17 @@ export function AuthForm({
             autoComplete={passwordAutoComplete}
             onChange={(event) => setPasswordFromInput(event.target.value)}
           />
-        </label>
-        {error ? <p className="error">{error}</p> : null}
-        <button type="submit" disabled={pending}>
+        </div>
+        {error ? (
+          <p role="alert" className="text-small text-accent">
+            {error}
+          </p>
+        ) : null}
+        <Button type="submit" disabled={pending}>
           {buttonLabel}
-        </button>
+        </Button>
       </form>
-      <p className="hint">{hint}</p>
+      <p className="text-small text-muted">{hint}</p>
     </section>
   );
 }

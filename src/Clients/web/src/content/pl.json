@@ -7,7 +7,10 @@
     "notes": "Notatki",
     "language": "Język",
     "languagePl": "PL",
-    "languageEn": "EN"
+    "languageEn": "EN",
+    "menu": "Menu",
+    "themeLight": "Jasny",
+    "themeDark": "Ciemny"
   },
   "home": {
     "eyebrow": "JJDevHub",
@@ -19,7 +22,14 @@
     "coursesLead": "Dwie ścieżki — aplikacje mobilne i programowanie internetowe.",
     "notesTitle": "Ostatnie notatki",
     "notesLead": "Krótkie wpisy prowadzącego, powiązane z konkretnymi lekcjami.",
-    "viewAll": "Zobacz wszystkie"
+    "viewAll": "Zobacz wszystkie",
+    "stack": [
+      { "label": ".NET", "path": "courses/web", "accent": true },
+      { "label": "CQRS", "path": "courses/mobile" },
+      { "label": "PostgreSQL", "path": "https://www.postgresql.org/" },
+      { "label": "React", "path": "https://react.dev/" },
+      { "label": "React Native", "path": "courses/mobile" }
+    ]
   },
   "courses": {
     "title": "Wykłady",

@@ -1,7 +1,8 @@
 import { Link, Navigate, useLocation, useParams } from 'react-router';
 
 import { compendiumBySlug, localeFromPathname, siteFor } from '../../content/content';
-import './compendium-detail.scss';
+import { articleColumn } from '../../layout';
+import { ArticleBody } from '../ArticleBody';
 
 export function CompendiumDetailPage() {
   const { slug = '' } = useParams();
@@ -15,22 +16,16 @@ export function CompendiumDetailPage() {
   }
 
   return (
-    <article className="compendium-detail article">
-      <header className="article-head reveal">
-        <p className="eyebrow">
-          <Link to={`/${locale}/compendium`} aria-label={section.backLabel} viewTransition>
-            ←
+    <article className={articleColumn}>
+      <header className="flex flex-col gap-3">
+        <p>
+          <Link to={`/${locale}/compendium`} viewTransition className="text-small">
+            {section.backLabel}
           </Link>
         </p>
-        <h1>{term.term}</h1>
+        <h1 className="text-h2 font-semibold tracking-h2">{term.term}</h1>
       </header>
-      <div className="body reveal">
-        {term.definition.map((paragraph) => (
-          <p key={paragraph} className="list-enter">
-            {paragraph}
-          </p>
-        ))}
-      </div>
+      <ArticleBody paragraphs={term.definition} />
     </article>
   );
 }

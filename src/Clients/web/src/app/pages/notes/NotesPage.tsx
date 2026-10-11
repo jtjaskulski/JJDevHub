@@ -1,26 +1,43 @@
-import { Link, useLocation } from 'react-router';
+import { useLocation } from 'react-router';
+
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
 
 import { localeFromPathname, siteFor } from '../../content/content';
-import './notes.scss';
+import { listColumn } from '../../layout';
+import { ListRow } from '../ListRow';
+import { PageHeader } from '../PageHeader';
 
 export function NotesPage() {
   const { pathname } = useLocation();
   const locale = localeFromPathname(pathname);
   const section = siteFor(locale).notes;
 
+  if (section.items.length === 0) {
+    return (
+      <section className={listColumn}>
+        <PageHeader title={section.title} lead={section.lead} />
+        <Empty>
+          <EmptyHeader>
+            <EmptyTitle>{section.title}</EmptyTitle>
+            <EmptyDescription>{section.lead}</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </section>
+    );
+  }
+
   return (
-    <section className="notes-page page">
-      <header className="page-head reveal">
-        <h1>{section.title}</h1>
-        <p>{section.lead}</p>
-      </header>
-      <div className="grid">
+    <section className={listColumn}>
+      <PageHeader title={section.title} lead={section.lead} />
+      <div className="flex flex-col">
         {section.items.map((note) => (
-          <Link key={note.slug} className="tile list-enter" to={`/${locale}/notes/${note.slug}`} viewTransition>
-            <time dateTime={note.date}>{note.date}</time>
-            <h2>{note.title}</h2>
-            <p>{note.summary}</p>
-          </Link>
+          <ListRow
+            key={note.slug}
+            to={`/${locale}/notes/${note.slug}`}
+            title={note.title}
+            meta={note.date}
+            summary={note.summary}
+          />
         ))}
       </div>
     </section>
