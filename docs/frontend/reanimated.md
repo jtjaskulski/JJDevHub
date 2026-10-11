@@ -4,6 +4,8 @@ Jedno przesunięcie ciemnego hero o offset listy na ekranie home. Dotyczy wyłą
 
 ## Po co
 
+Skala imienia, odcinki postępu i droga klatki są w `tokens.hero` oraz `tokens.duration.heroPin`. Web czyta je w [motion/02-hero.md](motion/02-hero.md). Telefon, gdy powstanie ekran home, bierze te same pola. Nie dostaje drugiej tabeli `0.4` / `0.55` wpisanej w komponencie. Przesunięcie listy poniżej zostaje modelem telefonu: `contentOffset`, nie pin dokumentu.
+
 Na home telefonu hero i lista są rodzeństwem w jednym ekranie. Lista jest jedynym przewijanym widokiem. Jej `contentOffset.y` przesuwa hero w górę o tyle samo pikseli, ile użytkownik przewinął, aż hero zejdzie o własną wysokość.
 
 Gdy system prosi o ograniczenie ruchu, hero zostaje w miejscu spoczynku (`translateY` równe `0`). Lista nadal się przewija pod nim. Treść hero jest widoczna od pierwszego rysowania.

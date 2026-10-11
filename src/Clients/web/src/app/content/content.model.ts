@@ -9,6 +9,15 @@ export interface NavContent {
   language: string;
   languagePl: string;
   languageEn: string;
+  menu: string;
+  themeLight: string;
+  themeDark: string;
+}
+
+export interface StackLinkContent {
+  label: string;
+  path: string;
+  accent?: boolean;
 }
 
 export interface HomeContent {
@@ -22,6 +31,7 @@ export interface HomeContent {
   notesTitle: string;
   notesLead: string;
   viewAll: string;
+  stack: StackLinkContent[];
 }
 
 export interface LessonContent {

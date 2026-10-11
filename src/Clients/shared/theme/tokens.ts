@@ -3,18 +3,40 @@
  * No framework imports — plain values only.
  */
 
-export const tokens = {
-  color: {
-    canvas: '#f5f5f7',
-    white: '#ffffff',
-    ink: '#1d1d1f',
-    muted: '#6e6e73',
-    accent: '#0071e3',
-    darkChapter: {
-      background: '#000000',
-      foreground: '#f5f5f7',
-    },
+const lightPalette = {
+  canvas: '#f3efe6',
+  white: '#faf8f4',
+  ink: '#1a1814',
+  muted: '#6f675e',
+  accent: '#9a3412',
+  darkChapter: {
+    background: '#1a1814',
+    foreground: '#f3efe6',
   },
+} as const;
+
+const darkPalette = {
+  canvas: '#141210',
+  white: '#221f1b',
+  ink: '#f3efe6',
+  muted: '#a89f94',
+  accent: '#d4784a',
+  darkChapter: {
+    background: '#0c0b09',
+    foreground: '#f3efe6',
+  },
+} as const;
+
+export const colorSchemes = {
+  light: lightPalette,
+  dark: darkPalette,
+} as const;
+
+export type ColorScheme = keyof typeof colorSchemes;
+
+export const tokens = {
+  color: lightPalette,
+  scheme: colorSchemes,
 
   font: {
     family: 'Inter',
@@ -57,15 +79,30 @@ export const tokens = {
   },
 
   radius: {
-    sm: 8,
-    md: 12,
-    lg: 18,
-    card: 18,
+    sm: 4,
+    md: 8,
+    lg: 12,
+    card: 12,
     pill: 9999,
   },
 
   /**
-   * Milliseconds — reusable by CSS, GSAP, and RN Animated.
+   * Shared home-scene contract for Motion (web) and Reanimated (phone).
+   * Progress is 0–1 along the runway. The runway beyond one screen is `duration.heroPin * runway`.
+   */
+  hero: {
+    nameScale: 0.55,
+    runway: 2.5,
+    progress: {
+      name: [0, 0.4],
+      role: [0.15, 0.55],
+      first: [0.4, 0.75],
+      second: [0.6, 1],
+    },
+  },
+
+  /**
+   * Milliseconds — reusable by CSS, Motion, and RN Animated.
    */
   duration: {
     reveal: 700,
@@ -106,9 +143,11 @@ function cubicBezier(points: readonly [number, number, number, number]): string 
 /**
  * Flat map of CSS custom property names → values for documentElement.
  * Hex and scales live only in {@link tokens}; consumers read var(--…).
+ * `scheme` selects the palette. The property names stay the same in both modes.
  */
-export function cssCustomProperties(): Record<string, string> {
-  const { color, font, space, radius, duration, easing } = tokens;
+export function cssCustomProperties(scheme: ColorScheme = 'light'): Record<string, string> {
+  const color = tokens.scheme[scheme];
+  const { font, space, radius, duration, easing } = tokens;
 
   return {
     '--canvas': color.canvas,

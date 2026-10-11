@@ -8,6 +8,7 @@ import type {
   CvFile,
   CvLocaleContent,
   HomeContent,
+  StackLinkContent,
   LessonContent,
   LocaleCode,
   NavContent,
@@ -78,8 +79,27 @@ function optionalList<T>(value: unknown, guard: (item: unknown) => item is T): b
 function isNav(value: unknown): value is NavContent {
   return (
     isRecord(value) &&
-    hasStrings(value, ['home', 'cv', 'courses', 'compendium', 'notes', 'language', 'languagePl', 'languageEn'])
+    hasStrings(value, [
+      'home',
+      'cv',
+      'courses',
+      'compendium',
+      'notes',
+      'language',
+      'languagePl',
+      'languageEn',
+      'menu',
+      'themeLight',
+      'themeDark',
+    ])
   );
+}
+
+function isStackLink(value: unknown): value is StackLinkContent {
+  if (!isRecord(value) || !hasStrings(value, ['label', 'path'])) {
+    return false;
+  }
+  return value.accent === undefined || typeof value.accent === 'boolean';
 }
 
 function isHome(value: unknown): value is HomeContent {
@@ -96,7 +116,9 @@ function isHome(value: unknown): value is HomeContent {
       'notesTitle',
       'notesLead',
       'viewAll',
-    ])
+    ]) &&
+    Array.isArray(value.stack) &&
+    value.stack.every(isStackLink)
   );
 }
 

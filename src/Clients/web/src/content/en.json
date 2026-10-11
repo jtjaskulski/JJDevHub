@@ -7,7 +7,10 @@
     "notes": "Notes",
     "language": "Language",
     "languagePl": "PL",
-    "languageEn": "EN"
+    "languageEn": "EN",
+    "menu": "Menu",
+    "themeLight": "Light",
+    "themeDark": "Dark"
   },
   "home": {
     "eyebrow": "JJDevHub",
@@ -19,7 +22,14 @@
     "coursesLead": "Two tracks — mobile apps and web programming.",
     "notesTitle": "Latest notes",
     "notesLead": "Short instructor notes tied to specific lessons.",
-    "viewAll": "View all"
+    "viewAll": "View all",
+    "stack": [
+      { "label": ".NET", "path": "courses/web", "accent": true },
+      { "label": "CQRS", "path": "courses/mobile" },
+      { "label": "PostgreSQL", "path": "https://www.postgresql.org/" },
+      { "label": "React", "path": "https://react.dev/" },
+      { "label": "React Native", "path": "courses/mobile" }
+    ]
   },
   "courses": {
     "title": "Courses",

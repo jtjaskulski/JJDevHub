@@ -1,7 +1,8 @@
 import { Link, Navigate, useLocation, useParams } from 'react-router';
 
 import { localeFromPathname, noteBySlug, siteFor } from '../../content/content';
-import './note-detail.scss';
+import { articleColumn } from '../../layout';
+import { ArticleBody } from '../ArticleBody';
 
 export function NoteDetailPage() {
   const { slug = '' } = useParams();
@@ -15,24 +16,20 @@ export function NoteDetailPage() {
   }
 
   return (
-    <article className="note-page article">
-      <header className="article-head reveal">
-        <p className="eyebrow">
-          <Link to={`/${locale}/notes`} aria-label={section.backLabel} viewTransition>
-            ←
+    <article className={articleColumn}>
+      <header className="flex flex-col gap-3">
+        <p>
+          <Link to={`/${locale}/notes`} viewTransition className="text-small">
+            {section.backLabel}
           </Link>
         </p>
-        <time dateTime={note.date}>{note.date}</time>
-        <h1>{note.title}</h1>
-        <p className="summary">{note.summary}</p>
+        <time dateTime={note.date} className="text-caption tracking-caption text-muted">
+          {note.date}
+        </time>
+        <h1 className="text-h2 font-semibold tracking-h2">{note.title}</h1>
+        <p className="text-body text-muted">{note.summary}</p>
       </header>
-      <div className="body reveal">
-        {note.body.map((paragraph) => (
-          <p key={paragraph} className="list-enter">
-            {paragraph}
-          </p>
-        ))}
-      </div>
+      <ArticleBody paragraphs={note.body} />
     </article>
   );
 }

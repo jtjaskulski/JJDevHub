@@ -23,8 +23,8 @@ Motyw nie wybiera między Tailwindem v3 a v4. Web jest na Tailwind v4. Telefon m
 - Zależność weba: `"@jjdevhub/theme": "file:../shared/theme"` w [src/Clients/web/package.json](../../src/Clients/web/package.json).
 - Zależność telefonu: `"@jjdevhub/theme": "file:../../shared/theme"` w pakiecie `src/Clients/mobile/JJDevHubMobile`.
 - Wejście CSS weba: `src/Clients/web/src/styles.css` (`@import "tailwindcss"` i blok `@theme inline` z tego dokumentu).
-- Wstrzyknięcie zmiennych na webie: `cssCustomProperties()` na `document.documentElement` przed pierwszym malowaniem, wołane z [src/Clients/web/src/main.tsx](../../src/Clients/web/src/main.tsx).
-- Wstrzyknięcie na telefonie: ten sam rekord `cssCustomProperties()` na korzeniu drzewa przez `vars` NativeWind.
+- Wstrzyknięcie zmiennych na webie: `cssCustomProperties(scheme)` na `document.documentElement` przed pierwszym malowaniem, wołane z [src/Clients/web/src/main.tsx](../../src/Clients/web/src/main.tsx). `scheme` to `light` albo `dark`.
+- Wstrzyknięcie na telefonie: ten sam rekord na korzeniu drzewa przez `vars` NativeWind. Domyślnie `light`, dopóki telefon nie ma własnego przełącznika.
 - Konsumenci liczb w JS (bez zamiany na string): Motion importuje `tokens.duration` i `tokens.easing`. Reanimated importuje te same pola. Zachowanie ruchu jest w [motion/](motion/) i [reanimated.md](reanimated.md).
 
 Publiczny kontrakt modułu to trzy nazwy:
@@ -32,14 +32,17 @@ Publiczny kontrakt modułu to trzy nazwy:
 ```ts
 export const tokens: Tokens;
 export type Tokens = typeof tokens;
-export function cssCustomProperties(): Record<string, string>;
+export type ColorScheme = 'light' | 'dark';
+export function cssCustomProperties(scheme?: ColorScheme): Record<string, string>;
 ```
 
-`tokens` jest `as const`. Funkcje `px`, `em`, `ms` i `cubicBezier` zostają prywatne w tym pliku. Jednostkę dokleja wyłącznie `cssCustomProperties()`.
+`tokens` jest `as const`. `tokens.color` to paleta jasna. `tokens.scheme.light` i `tokens.scheme.dark` mają te same klucze. Funkcje `px`, `em`, `ms` i `cubicBezier` zostają prywatne w tym pliku. Jednostkę dokleja wyłącznie `cssCustomProperties()`. Nazwy właściwości CSS są takie same w obu trybach. Zmienia się tylko heks koloru.
 
 ## Kontrakt obiektu
 
-Zmiana liczby odbywa się w obiekcie `tokens`. `cssCustomProperties()` czyta pola tego obiektu i dokleja jednostkę. Blok `@theme inline` dopisuje jedną linię `var(--…)`. Literał nie pojawia się w CSS ani w konfiguracji NativeWind.
+`cssCustomProperties(scheme)` czyta `tokens.scheme[scheme]` (domyślnie `light`) i dokleja jednostkę do reszty pól. Blok `@theme inline` dopisuje jedną linię `var(--…)`. Literał nie pojawia się w CSS ani w konfiguracji NativeWind. Drugi tryb nie jest klasą `.dark` ani drugim zestawem klas `dark:`.
+
+Na webie wybór trybu: zapis `jjdevhub.theme` w `localStorage`, a gdy go nie ma — `prefers-color-scheme`. Przełącznik w shellu zapisuje wybór i woła `cssCustomProperties` jeszcze raz, oraz ustawia `color-scheme` na `documentElement`.
 
 Reguły jednostek serializera:
 
@@ -51,21 +54,23 @@ Reguły jednostek serializera:
 | `easing.*` | krotka `[x1, y1, x2, y2]` | `` `cubic-bezier(${x1}, ${y1}, ${x2}, ${y2})` `` |
 | `color.*`, `font.family` | string | ten sam string |
 
-`color.darkChapter.foreground` i `color.canvas` mają dziś ten sam heks `#f5f5f7`. To dwa pola. Zmiana jednego nie zmienia drugiego. `radius.card` i `radius.lg` mają dziś `18`. To dwa klucze: `card` jest promieniem karty, `lg` stopniem skali.
+Pola `darkChapter` i `canvas` są osobne w każdym trybie. Zmiana jednego nie zmienia drugiego. `radius.card` i `radius.lg` mają dziś `12`. To dwa klucze: `card` jest promieniem karty, `lg` stopniem skali.
 
 ### `color`
 
-| Ścieżka | Wartość | Właściwość CSS | Klasa |
-| --- | --- | --- | --- |
-| `color.canvas` | `#f5f5f7` | `--canvas` | `bg-canvas`, `text-canvas` |
-| `color.white` | `#ffffff` | `--white` | `bg-white`, `text-white` |
-| `color.ink` | `#1d1d1f` | `--ink` | `bg-ink`, `text-ink` |
-| `color.muted` | `#6e6e73` | `--muted` | `text-muted`, `bg-muted` |
-| `color.accent` | `#0071e3` | `--accent` | `bg-accent`, `text-accent` |
-| `color.darkChapter.background` | `#000000` | `--dark-chapter-bg` | `bg-dark-chapter` |
-| `color.darkChapter.foreground` | `#f5f5f7` | `--dark-chapter-fg` | `text-dark-chapter-fg` |
+Klucze są te same w `scheme.light` i `scheme.dark`. Właściwości CSS i klasy też.
 
-Przestrzeń koloru Tailwinda po resecie `--color-*: initial` zawiera tylko te siedem nazw. `bg-black` nie jest nazwą hero. Hero używa `bg-dark-chapter`. `bg-blue-600`, `bg-zinc-100`, `text-slate-500` i reszta domyślnej palety nie są tokenami JJDevHub.
+| Ścieżka | Jasny | Ciemny | Właściwość CSS | Klasa |
+| --- | --- | --- | --- | --- |
+| `canvas` | `#f3efe6` | `#141210` | `--canvas` | `bg-canvas`, `text-canvas` |
+| `white` | `#faf8f4` | `#221f1b` | `--white` | `bg-white`, `text-white` |
+| `ink` | `#1a1814` | `#f3efe6` | `--ink` | `bg-ink`, `text-ink` |
+| `muted` | `#6f675e` | `#a89f94` | `--muted` | `text-muted`, `bg-muted` |
+| `accent` | `#9a3412` | `#d4784a` | `--accent` | `bg-accent`, `text-accent` |
+| `darkChapter.background` | `#1a1814` | `#0c0b09` | `--dark-chapter-bg` | `bg-dark-chapter` |
+| `darkChapter.foreground` | `#f3efe6` | `#f3efe6` | `--dark-chapter-fg` | `text-dark-chapter-fg` |
+
+Jasny jest domyślny: ciepłe płótno, atrament, akcent z palonej gliny. Ciemny nie jest odwróceniem jeden do jednego — akcent jest jaśniejszy, żeby został czytelny, a pas mastheadu jest o stopień ciemniejszy od płótna. Przestrzeń koloru Tailwinda po resecie `--color-*: initial` nie zawiera domyślnej palety. `bg-black` nie jest nazwą mastheadu. Masthead używa `bg-dark-chapter`.
 
 ### `font`
 
@@ -111,13 +116,13 @@ Ta sama liczba stoi za paddingiem, marginesem, `gap`, `w-*` i `h-*` danego klucz
 
 | Klucz | px | Właściwość CSS | Klasa |
 | --- | --- | --- | --- |
-| `sm` | 8 | `--radius-sm` | `rounded-sm` |
-| `md` | 12 | `--radius-md` | `rounded-md` |
-| `lg` | 18 | `--radius-lg` | `rounded-lg` |
-| `card` | 18 | `--radius-card` | `rounded-card` |
+| `sm` | 4 | `--radius-sm` | `rounded-sm` |
+| `md` | 8 | `--radius-md` | `rounded-md` |
+| `lg` | 12 | `--radius-lg` | `rounded-lg` |
+| `card` | 12 | `--radius-card` | `rounded-card` |
 | `pill` | 9999 | `--radius-pill` | `rounded-pill` |
 
-Domyślne `rounded-sm` Tailwinda to `0.25rem` (4px), a token `sm` to 8px. Domyślne `rounded-lg` to `0.5rem` (8px), a token `lg` to 18px. Reset `--radius-*: initial` zostawia pięć klas z tabeli. Kapsuła to `rounded-pill` (`9999px` ze serializera).
+Domyślne `rounded-sm` Tailwinda to `0.25rem` (4px) i po resecie pokrywa się z tokenem `sm`. Domyślne `rounded-lg` to `0.5rem` (8px), a token `lg` to 12px. Reset `--radius-*: initial` zostawia klasy z tabeli. Kapsuła to `rounded-pill` (`9999px` ze serializera).
 
 ### `duration`
 
@@ -309,11 +314,13 @@ Brak trafień znaczy, że komponenty mapują kontrakt, a nie kopiują paletę.
 
 ### Jasna strona
 
-Tło strony to `bg-canvas` (`#f5f5f7`). Tekst to `text-ink` (`#1d1d1f`) i `font-sans`. Drugi plan (podpis, meta) to `text-muted` (`#6e6e73`). Karta leży na bieli: `bg-white`, `rounded-card` (18px), oddech z górnych kluczy skali (`p-7` = 48px, `gap-8` = 64px). Rozmiar akapitu to `text-body` (17px) z `tracking-body` (-0.014em). Obrysu w tokenach nie ma: kartę odcina biel od płótna i promień `card`.
+Tło strony to `bg-canvas`. Tekst to `text-ink` i `font-sans`. Drugi plan to `text-muted`. Karta leży na bieli: `bg-white`, `rounded-card`. Rozmiar akapitu to `text-body` z `tracking-body`.
 
-### Ciemny hero
+### Masthead i tryb
 
-Hero na home używa pary `darkChapter`, nie osobnego trybu całej aplikacji. Tło: `bg-dark-chapter` (`#000000`). Tekst i drugi plan na hero: `text-dark-chapter-fg` (`#f5f5f7`, pole `color.darkChapter.foreground`). Tytuł: `text-display` (80px) i `tracking-display` (-0.015em). Akcent na hero zostaje `bg-accent` / `text-accent` (`#0071e3`). Czas wejścia i przypięcia czyta `tokens.duration.reveal` (700), `tokens.duration.heroFade` (600), `tokens.duration.heroPin` (1200) oraz `tokens.easing.hero`. Jeden scroll home opisuje [motion/02-hero.md](motion/02-hero.md); przesunięcie na liście telefonu opisuje [reanimated.md](reanimated.md).
+Masthead home używa pary `darkChapter` w obu trybach. Tło: `bg-dark-chapter`. Tekst: `text-dark-chapter-fg`. Klatka jest przypięta na czas jednego przewinięcia. Skala imienia, odcinki postępu i droga są w `tokens.hero` oraz `tokens.duration.heroPin`. Scenę opisuje [motion/02-hero.md](motion/02-hero.md).
+
+Cała strona przełącza jasny i ciemny przez podmianę zmiennych, nie przez klasę `.dark`. Akcent w ciemnym jest jaśniejszy (`#d4784a`), w jasnym zostaje `#9a3412`.
 
 ### Ten sam akcent na webie i telefonie
 
@@ -333,15 +340,15 @@ Telefon (osobny ekran, ta sama klasa):
 </Pressable>
 ```
 
-Oba wskazują `--accent` → `tokens.color.accent`. Telefon nie dostaje innego niebieskiego. Gdy styl musi być obiektem (Reanimated, `style`), źródłem jest `tokens.color.accent`, nie string wpisany w komponencie.
+Oba wskazują `--accent` → kolor akcentu aktywnego trybu. Telefon, dopóki nie ma przełącznika, czyta zestaw jasny. Gdy styl musi być obiektem (Reanimated, `style`), źródłem jest `tokens.scheme[scheme].accent`, nie string wpisany w komponencie.
 
 ## Zasady wyglądu
 
-- Płótno `#f5f5f7`, atrament `#1d1d1f`, akcent `#0071e3`, biel `#ffffff`, muted `#6e6e73`, krój `Inter`.
-- Duży oddech: sekcje i hero biorą `space` od `7` w górę (48, 64, 80, 96, 128, 160). Gęsty rząd w komponencie bierze `1`–`6`.
-- Mało ramek: w `tokens` nie ma koloru obrysu ani cienia. Separacja to płótno, biel, atrament i promień.
-- Ciemny jest hero (`darkChapter`), reszta stron zostaje na `canvas` / `ink`.
-- Karta używa `rounded-card`. Skala `sm` / `md` / `lg` zostaje dla kontrolek. Wspólne 18px nie łączy kluczy `card` i `lg` w jeden.
+- Jasny: płótno `#f3efe6`, atrament `#1a1814`, akcent `#9a3412`, biel `#faf8f4`, muted `#6f675e`. Ciemny: płótno `#141210`, atrament `#f3efe6`, akcent `#d4784a`, biel kart `#221f1b`, muted `#a89f94`. Krój `Inter`.
+- Strony biorą mniejsze klucze skali. Gęsty rząd w komponencie bierze `1`–`6`.
+- Mało ramek: separacja to płótno, biel, atrament i cienka kreska `border-ink` z alfą.
+- Masthead home używa `darkChapter`. Reszta strony jedzie na `canvas` / `ink` aktywnego trybu. Przełącznik w shellu podmienia cały zestaw.
+- Karta używa `rounded-card` (12). Skala `sm` / `md` / `lg` zostaje dla kontrolek. Wspólne 12px nie łączy kluczy `card` i `lg` w jeden.
 - Rozmiar i tracking idą w parze o tym samym kluczu (`text-h2` z `tracking-h2`).
 - Jeden akcent na obu klientach. Intranet, gdy wejdzie do tego samego klienta, używa `bg-accent` i reszty tej mapy.
 
@@ -364,6 +371,6 @@ Oba wskazują `--accent` → `tokens.color.accent`. Telefon nie dostaje innego n
 - Każde pole `tokens` ma w tym pliku ścieżkę, wartość, jednostkę, nazwę z `cssCustomProperties()`, linię `@theme inline` i klasę.
 - `styles.css` weba i CSS NativeWind zawierają blok `@theme inline` z samymi `var(--…)` oraz resetami `initial` wymienionymi wyżej.
 - `documentElement` (web) i `vars(cssCustomProperties())` (telefon) ustawiają właściwości, zanim UI się maluje.
-- `p-5` to 24px, `text-body` to 17px, `rounded-lg` to 18px, `bg-accent` to `#0071e3` na obu klientach.
-- Heksy palety występują w `src/Clients/shared/theme/tokens.ts`. Komponenty używają klas z tabel albo pól `tokens` w JS.
-- Jasna strona, ciemny hero i przycisk akcentu na telefonie dają się złożyć z klas tego kontraktu, bez `bg-[#…]` i bez osobnego obiektu kolorów.
+- `p-5` to 24px, `text-body` to 17px, `rounded-lg` to 12px, `bg-accent` to `#9a3412` w jasnym i `#d4784a` w ciemnym.
+- Heksy palety występują w `src/Clients/shared/theme/tokens.ts`. Komponenty używają klas z tabel albo pól `tokens` w JS. Nie ma klasy `dark:` ani bloku `.dark` z `oklch`.
+- Jasna strona, ciemny tryb, masthead i przycisk akcentu dają się złożyć z klas tego kontraktu, bez `bg-[#…]` i bez osobnego obiektu kolorów w komponencie.

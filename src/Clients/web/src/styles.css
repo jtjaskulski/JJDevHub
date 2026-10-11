@@ -1,0 +1,116 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@theme inline {
+  --color-*: initial;
+  --color-canvas: var(--canvas);
+  --color-white: var(--white);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-dark-chapter: var(--dark-chapter-bg);
+  --color-dark-chapter-fg: var(--dark-chapter-fg);
+
+  --color-background: var(--canvas);
+  --color-foreground: var(--ink);
+  --color-card: var(--white);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--white);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--white);
+  --color-secondary: var(--canvas);
+  --color-secondary-foreground: var(--ink);
+  --color-muted-foreground: var(--muted);
+  --color-accent-foreground: var(--ink);
+  --color-destructive: var(--ink);
+  --color-destructive-foreground: var(--white);
+  --color-border: var(--ink);
+  --color-input: var(--ink);
+  --color-ring: var(--accent);
+
+  --font-sans: "Inter Variable", var(--font-family), sans-serif;
+
+  --text-*: initial;
+  --text-display: var(--font-display);
+  --text-h1: var(--font-h1);
+  --text-h2: var(--font-h2);
+  --text-h3: var(--font-h3);
+  --text-h4: var(--font-h4);
+  --text-body: var(--font-body);
+  --text-small: var(--font-small);
+  --text-caption: var(--font-caption);
+
+  --tracking-*: initial;
+  --tracking-display: var(--tracking-display);
+  --tracking-h1: var(--tracking-h1);
+  --tracking-h2: var(--tracking-h2);
+  --tracking-h3: var(--tracking-h3);
+  --tracking-h4: var(--tracking-h4);
+  --tracking-body: var(--tracking-body);
+  --tracking-small: var(--tracking-small);
+  --tracking-caption: var(--tracking-caption);
+
+  --spacing: initial;
+  --spacing-0: 0px;
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-7: var(--space-7);
+  --spacing-8: var(--space-8);
+  --spacing-9: var(--space-9);
+  --spacing-10: var(--space-10);
+  --spacing-11: var(--space-11);
+  --spacing-12: var(--space-12);
+
+  --radius-*: initial;
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-card: var(--radius-card);
+  --radius-pill: var(--radius-pill);
+  --radius-xl: var(--radius-card);
+  --radius-2xl: var(--radius-card);
+  --radius-3xl: var(--radius-card);
+  --radius-4xl: var(--radius-card);
+
+  --ease-*: initial;
+  --ease-reveal: var(--easing-reveal);
+  --ease-hero: var(--easing-hero);
+  --ease-standard: var(--easing-standard);
+
+  --transition-duration-*: initial;
+  --transition-duration-reveal: var(--duration-reveal);
+  --transition-duration-reveal-fast: var(--duration-reveal-fast);
+  --transition-duration-hero-pin: var(--duration-hero-pin);
+  --transition-duration-hero-fade: var(--duration-hero-fade);
+  --transition-duration-nav: var(--duration-nav);
+}
+
+@layer base {
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: "Inter Variable", var(--font-family), system-ui, sans-serif;
+    font-size: var(--font-body);
+    letter-spacing: var(--tracking-body);
+    line-height: 1.47;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a {
+    color: var(--accent);
+    text-decoration-thickness: 0.06em;
+    text-underline-offset: 0.18em;
+  }
+
+  a:hover {
+    text-decoration: none;
+  }
+}
