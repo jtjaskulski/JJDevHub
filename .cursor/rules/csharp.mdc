@@ -22,14 +22,14 @@ Typ i metoda robią jedną rzecz. Czytelnik nie schodzi w zagnieżdżenie.
 - Test ma jeden powód do padnięcia: arrange, act, assert.
 
 ```csharp
-static async Task<IResult> GetNote(Guid id, AppDb db, CancellationToken ct)
+static async Task<IResult> GetNews(Guid id, AppDb db, CancellationToken ct)
 {
-    var note = await db.Notes.FindAsync([id], ct);
-    if (note is not { Published: true })
+    var news = await db.News.FindAsync([id], ct);
+    if (news is not { Published: true })
     {
         return Results.NotFound();
     }
 
-    return Results.Ok(note);
+    return Results.Ok(news);
 }
 ```

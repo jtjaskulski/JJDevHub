@@ -1,0 +1,19 @@
+---
+description: Jak pisać dokumenty API (DDD, event sourcing, CQRS, mikroserwisy)
+globs: docs/api/**/*.md
+alwaysApply: false
+---
+
+# Dokumenty API
+
+Specyfikacja: [docs/api/README.md](../../docs/api/README.md). Obraz całości: [docs/api/architektura.md](../../docs/api/architektura.md).
+
+- Pisz po polsku. Jeden numer (`01`–`18`) na sesję — nie łącz kroków przy generowaniu kodu.
+- Każdy numer ma sekcje w tej kolejności: wstęp, `## Po co`, `## Klasy i ścieżki`, `## Tutorial` (kroki `### 1.` … i na końcu `### Co jest do czego`), `## Testy`, `## Zasady`, `## Poza zakresem`, `## Źródła`, `## Gotowe gdy`.
+- Klasy nazywaj jak w słowniku README. `Result<T>` jest jeden, w `JJDevHub.Domain`.
+- Dozwolone pakiety spoza platformy: `Npgsql.EntityFrameworkCore.PostgreSQL`, `Confluent.Kafka`, `Aspire.*`, `Microsoft.Extensions.*` (abstrakcje, DI, hosting, service discovery, resilience), `Yarp.ReverseProxy`, `OpenTelemetry.*`, `Testcontainers.*`, `xunit`. Nowa wersja trafia do `Directory.Packages.props`.
+- Nie dodawaj Ardalis, Marten, EventFlow, Eventuous, MediatR, MassTransit, Wolverine ani FluentValidation. Mediator, rejestr zdarzeń i outbox są nasze.
+- Każda usługa ma własną bazę albo parę baz (`news_write`, `news_read`, `identity`, `users`). Usługa nie czyta cudzej bazy. Między usługami idzie zdarzenie integracyjne przez Kafkę.
+- Typ zdarzenia w bazie i na szynie to stabilna nazwa z `[EventName]` (`news.created.v1`), nigdy nazwa CLR.
+- Event sourcing tylko w usłudze News (agregat `Article`). Pozostałe usługi to zwykłe EF.
+- Agregat nie nazywa się jak segment namespace'u (`News` w `JJDevHub.News.*` daje CS0118).
