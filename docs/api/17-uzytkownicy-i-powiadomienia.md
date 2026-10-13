@@ -10,6 +10,33 @@ Users to świadomie zwykły CRUD na EF, bez event sourcingu. eShop robi tak z `C
 
 Kontrakt integracyjny to API między zespołami, nawet jeśli zespół jest jeden. Zmiana pola w `UserRegisteredIntegrationEvent` łamie Users bez błędu kompilacji, jeśli Users ma starą wersję paczki. Test snapshotu łapie taką zmianę w PR.
 
+## Dlaczego ta technologia
+
+### Users jako CRUD na EF bez event sourcingu
+
+Profil ma nazwę wyświetlaną i e-mail. Nikt nie zapyta „jak brzmiała nazwa użytkownika trzy zmiany temu”. Event sourcing dałby tu dwa modele, projekcję i ostateczną spójność bez żadnej korzyści. Encja `User` z value objectami `Email` i `DisplayName`, zapisywana przez EF, to DDD bez event sourcingu: reguły są w domenie, stan w tabeli. Jeden projekt zamiast czterech warstw, bo logiki jest mało. eShop robi tak z `Catalog.API`. Ten numer pokazuje, że wybór stylu jest per usługa, a nie per system.
+
+### Users jako osobna usługa od Identity
+
+Identity odpowiada za uwierzytelnienie: hasło, token, blokady. Users za to, kim jest osoba w systemie: nazwa, preferencje, w przyszłości avatar i bio. Gdyby profil leżał w `AspNetUsers`, każda zmiana profilu dotykałaby usługi bezpieczeństwa, a wymiana Identity na Keycloak albo OpenIddict wymagałaby migracji profilu. Rozdzielenie kosztuje ostateczną spójność: przez ułamek sekundy po rejestracji profilu jeszcze nie ma (`404`), a test E2E ponawia odczyt.
+
+### Notifications jako worker z samymi ścieżkami technicznymi
+
+Powiadomienia reagują na zdarzenia i nikt ich nie wywołuje. Logika to handlery i `BackgroundService`, bez endpointów biznesowych. Proces potrzebuje jednak HTTP do dwóch rzeczy: Prometheus ściąga `/metrics` ([docs/CICD/07-prometheus.md](../CICD/07-prometheus.md)), a Compose i Aspire sprawdzają `/health`. Czysty szablon `worker` (`Host.CreateApplicationBuilder`) nie ma Kestrela, więc `MapDefaultEndpoints` i `MapPrometheusScrapingEndpoint` nie miałyby gdzie działać. Dlatego worker startuje z `WebApplication.CreateSlimBuilder`: Kestrel bez MVC, routingu kontrolerów i plików statycznych, z trzema ścieżkami technicznymi. Alternatywa to wypychanie metryk przez OTLP do kolektora, ale na VM kolektora nie ma, a Jaeger metryk nie przyjmuje.
+
+### `INotificationSender` z implementacją logującą
+
+Prawdziwy e-mail wymaga dostawcy (SMTP, Cloudflare Email, SendGrid), sekretów i domeny z DKIM. To osobna decyzja. Interfejs z implementacją, która tylko loguje, pozwala zbudować i przetestować cały przepływ (zdarzenie → inbox → wysyłka → `SentNotifications`) bez dostawcy. Podmiana to jedna rejestracja w DI.
+
+### Testy kontraktów jako snapshoty JSON
+
+Zdarzenie integracyjne to publiczne API usługi. Zmiana nazwy pola w `UserRegisteredIntegrationEvent` łamie Users i Notifications, a kompilator tego nie zobaczy, bo każda usługa deserializuje JSON. Test serializuje przykładowe zdarzenie i porównuje z zatwierdzonym plikiem `Snapshots/{nazwa}.json`. Zmiana kształtu jest widoczna w PR jako zmiana pliku.
+
+Alternatywy:
+
+- **Pact** (PactNet, MIT) — kontrakty sterowane przez konsumenta, z brokerem kontraktów. Potężne przy wielu zespołach. Przy jednym repo i jednym autorze broker to zbędny serwer.
+- **Verify** (MIT) — biblioteka snapshotów z narzędziami do porównywania i zatwierdzania. Dozwolona i wygodniejsza przy wielu snapshotach. Przy kilku plikach `File.ReadAllText` i porównanie stringów wystarcza, a przejście na Verify to zamiana jednej metody pomocniczej.
+
 ## Klasy i ścieżki
 
 | Plik | Odpowiedzialność |
@@ -21,7 +48,7 @@ Kontrakt integracyjny to API między zespołami, nawet jeśli zespół jest jede
 | `src/services/Users/Users.API/Data/UsersContext.cs` | baza `users`, `ApplyIntegrationEventLog` |
 | `src/services/Users/Users.API/IntegrationEvents/UserRegisteredHandler.cs` | upsert profilu |
 | `src/services/Users/Users.API/Apis/UserEndpoints.cs` | `GET` i `PUT /api/users/me` |
-| `src/services/Notifications/Notifications.Worker/Notifications.Worker.csproj` | Worker SDK, ServiceDefaults, oba `*.Contracts` |
+| `src/services/Notifications/Notifications.Worker/Notifications.Worker.csproj` | Web SDK (Kestrel tylko na ścieżki techniczne), ServiceDefaults, oba `*.Contracts` |
 | `src/services/Notifications/Notifications.Worker/Data/NotificationsContext.cs` | baza `notifications` |
 | `src/services/Notifications/Notifications.Worker/Data/SentNotification.cs` | ślad wysyłki |
 | `src/services/Notifications/Notifications.Worker/Sending/INotificationSender.cs` | port wysyłki |
@@ -31,13 +58,13 @@ Kontrakt integracyjny to API między zespołami, nawet jeśli zespół jest jede
 | `tests/Users.API.Tests/`, `tests/Notifications.Worker.Tests/` | konsumpcja i idempotencja |
 | `tests/JJDevHub.Contracts.Tests/` | snapshoty kontraktów |
 
-## Tutorial
+## Plan
 
 ### 1. Projekty
 
 ```bash
 dotnet new web -n Users.API -o src/services/Users/Users.API -f net11.0
-dotnet new worker -n Notifications.Worker -o src/services/Notifications/Notifications.Worker -f net11.0
+dotnet new web -n Notifications.Worker -o src/services/Notifications/Notifications.Worker -f net11.0
 dotnet new xunit -n Users.API.Tests -o tests/Users.API.Tests -f net11.0
 dotnet new xunit -n Notifications.Worker.Tests -o tests/Notifications.Worker.Tests -f net11.0
 dotnet new xunit -n JJDevHub.Contracts.Tests -o tests/JJDevHub.Contracts.Tests -f net11.0
@@ -91,7 +118,7 @@ Usługa jest mała, więc endpoint woła `UsersContext` wprost, bez mediatora. T
 ```csharp
 builder.AddServiceDefaults();
 builder.AddDefaultAuthentication();
-builder.AddNpgsqlDbContext<UsersContext>(ResourceNames.Users);
+builder.AddNpgsqlDbContext<UsersContext>(ResourceNames.Users, s => s.DisableRetry = true);
 builder.Services
     .AddIntegrationEventLog<UsersContext>(
         typeof(UserRegisteredIntegrationEvent).Assembly,
@@ -128,7 +155,7 @@ Handlery:
 
 Kolejność jest celowa: najpierw wysyłka, potem zapis w tej samej transakcji co inbox. Awaria po wysyłce, a przed commitem, wyśle powiadomienie drugi raz. Dla powiadomienia to akceptowalne. Odwrotna kolejność mogłaby je zgubić.
 
-Skład w `Program.cs` workera: `Host.CreateApplicationBuilder`, `AddServiceDefaults`, `AddNpgsqlDbContext<NotificationsContext>`, `AddIntegrationEventLog` z oboma zestawami kontraktów i `PublishOutbox = false`, `AddKafkaConsumer` z grupą `notifications` i tematami `identity.integration` oraz `news.integration`.
+Skład w `Program.cs` workera: `WebApplication.CreateSlimBuilder(args)`, `AddServiceDefaults`, `AddNpgsqlDbContext<NotificationsContext>` z `DisableRetry = true` (powód w [14-aspire.md](14-aspire.md)), `AddIntegrationEventLog` z oboma zestawami kontraktów i `PublishOutbox = false`, `AddKafkaConsumer` z grupą `notifications` i tematami `identity.integration` oraz `news.integration`. Po `Build()` tylko `app.MapDefaultEndpoints()`: `/health`, `/alive`, `/metrics`. Innych tras worker nie ma.
 
 ### 8. Kontrakty pod testem
 
@@ -164,7 +191,7 @@ builder.AddProject<Projects.Notifications_Worker>(ResourceNames.NotificationsWor
 - `User` — encja z regułami w value objectach, zapisywana przez EF. Przykład DDD bez event sourcingu.
 - `UserRegisteredHandler` — tłumaczy fakt z Identity na profil. Upsert plus inbox dają dwie warstwy idempotencji.
 - `GET /api/users/me` — profil zalogowanego. `404` tuż po rejestracji to normalny stan przejściowy.
-- `Notifications.Worker` — usługa bez HTTP i bez publikacji. Tylko reaguje.
+- `Notifications.Worker` — usługa bez endpointów biznesowych i bez publikacji. Tylko reaguje. HTTP ma wyłącznie dla zdrowia i metryk.
 - `INotificationSender` — port kanału. Log dziś, e-mail jutro, bez zmiany handlerów.
 - `SentNotification` — ślad, co i komu wysłano. Pomaga przy reklamacji „nie dostałem”.
 - `JJDevHub.Contracts.Tests` — strażnik kontraktów między usługami.

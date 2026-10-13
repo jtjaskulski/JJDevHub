@@ -8,6 +8,34 @@ CQRS rozdziela model zapisu od modelu odczytu, żeby każdy dało się ustawić 
 
 Wcześniejsza wersja tej specyfikacji wołała projekcję synchronicznie po `SaveAsync`, z checkpointem na każdy strumień. Miało to dwie wady. Awaria po commicie zapisu zostawiała widok w tyle, a nikt nie ponawiał. Do tego worker nie miał jak dowiedzieć się o nowych strumieniach bez listy id. Teraz worker w tle czyta wszystkie zdarzenia po `Position` i pamięta jedną liczbę na projekcję. Awaria oznacza tylko, że następne przejście zacznie od tego samego miejsca.
 
+## Dlaczego ta technologia
+
+### Osobna baza odczytu
+
+Widok mógłby leżeć w tej samej bazie co strumień, w drugiej tabeli. Działałoby i byłoby prostsze. Osobna baza `news_read` wymusza dyscyplinę: handler komendy fizycznie nie może czytać widoku, a zapytanie nie może zajrzeć do strumienia. Widok da się też w każdej chwili skasować i odbudować od zera (`DROP DATABASE`, checkpoint 0), bez dotykania danych źródłowych. Koszt to druga baza, druga migracja i drugi connection string. Na jednym serwerze Postgres to tylko nazwa, nie osobny proces.
+
+### Projekcja asynchroniczna w tle zamiast w transakcji zapisu
+
+Projekcja w tej samej transakcji co zapis (inline) daje widok spójny natychmiast. Ale wtedy każdy nowy widok spowalnia każdy zapis, błąd w projekcji wywraca zapis artykułu, a odbudowa widoku od zera wymaga osobnego kodu. Projekcja w tle jest ostatecznie spójna (widok spóźnia się o ułamek sekundy), za to zapis jest niezależny od widoków, a odbudowa to ten sam kod od checkpointu 0. Marten oferuje oba tryby i zaleca asynchroniczny dla widoków przekrojowych. Spóźnienie widoku opisuje [architektura.md](architektura.md): klient po `201` ponawia odczyt.
+
+### Checkpoint na projekcję po globalnej `Position`
+
+Checkpoint per strumień wymagał listy wszystkich strumieni, a nowy artykuł nie był widoczny dla workera. Jedna liczba na projekcję („przetworzyłam wszystko do pozycji 1500”) wystarcza, bo `Position` rośnie w kolejności commitów (advisory lock z [06-postgres.md](06-postgres.md)). Nowa projekcja zaczyna od 0 i dogania historię sama.
+
+### Odpytywanie (polling) zamiast powiadomień
+
+Worker co chwilę pyta „czy jest coś po mojej pozycji”. Alternatywy:
+
+- `LISTEN/NOTIFY` w Postgresie — natychmiastowe, ale powiadomienie ginie, gdy worker jest wyłączony, więc i tak potrzebny jest polling jako zapas,
+- Kafka między zapisem a projekcją — projekcja byłaby konsumentem tematu, ale wtedy outbox musiałby publikować zdarzenia domenowe na zewnątrz, a to łamie granicę „zdarzenie domenowe nie opuszcza usługi”,
+- logiczna replikacja Postgresa (CDC, Debezium) — potężna i ciężka na jedną VM.
+
+Polling z krótkim interwałem i pobieraniem paczkami jest prosty, odporny na restart i wystarczający przy ruchu bloga. `BackgroundService` z `Microsoft.Extensions.Hosting` jest standardowym hostem pętli w .NET.
+
+### Idempotentny upsert
+
+Widok i checkpoint zapisują się jednym `SaveChangesAsync`, więc awaria w środku paczki niczego nie zostawia w połowie. To samo zdarzenie może jednak trafić do projekcji drugi raz: dwie repliki usługi uruchomią dwa workery, a ręczne cofnięcie checkpointu przepuści historię ponownie. Dlatego projekcja zapisuje widok tylko wtedy, gdy wersja zdarzenia jest wyższa niż wersja w wierszu. Drugie przetworzenie niczego nie zmienia. Idempotencja jest zasadą, nie optymalizacją.
+
 ## Klasy i ścieżki
 
 | Plik | Odpowiedzialność |
@@ -27,7 +55,7 @@ Wcześniejsza wersja tej specyfikacji wołała projekcję synchronicznie po `Sav
 | `src/services/News/News.Infrastructure/NewsReadServiceCollectionExtensions.cs` | `AddNewsRead(connectionString)` |
 | `tests/News.Infrastructure.Tests/ArticleSummaryProjectionTests.cs` | dwie bazy w jednym kontenerze |
 
-## Tutorial
+## Plan
 
 ### 1. Projekt
 

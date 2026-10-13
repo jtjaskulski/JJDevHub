@@ -8,6 +8,36 @@ Dwa równoległe zapisy tej samej wersji mają zwrócić `ResultError.Conflict`.
 
 Drugi licznik, `Position`, jest globalny dla całego magazynu. `Version` mówi „który to fakt tego artykułu”. `Position` mówi „który to fakt w ogóle”. Projekcja z [10-projekcja.md](10-projekcja.md) czyta po `Position`, żeby jednym checkpointem obsłużyć wszystkie strumienie.
 
+## Dlaczego ta technologia
+
+### Event sourcing w News
+
+Zwykła tabela `Articles` trzyma tylko stan teraz. Kto zmienił tytuł, kiedy, jak brzmiał wczoraj, nie wiadomo bez osobnej tabeli audytu, którą trzeba pamiętać uzupełniać. W event sourcingu źródłem prawdy jest lista faktów (`ArticleCreated`, `ArticleRevised`), a stan jest liczony. Historia rewizji, audyt i „jak artykuł wyglądał w wersji 3” są za darmo. Nowy widok (np. lista artykułów autora) da się zbudować wstecz, przechodząc wszystkie zdarzenia od początku.
+
+Koszt jest realny: dwa modele (zapis i odczyt), ostateczna spójność odczytu, wersjonowanie zdarzeń, więcej kodu. Dlatego event sourcing jest tylko w News, gdzie artykuł ma naturalną historię. Users i Notifications to zwykłe EF, tak jak `Catalog` w eShop.
+
+### Wersja w strumieniu i globalna pozycja
+
+`Version` mówi, które to zdarzenie w historii jednego artykułu (1, 2, 3…). Służy optymistycznej współbieżności: „dopisz, jeśli strumień ma nadal wersję 2”. `Position` to numer zdarzenia w całym magazynie, rosnący przez wszystkie strumienie. Służy projekcjom: „daj mi wszystko po pozycji 1500”. Jedna liczba nie wystarczy do obu celów. Sama wersja nie mówi projekcji, gdzie skończyła w skali całej bazy. Sama pozycja nie mówi agregatowi, czy ktoś go zmienił. EventStoreDB (dziś KurrentDB) ma ten sam podział: `StreamRevision` i `Position`.
+
+### Optymistyczna współbieżność zamiast blokad
+
+Dwie osoby edytują ten sam artykuł. Pesymistyczna blokada (zablokuj wiersz na czas edycji) nie działa w HTTP, gdzie między odczytem a zapisem mija minuta. Optymistyczna zakłada, że konflikt jest rzadki, i wykrywa go przy zapisie: oczekiwana wersja się nie zgadza → `Conflict`. Klient odświeża i próbuje ponownie. To ten sam mechanizm, który HTTP wyraża przez `ETag` i `If-Match` w [16-usluga-news.md](16-usluga-news.md).
+
+### Własny `IEventStore` zamiast gotowego magazynu
+
+Gotowe rozwiązania są dobre i darmowe:
+
+- **Marten** (MIT) — event sourcing na PostgreSQL z projekcjami, snapshotami i asynchronicznym demonem. W projekcie produkcyjnym byłby pierwszym wyborem, bo używa tej samej bazy co reszta.
+- **KurrentDB / EventStoreDB** — osobny serwer zbudowany pod strumienie. Najlepszy w swojej klasie, ale to kolejny proces do utrzymania na jednej VM, a licencja serwera zmieniała się w ostatnich latach.
+- **Eventuous** (Apache 2.0) — biblioteka na KurrentDB albo Postgresie z gotowym agregatem i projekcjami.
+
+Wybieramy własny interfejs, bo celem ciągu jest zrozumienie mechanizmu: co to jest strumień, jak działa konflikt wersji, skąd projekcja wie, gdzie skończyła. Każda z bibliotek chowa to za jednym wywołaniem. Interfejs jest celowo mały (`AppendAsync`, `LoadAsync`, `ReadAllAsync`), więc podmiana na Martena później dotyka tylko Infrastructure.
+
+### Implementacja w pamięci najpierw
+
+`InMemoryEventStore` pozwala napisać i przetestować całą logikę (konflikt, pozycje, kolejność) bez Dockera, w milisekundach. Postgres w [06-postgres.md](06-postgres.md) musi przejść te same testy. Pamięciowa wersja zostaje w testach Application jako szybki dubler.
+
 ## Klasy i ścieżki
 
 | Plik | Odpowiedzialność |
@@ -19,7 +49,7 @@ Drugi licznik, `Position`, jest globalny dla całego magazynu. `Version` mówi �
 | `src/building-blocks/JJDevHub.EventStore/InMemoryEventStore.cs` | słownik strumieni, lista globalna, `lock` |
 | `tests/JJDevHub.EventStore.Tests/InMemoryEventStoreTests.cs` | konflikt, kolejność, `Position` |
 
-## Tutorial
+## Plan
 
 ### 1. Projekt
 

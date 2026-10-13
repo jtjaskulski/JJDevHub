@@ -10,6 +10,30 @@ Event sourcing zapisuje zdarzenia, nie stan. Zdarzenie żyje w bazie latami, dł
 
 Biblioteka nie zna żadnego konkretnego zdarzenia. Przykład leży w usłudze od pierwszego dnia, w `src/services/News/News.Domain`, a nie przy API. Dzięki temu test domeny nie referencjonuje projektu webowego, a późniejsze cięcie na warstwy nic nie przenosi.
 
+## Dlaczego ta technologia
+
+### Zdarzenie domenowe jako fakt, nie polecenie
+
+Zdarzenie opisuje coś, co już się stało (`ArticleCreated`), w czasie przeszłym. Komenda (`CreateArticle`) to prośba, którą można odrzucić. Zdarzenia nie da się odrzucić, można najwyżej na nie zareagować. To rozróżnienie jest sercem event sourcingu: w bazie leżą fakty, a stan agregatu jest ich sumą. Gdyby w strumieniu leżały komendy, odtworzenie stanu wymagałoby ponownego uruchomienia logiki biznesowej, która w międzyczasie mogła się zmienić.
+
+### `record` zamiast klasy
+
+Zdarzenie jest niezmienne i porównywane po wartości. C# `record` daje to w jednej linii: konstruktor, właściwości `init`, `Equals`, `ToString`. Klasa z ręcznie pisanymi właściwościami tylko do odczytu robi to samo w dwudziestu liniach i łatwo w niej zostawić publiczny setter. Struktura (`record struct`) przegrywa, bo zdarzenia trafiają do list `IReadOnlyList<IDomainEvent>`, a opakowywanie struktur w interfejs (boxing) niweluje jej zaletę.
+
+### Stabilna nazwa z `[EventName]` zamiast nazwy typu CLR
+
+Poprzednia wersja zapisywała w bazie `AssemblyQualifiedName`, np. `JJDevHub.Events.NewsCreated, JJDevHub.Events, Version=1.0.0.0`. Przeniesienie klasy do innego namespace'u, zmiana nazwy projektu albo podbicie wersji zestawu sprawiały, że stare wiersze przestawały się wczytywać. Strumień zdarzeń żyje latami, kod zmienia się co tydzień. Nazwa `news.article-created.v1` to kontrakt, który nie zależy od układu kodu. Format `kontekst.zdarzenie.wersja` czyta człowiek w SQL-u i konsument w innym języku. Ten sam pomysł stosują EventStoreDB (`eventType`), CloudEvents (`type`) i Marten (aliasy typów).
+
+Alternatywą jest mapa nazw w jednym pliku konfiguracyjnym. Przegrywa, bo nowa klasa zdarzenia wymaga wtedy edycji w dwóch miejscach. Atrybut trzyma nazwę przy typie.
+
+### Typy proste w zdarzeniu
+
+Zdarzenie niesie `Guid`, `string` i `DateTimeOffset`, a nie `ArticleTitle` czy `ArticleId`. Value object może zmienić reguły (np. dłuższy tytuł), a zdarzenie zapisane pięć lat temu musi się dać odczytać bez przechodzenia przez te reguły. Serializacja typów prostych jest też trywialna: żadnych konwerterów JSON. Koszt: przy `Apply` agregat buduje value objecty z prymitywów sam.
+
+### `DateTimeOffset` zamiast `DateTime`
+
+`DateTime` nie wie, w jakiej strefie jest, a `Kind` łatwo zgubić przy serializacji. `DateTimeOffset` niesie przesunięcie, a Npgsql mapuje go na `timestamptz`. Nazwa `DateOccurred` pochodzi z eShop (`IDomainEvent` w e-booku mikroserwisów).
+
 ## Klasy i ścieżki
 
 | Plik | Odpowiedzialność |
@@ -22,7 +46,7 @@ Biblioteka nie zna żadnego konkretnego zdarzenia. Przykład leży w usłudze od
 | `tests/JJDevHub.Domain.Tests/JJDevHub.Domain.Tests.csproj` | testy biblioteki |
 | `tests/News.Domain.Tests/News.Domain.Tests.csproj` | testy domeny News |
 
-## Tutorial
+## Plan
 
 ### 1. Porządki
 

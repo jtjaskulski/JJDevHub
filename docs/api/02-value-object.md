@@ -8,6 +8,26 @@ Bez value objectów agregat dostaje `string title` i sam pilnuje, że tekst nie 
 
 Typowany identyfikator (`ArticleId` zamiast `Guid`) zamyka drugą klasę błędów: kompilator nie pozwoli podać id użytkownika tam, gdzie oczekiwane jest id artykułu.
 
+## Dlaczego ta technologia
+
+### Value object zamiast `string`
+
+`string title` przyjmie pusty tekst, dwa megabajty i same spacje. Każda metoda, która go dostaje, musi to sprawdzić albo ufać, że ktoś sprawdził wcześniej. `ArticleTitle` da się zbudować tylko przez `Create`, który sprawdza reguły. Jeśli masz w ręku `ArticleTitle`, to jest poprawny. Reguła żyje w jednym miejscu, a kompilator pilnuje, żeby nikt nie podał treści w miejsce tytułu. GeekLemon trzyma takie typy w folderze `ValueObjects`, a e-book mikroserwisów .NET opisuje klasę bazową `ValueObject` z `GetEqualityComponents`.
+
+### Klasa bazowa `ValueObject` i `record` obok siebie
+
+`record` daje równość po wartości za darmo i jest dobry dla prostych typów. Klasa bazowa `ValueObject` z `GetEqualityComponents` jest potrzebna, gdy równość ma ignorować część pól albo porównywać kolekcje po elementach, czego `record` nie robi (porównuje referencje list). Trzymamy obie drogi: bazę dla złożonych value objectów, wzór z eShop, i `record struct` dla identyfikatorów.
+
+### Typowane id jako `readonly record struct`
+
+`Guid` artykułu i `Guid` użytkownika są nie do odróżnienia, a zamiana argumentów miejscami kompiluje się bez ostrzeżenia. `ArticleId` to osobny typ: pomyłka jest błędem kompilacji. `readonly record struct` nie alokuje na stercie, więc kosztuje tyle co sam `Guid`. Biblioteki generujące takie typy (StronglyTypedId, Vogen, obie MIT) są dozwolone, ale przy kilku identyfikatorach w całym systemie generator jest większy niż kod, który by wygenerował.
+
+### `Result<T>` zamiast wyjątków dla oczekiwanych błędów
+
+Pusty tytuł to nie awaria, tylko normalna odpowiedź „nie”. Wyjątek w takim miejscu jest kosztowny (ślad stosu), niewidoczny w sygnaturze metody i kusi, żeby złapać go piętro wyżej ogólnym `catch`. `Result<T>` mówi w sygnaturze: ta metoda może odmówić. `ResultError` to wyliczenie (`Invalid`, `NotFound`, `Conflict`, `Forbidden`), które endpoint w [16-usluga-news.md](16-usluga-news.md) mapuje jeden do jednego na `400`, `404`, `409`/`412`, `403`. Wyjątki zostają dla awarii: baza nie odpowiada, brak rejestracji w DI.
+
+Darmowe biblioteki istnieją: Ardalis.Result (MIT), FluentResults (MIT), ErrorOr (MIT), OneOf (MIT). Każda jest większa, niż potrzebujemy, i każda ma własny pomysł na listę błędów i komunikaty. Nasz typ ma jedno pole błędu i jedno pole wartości, a `TryGetValue` z `[NotNullWhen(true)]` daje analizę null bez operatora `!`. Gdy kiedyś potrzebne będą komunikaty per pole, ErrorOr jest najbliższy naszemu kształtowi.
+
 ## Klasy i ścieżki
 
 | Plik | Odpowiedzialność |
@@ -22,7 +42,7 @@ Typowany identyfikator (`ArticleId` zamiast `Guid`) zamyka drugą klasę błęd�
 
 `Email` pojawia się w Users w [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md) według tego samego wzoru.
 
-## Tutorial
+## Plan
 
 ### 1. Wynik
 

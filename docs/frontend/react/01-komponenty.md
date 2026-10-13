@@ -2,7 +2,7 @@
 
 Komponent w JJDevHub czyta się od góry do dołu: najpierw typ propsów, potem funkcja czysta, potem hooki, wartości wyliczone, handlery i na końcu `return`. JSX składa HTML5. Filtr, pusta lista i dłuższy handler stoją nad układem.
 
-Krótka lista zasad jest w [.cursor/rules/react.mdc](../../../.cursor/rules/react.mdc). Ten plik rozpisuje je na shellu i karcie kursu, żeby dało się z niego wygenerować pliki TSX.
+Krótka lista zasad jest w [.cursor/rules/react.mdc](../../../.cursor/rules/react.mdc). Ten plik rozpisuje je na shellu i karcie kursu, żeby dało się z niego napisać pliki TSX.
 
 React składa znaczniki. Vite podaje jeden arkusz `src/styles.css`. Tailwind v4 dokłada klasy na tych znacznikach. shadcn i Motion siedzą na tym samym HTML. Liczby kolorów, skali i odstępów są w [tokens.ts](../../../src/Clients/shared/theme/tokens.ts); kontrakt opisuje [motyw.md](../motyw.md).
 

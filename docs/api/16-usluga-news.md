@@ -10,6 +10,35 @@ Optymistyczna współbieżność dochodzi do klienta przez standard HTTP. `GET` 
 
 Gateway daje klientowi jeden adres. Klient nie wie, która usługa obsługuje `/api/articles`, a która `/api/auth`. W eShop tę rolę pełni `WebApp` z YARP.
 
+## Dlaczego ta technologia
+
+### Minimal API zamiast kontrolerów
+
+Obecne API używa Minimal API, eShop też (`OrdersApi.cs` z `MapGroup`). Endpoint to jedna metoda, która zamienia HTTP na komendę, a logika jest w handlerze. Kontrolery dawały strukturę (filtry, model binding, konwencje), która przy cienkich endpointach jest narzutem. Minimal API jest szybsze przy starcie, zgodne z Native AOT i ma `TypedResults`, które opisują odpowiedzi w OpenAPI bez atrybutów.
+
+### `ETag` i `If-Match` zamiast wersji w treści
+
+Wersja mogłaby jechać w JSON-ie (`{ "version": 3, ... }`). Standard HTTP ma na to nagłówki: `ETag` w odpowiedzi `GET` i `If-Match` w `PUT`. Nieaktualna wersja daje `412 Precondition Failed`, brak nagłówka daje `428 Precondition Required`. Zalety: cache i proxy rozumieją `ETag`, klient HTTP nie musi znać kształtu treści, a semantyka jest opisana w RFC 9110. Koszt: klient web musi czytać nagłówek, a nie pole.
+
+### ProblemDetails dla błędów
+
+`Result<T>` z błędem zamienia się na odpowiedź `application/problem+json` (RFC 9457) z `type`, `title`, `status`. Jeden kształt błędu w całym systemie, obsługiwany przez `AddProblemDetails` w ASP.NET Core i rozumiany przez generatory klientów OpenAPI.
+
+### YARP jako gateway
+
+Gateway daje usługom jeden punkt wejścia za nginx z kontenera `web`: jedno miejsce na trasy, limity i nagłówki przekazania. Nginx zostaje, bo serwuje pliki klienta web i jest originem tunelu. Opcje dla samego routingu do usług:
+
+- **YARP** (MIT) — reverse proxy Microsoftu jako biblioteka ASP.NET Core. Konfiguracja w kodzie albo `appsettings`, integracja z service discovery Aspire (`http://news-api` rozwiązywane przez Aspire), telemetria przez ServiceDefaults jak w każdej usłudze. eShop używa go w `WebApp`.
+- **sam nginx z `web` / Traefik / Caddy** — dojrzałe proxy, ale osobna konfiguracja w innym języku, bez service discovery Aspire i bez wspólnej telemetrii. W dev pod `aspire run` nginx w ogóle nie działa, więc trasy trzeba by trzymać w dwóch miejscach.
+- **Ocelot** (MIT) — gateway .NET, starszy, rozwijany wolniej niż YARP.
+- **Bez gatewaya** — nginx zna adres każdej usługi, a każda nowa trasa to zmiana w obrazie klienta web.
+
+Gateway nie waliduje tokenu, tylko przekazuje nagłówek. Gdyby walidował, usługi i tak musiałyby sprawdzać token (obrona w głąb), więc logika byłaby podwójna.
+
+### Workery w procesie API
+
+Projekcja i dispatcher outboxa działają jako `BackgroundService` w procesie `News.API`. Osobny proces workera byłby czystszy przy skalowaniu (dwie repliki API, jeden worker), ale na jednej VM to drugi kontener bez korzyści. `SKIP LOCKED` w dispatcherze i idempotentna projekcja sprawiają, że dwie repliki z workerami są bezpieczne, gdy kiedyś powstaną.
+
 ## Klasy i ścieżki
 
 | Plik | Odpowiedzialność |
@@ -28,7 +57,7 @@ Gateway daje klientowi jeden adres. Klient nie wie, która usługa obsługuje `/
 | `src/gateway/JJDevHub.Gateway/appsettings.json` | trasy i klastry |
 | `tests/News.API.Tests/` | `WebApplicationFactory` z kontenerem |
 
-## Tutorial
+## Plan
 
 ### 1. Projekty
 
@@ -52,7 +81,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddServiceDefaults();
 builder.AddDefaultAuthentication();
-builder.AddNpgsqlDbContext<NewsWriteContext>(ResourceNames.NewsWrite);
+builder.AddNpgsqlDbContext<NewsWriteContext>(ResourceNames.NewsWrite, s => s.DisableRetry = true);
 builder.AddNpgsqlDbContext<NewsReadContext>(ResourceNames.NewsRead);
 builder.AddKafkaProducer<string, string>(ResourceNames.Kafka);
 
@@ -166,7 +195,9 @@ builder.AddProject<Projects.JJDevHub_Gateway>(ResourceNames.Gateway)
     .WithExternalHttpEndpoints();
 ```
 
-`ResourceNames` dostaje `NewsApi = "news-api"` i `Gateway = "gateway"`. Tylko gateway ma zewnętrzny endpoint. Usługi są osiągalne w sieci wewnętrznej. Tunel Cloudflare z [docs/CICD/02-cloudflare-tunnel.md](../CICD/02-cloudflare-tunnel.md) kieruje `api.jjdevhub.com` na gateway.
+`ResourceNames` dostaje `NewsApi = "news-api"` i `Gateway = "gateway"`. Tylko gateway ma zewnętrzny endpoint. Usługi są osiągalne w sieci wewnętrznej.
+
+Na VM tunel Cloudflare z [docs/CICD/02-cloudflare-tunnel.md](../CICD/02-cloudflare-tunnel.md) się nie zmienia: origin to dalej `127.0.0.1:4200`, czyli nginx w kontenerze `web`. Zmienia się cel nginx. Dziś [src/Clients/web/nginx.conf](../../src/Clients/web/nginx.conf) przekazuje `/api/` i `/health` na `api:8080`. Po wdrożeniu z [18-ci-uslug.md](18-ci-uslug.md) przekazuje `/api/`, `/.well-known/` i `/health` na `gateway:8080`. Klient web zostaje pod tym samym adresem, a nowych hostname'ów w tunelu nie ma. W tym numerze `nginx.conf` się nie zmienia, bo VM uruchamia jeszcze stary Compose.
 
 ### Co jest do czego
 

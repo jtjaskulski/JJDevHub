@@ -8,11 +8,29 @@ W eShop `CreateOrderCommandHandler` woła agregat i repozytorium, a reszta (log,
 
 Rewizja pokazuje optymistyczną współbieżność od klienta do bazy. Klient wysyła wersję, którą widział (`ExpectedVersion`). Jeśli ktoś w międzyczasie zapisał rewizję, handler zwraca `Conflict`, zanim cokolwiek dopisze. Ten sam `Conflict` przyjdzie z magazynu, gdy dwa żądania miną się o milisekundy.
 
+## Dlaczego ta technologia
+
+### Komenda jako `record` z typami prostymi
+
+Komenda przychodzi z HTTP, więc niesie to, co przyszło: `string`, `Guid`, `int`. Gdyby niosła `ArticleTitle`, endpoint musiałby budować value objecty i decydować o błędach, czyli robić robotę handlera. `record` jest niezmienny, ma sensowny `ToString` w debugerze i porównuje się po wartości w testach. eShop ma tak samo: `CreateOrderCommand` z prostymi polami, a value objecty buduje handler.
+
+### `ExpectedVersion` od klienta
+
+Rewizja bez wersji od klienta to „ostatni zapis wygrywa”: dwie osoby edytują, druga po cichu nadpisuje pierwszą. Z wersją handler wie, który stan klient widział, i odrzuca zapis na nieaktualnej podstawie. Sprawdzenie w handlerze (przed `Revise`) daje szybką odpowiedź bez pracy agregatu. Sprawdzenie w magazynie (`AppendAsync` z oczekiwaną wersją) łapie wyścig dwóch żądań w tej samej milisekundzie. Potrzebne są oba, bo pierwsze nie chroni przed wyścigiem, a drugie nie wie o wersji widzianej przez klienta minutę wcześniej.
+
+### FluentValidation przed agregatem
+
+Walidator odrzuca żądanie, zanim handler wczyta strumień i otworzy transakcję. Dla `Revise` to oszczędność odczytu bazy przy oczywiście złym żądaniu (`ExpectedVersion = 0`). Reguła tytułu nie jest kopiowana do walidatora: `Must(title => ArticleTitle.Create(title)...)` pyta value object. Szczegóły wyboru biblioteki są w [08-mediator.md](08-mediator.md).
+
+### Jednostka pracy na transakcji EF
+
+`NewsUnitOfWork` opakowuje `Database.BeginTransactionAsync`. Alternatywa `TransactionScope` (transakcja ambientowa .NET) działa z Npgsql, ale łatwo ją niechcący rozszerzyć do transakcji rozproszonej i źle współpracuje z `async` bez `TransactionScopeAsyncFlowOption`. Jawna transakcja EF jest widoczna w kodzie i w śladach OpenTelemetry. eShop robi to tak samo w `OrderingContext.BeginTransactionAsync`.
+
 ## Klasy i ścieżki
 
 | Plik | Odpowiedzialność |
 | --- | --- |
-| `src/services/News/News.Application/News.Application.csproj` | referencje: `News.Domain`, `JJDevHub.Cqrs`, `JJDevHub.EventStore` |
+| `src/services/News/News.Application/News.Application.csproj` | referencje: `News.Domain`, `JJDevHub.Cqrs` (z nim FluentValidation), `JJDevHub.EventStore` |
 | `src/services/News/News.Application/Articles/ArticleWritten.cs` | odpowiedź: `ArticleId`, `Version` |
 | `src/services/News/News.Application/Articles/CreateArticleCommand.cs` | `Title`, `Body`, `AuthorIdentityGuid` |
 | `src/services/News/News.Application/Articles/CreateArticleCommandValidator.cs` | tytuł przez `ArticleTitle.Create` |
@@ -26,7 +44,7 @@ Rewizja pokazuje optymistyczną współbieżność od klienta do bazy. Klient wy
 | `tests/News.Application.Tests/` | handlery na `InMemoryEventStore` |
 | `tests/News.Infrastructure.Tests/ArticleCommandTests.cs` | komenda przez mediator na Postgresie |
 
-## Tutorial
+## Plan
 
 ### 1. Projekty
 
@@ -64,9 +82,24 @@ Do [16-usluga-news.md](16-usluga-news.md) `AuthorIdentityGuid` i `EditorIdentity
 
 ### 3. Walidatory
 
-`CreateArticleCommandValidator : IValidator<CreateArticleCommand>` zwraca `ArticleTitle.Create(command.Title).Error`. Reguła tytułu nie jest skopiowana: walidator pyta value object.
+```csharp
+namespace JJDevHub.News.Application.Articles;
 
-`ReviseArticleCommandValidator` robi to samo i dodatkowo zwraca `Invalid`, gdy `ExpectedVersion < 1` albo `ArticleId == Guid.Empty`.
+public sealed class CreateArticleCommandValidator : AbstractValidator<CreateArticleCommand>
+{
+    public CreateArticleCommandValidator()
+    {
+        RuleFor(c => c.Title)
+            .Must(title => ArticleTitle.Create(title).Error == ResultError.None)
+            .WithErrorCode("article.title");
+        RuleFor(c => c.Body).NotNull();
+    }
+}
+```
+
+Reguła tytułu nie jest skopiowana: walidator pyta value object. Długość treści sprawdza reguła agregatu `ArticleBodyMustFitLimitRule` z [03-agregat.md](03-agregat.md), więc walidator jej nie powtarza.
+
+`ReviseArticleCommandValidator : AbstractValidator<ReviseArticleCommand>` ma tę samą regułę tytułu oraz `RuleFor(c => c.ArticleId).NotEmpty()` i `RuleFor(c => c.ExpectedVersion).GreaterThanOrEqualTo(1)`.
 
 ### 4. Handler tworzenia
 
@@ -200,6 +233,7 @@ Klasa `ArticleCommandTests` w `tests/News.Infrastructure.Tests`. Kontener Postgr
 - [Implement the application layer using the Web API](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/microservice-application-layer-implementation-web-api) — komenda, handler, transakcja w eShop.
 - [Apply simplified CQRS and DDD patterns](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/apply-simplified-microservice-cqrs-ddd-patterns) — strona zapisu przez agregat i repozytorium.
 - [Domain model validations](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/microservice-ddd-cqrs-patterns/domain-model-layer-validations) — walidacja na wejściu i niezmiennik w domenie.
+- [FluentValidation: custom validators](https://docs.fluentvalidation.net/en/latest/custom-validators.html) — `Must` pytający value object.
 - [Optimistic Offline Lock](https://martinfowler.com/eaaCatalog/optimisticOfflineLock.html) — wersja widziana przez klienta.
 - [GeekLemonConference](https://github.com/PanNiebieski/GeekLemonConference-CQRS-EventSourcing-CleanArchitecture-DDD-Example) — handlery komend w Application, repozytorium event sourcingu w Infrastructure.
 - [Komenda wołająca komendę](https://cezarywalenciuk.pl/blog/programing/command-wywolujacy-kolejny-command-to-kiepski-pomysl) — handler nie woła drugiej komendy.

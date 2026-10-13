@@ -10,6 +10,37 @@ Wysyłka „co najmniej raz” oznacza duplikaty. Dispatcher może wysłać wiad
 
 eShop ma to samo w `IntegrationEventLogEF`: tabela `IntegrationEventLog` w bazie usługi, zapis w transakcji `TransactionBehavior`, publikacja po commicie. Wcześniejsza wersja tej specyfikacji przekazywała zdarzenie integracyjne do `AppendAsync`. Magazyn zdarzeń zależał wtedy od szyny. Teraz handler mapuje zdarzenie w Application, a łączy je wspólna transakcja.
 
+## Dlaczego ta technologia
+
+### Transactional outbox zamiast publikacji po zapisie
+
+Najprostszy kod to „zapisz artykuł, potem wyślij zdarzenie na Kafkę”. To jest dual write: dwa systemy bez wspólnej transakcji. Jeśli proces padnie między zapisem a wysyłką, artykuł istnieje, a Notifications nigdy się o nim nie dowie. Odwrotna kolejność (najpierw wysyłka) daje zdarzenie o artykule, którego nie ma. Outbox zamienia dwa zapisy na jeden: zdarzenie integracyjne trafia do tabeli `OutboxMessages` w tej samej transakcji co strumień. Osobny dispatcher czyta tabelę i wysyła. Jeśli wysyłka się nie uda, spróbuje ponownie. Jeśli proces padnie, wiersz czeka. Wzorzec opisują Chris Richardson (microservices.io) i Microsoft, a eShop implementuje go w `IntegrationEventLogEF`.
+
+Alternatywa CDC (Debezium czyta log Postgresa i publikuje) usuwa dispatcher z kodu, ale dokłada klaster Kafka Connect. Na jedną VM to za dużo.
+
+### At-least-once i inbox zamiast „dokładnie raz”
+
+Dispatcher może wysłać wiadomość, a potem paść przed oznaczeniem jej jako wysłanej. Po restarcie wyśle ją drugi raz. „Dokładnie raz” między bazą a brokerem nie istnieje bez rozproszonej transakcji. Uczciwa gwarancja to „co najmniej raz” plus odbiorca, który rozpoznaje duplikaty. `InboxMessages` z kluczem `(EventId, Consumer)` zapisuje się w transakcji handlera. Drugi raz ta sama wiadomość daje `Duplicate` i nic nie robi.
+
+### Zdarzenie integracyjne osobno od domenowego
+
+`ArticleCreatedDomainEvent` to szczegół usługi News: zawiera treść, może zmienić kształt przy refaktoryzacji. `ArticleCreatedIntegrationEvent` to publiczny kontrakt dla innych usług, wersjonowany osobno (`news.integration.article-created.v1`) i bez treści artykułu. Mapowanie w Application sprawia, że wewnętrzna zmiana nie łamie konsumentów. eShop rozdziela je tak samo.
+
+### `FOR UPDATE SKIP LOCKED`
+
+Dwie repliki usługi uruchomią dwa dispatchery. Bez blokady oba wezmą te same wiersze i wyślą podwójnie. `SKIP LOCKED` sprawia, że drugi dispatcher pomija wiersze zablokowane przez pierwszego i bierze następne. To idiomatyczna kolejka na Postgresie, bez wyboru lidera i bez dodatkowych narzędzi.
+
+### Własna biblioteka zamiast gotowej szyny
+
+Gotowe rozwiązania z outboxem:
+
+- **MassTransit** — od wersji `9` wyłącznie płatny, odpada,
+- **Wolverine** (MIT) — outbox na Postgresie, mediator i transport Kafki w jednym; dobry wybór produkcyjny, ale przejmuje konwencje całej aplikacji,
+- **DotNetCore.CAP** (MIT) — outbox i inbox z Kafką i Postgresem, gotowy dashboard; najbliższy temu, co budujemy,
+- **Brighter** (MIT) — command processor z outboxem.
+
+CAP albo Wolverine zaoszczędziłyby ten numer. Piszemy własne, bo outbox jest jednym z tematów ciągu: student ma zobaczyć tabelę, transakcję i pętlę dispatchera. Interfejsy (`IIntegrationEventOutbox`, `IIntegrationEventHandler<T>`) są na tyle małe, że migracja na CAP dotyka składu, nie handlerów.
+
 ## Klasy i ścieżki
 
 | Plik | Odpowiedzialność |
@@ -34,7 +65,7 @@ eShop ma to samo w `IntegrationEventLogEF`: tabela `IntegrationEventLog` w bazie
 | `src/services/News/News.Contracts/ArticleCreatedIntegrationEvent.cs` | kontrakt na szynę |
 | `tests/JJDevHub.IntegrationEventLog.Tests/` | outbox, dispatcher, inbox na kontenerze |
 
-## Tutorial
+## Plan
 
 ### 1. Projekty
 

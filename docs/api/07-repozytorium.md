@@ -8,6 +8,22 @@ W dokumentacji Microsoftu `IRepository<T>` stoi między aplikacją a trwałości
 
 Wcześniejsza wersja tej specyfikacji kazała agregatowi implementować `IHasStream`, a `MarkVersion` było publiczne. Domena znała wtedy pojęcie strumienia, a każdy mógł przestawić wersję. Teraz nazwa strumienia jest w infrastrukturze, a wersję ustawia `internal` `MarkPersisted`, widoczne tylko dla tego projektu.
 
+## Dlaczego ta technologia
+
+### Repozytorium nad magazynem zdarzeń
+
+Handler komendy chce powiedzieć „daj mi artykuł” i „zapisz artykuł”. Nie powinien wiedzieć, że artykuł to strumień, że trzeba zebrać `DomainEvents`, podać oczekiwaną wersję i wywołać `MarkPersisted`. Repozytorium chowa ten przepis. Microsoft w e-booku mikroserwisów zaleca jedno repozytorium na agregat i tylko dla korzeni agregatów, bez ogólnych `IQueryable`. U nas `IRepository<T>` ma dwie metody i nic więcej.
+
+Generyczne repozytorium ma złą sławę, kiedy jest cienką nakładką na `DbSet` z `GetAll` i `Find(predicate)`. Tutaj tego problemu nie ma: magazyn zdarzeń i tak umie tylko „wczytaj strumień” i „dopisz”, więc repozytorium jest generyczne z natury.
+
+### `IStreamNaming<T>` zamiast `IHasStream` w agregacie
+
+Wcześniej agregat implementował interfejs z nazwą strumienia. Domena znała wtedy pojęcie z infrastruktury i każdy agregat powtarzał format `article-{id}`. Osobny `IStreamNaming<Article>` w Infrastructure mówi, jak nazwać strumień i kto jest jego właścicielem (`IdentityGuid` autora), a agregat zostaje czysty. Koszt: jedna mała klasa i rejestracja w DI na agregat.
+
+### `Result<int>` z `SaveAsync`
+
+Zapis może się nie udać w oczekiwany sposób: konflikt wersji. To jest `Result.Fail(Conflict)`, a nie wyjątek, bo handler ma na to sensowną odpowiedź (`409`). Udany zapis zwraca nową wersję, potrzebną do nagłówka `ETag`.
+
 ## Klasy i ścieżki
 
 | Plik | Odpowiedzialność |
@@ -19,7 +35,7 @@ Wcześniejsza wersja tej specyfikacji kazała agregatowi implementować `IHasStr
 | `tests/JJDevHub.EventStore.Tests/RepositoryTests.cs` | runda w pamięci na agregacie testowym |
 | `tests/News.Infrastructure.Tests/ArticleRepositoryTests.cs` | runda `Article` na Postgresie |
 
-## Tutorial
+## Plan
 
 ### 1. Kontrakty
 

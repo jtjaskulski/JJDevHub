@@ -8,6 +8,32 @@ W eShop `Identity.API` jest osobną usługą, a reszta tylko sprawdza tokeny. Dz
 
 Wcześniejsza wersja tej specyfikacji tworzyła agregat użytkownika drugim wywołaniem po `UserManager.CreateAsync`. Gdy drugie wywołanie padało, konto istniało bez profilu. Teraz `CreateAsync` i wiersz outboxa wchodzą jedną transakcją. Profil zbuduje Users ze zdarzenia, a jeśli Kafka akurat leży, dispatcher wyśle zdarzenie później.
 
+## Dlaczego ta technologia
+
+### ASP.NET Core Identity zostaje
+
+Identity już działa w projekcie: hashowanie haseł (PBKDF2 z solą), blokada po nieudanych próbach, tabele `AspNetUsers`, migracja. Przepisanie tego na własne to proszenie się o błąd bezpieczeństwa. Identity jest częścią platformy, darmowe i utrzymywane przez Microsoft.
+
+### Własne tokeny JWT zamiast serwera OIDC
+
+Pełny serwer OpenID Connect daje przepływ authorization code z PKCE, odświeżanie tokenów, zgody, logowanie zewnętrzne i standardowy discovery. Opcje:
+
+- **Keycloak** (Apache 2.0) — kompletny serwer tożsamości w Javie. Projekt świadomie trzyma go poza drzewem: to osobny, ciężki proces z własną bazą i panelem.
+- **Duende IdentityServer** — płatna licencja dla firm powyżej progu przychodu, odpada według reguły licencji.
+- **OpenIddict** (Apache 2.0) — darmowy serwer OIDC jako biblioteka ASP.NET Core, na EF Core. Najlepszy kandydat, gdy przyjdzie potrzeba logowania zewnętrznego albo aplikacji mobilnej z PKCE.
+
+Dziś mamy jednego klienta (web) i logowanie hasłem. Własny endpoint wydający JWT plus JWKS to kilkadziesiąt linii, które student rozumie w całości. Ścieżka wyjścia jest prosta: OpenIddict wystawia ten sam `/.well-known/openid-configuration` i `jwks.json`, więc pozostałe usługi nie zauważą zmiany.
+
+### RS256 i JWKS zamiast wspólnego sekretu HS256
+
+Przy HS256 ten sam klucz podpisuje i weryfikuje. Każda usługa, która sprawdza tokeny, mogłaby je też wystawiać, a wyciek klucza z dowolnej usługi kompromituje wszystkie. RS256 używa pary kluczy: prywatny tylko w Identity (plik PEM w `/etc/jjdevhub/identity-signing.pem` z `chmod 600`), publiczny dla wszystkich pod `/.well-known/jwks.json`. `JwtBearer` w ASP.NET Core umie pobrać JWKS sam z `Authority` i odświeżać go, więc usługi nie mają w konfiguracji żadnego sekretu. Rotacja: nowy klucz podpisuje, stary (`PreviousSigningKeyPath`) zostaje w JWKS, aż wygasną wydane nim tokeny.
+
+ES256 (krzywe eliptyczne) dałby krótsze podpisy. RS256 wygrywa kompatybilnością: obsługuje go każda biblioteka JWT i każdy gateway.
+
+### Outbox w transakcji z `UserManager`
+
+`UserManager.CreateAsync` zapisuje przez `AppDbContext`. Outbox z [12-outbox-inbox.md](12-outbox-inbox.md) używa tego samego kontekstu. Jedna transakcja obejmuje oba zapisy: albo jest konto i zdarzenie, albo nic. To naprawia stary błąd, gdzie profil tworzył się drugim, niezależnym wywołaniem.
+
 ## Klasy i ścieżki
 
 | Plik | Odpowiedzialność |
@@ -24,7 +50,7 @@ Wcześniejsza wersja tej specyfikacji tworzyła agregat użytkownika drugim wywo
 | `src/aspire/JJDevHub.AppHost/AppHost.cs` | zasób `identity-api` w miejsce `api` |
 | `tests/Identity.API.Tests/` | przeniesiony `tests/JJDevHub.Api.Tests` |
 
-## Tutorial
+## Plan
 
 ### 1. Przeniesienie
 
@@ -85,7 +111,7 @@ To minimalny dokument discovery. `JwtBearer` w innych usługach czyta z niego `j
 
 `AddDefaultAuthentication(this IHostApplicationBuilder builder)` w ServiceDefaults, wzorem eShop:
 
-- sekcja `Identity` z `Url` i `Audience`; brak `Url` → metoda nic nie rejestruje (usługa bez HTTP, np. worker),
+- sekcja `Identity` z `Url` i `Audience`; brak `Url` → metoda nic nie rejestruje (usługa bez chronionych endpointów, np. worker),
 - `AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer`: `Authority = Identity:Url`, `Audience`, `RequireHttpsMetadata` tylko poza `Development`, `MapInboundClaims = false`, `NameClaimType = "sub"`,
 - `AddAuthorization()`.
 

@@ -4,9 +4,49 @@
 
 ## Po co
 
-Do tej pory każda biblioteka miała swój kontener w teście, a [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml) znał jedno API. Przy pięciu procesach, sześciu bazach i brokerze ręczne Compose i connection stringi w `appsettings.json` przestają się skalować. eShop ma `eShop.AppHost` (zasoby i zależności w C#) i `eShop.ServiceDefaults` (wspólna konfiguracja usług). `aspire run` stawia całość lokalnie z dashboardem logów, śladów i metryk. Ten sam opis zasobów generuje Compose na serwer.
+Do tej pory każda biblioteka miała swój kontener w teście, a [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml) znał jedno API. Przy pięciu procesach, pięciu bazach i brokerze ręczne Compose i connection stringi w `appsettings.json` przestają się skalować. eShop ma `eShop.AppHost` (zasoby i zależności w C#) i `eShop.ServiceDefaults` (wspólna konfiguracja usług). `aspire run` stawia całość lokalnie z dashboardem logów, śladów i metryk. Ten sam opis zasobów generuje Compose na serwer.
 
 Aspire to też kierunek, w którym idzie .NET. Nowe szablony i integracje (`Aspire.Npgsql.EntityFrameworkCore.PostgreSQL`, `Aspire.Confluent.Kafka`) dostają health checki i telemetrię bez ręcznej konfiguracji.
+
+## Dlaczego ta technologia
+
+### Co robi Aspire
+
+Aspire to zestaw narzędzi .NET do składania aplikacji z wielu procesów. Ma trzy części, które warto rozdzielić w głowie:
+
+1. **AppHost** — zwykły projekt C# (`dotnet run` albo `aspire run`), który opisuje system kodem: „jest Postgres z bazami `news_write` i `news_read`, jest Kafka, jest projekt `News.API`, który potrzebuje obu baz i Kafki”. Przy uruchomieniu AppHost stawia kontenery w Dockerze, startuje projekty .NET jako procesy i wstrzykuje im konfigurację: connection stringi (`ConnectionStrings__news-write`), adresy innych usług (`services__identity-api__http__0`), endpoint OTLP. `WaitFor` pilnuje kolejności: News nie wstanie, zanim baza nie odpowie na health check. AppHost działa tylko w dev i w testach. Na produkcji go nie ma.
+2. **Dashboard** — strona pod `https://localhost:17xxx` z listą zasobów, ich stanem, logami konsolowymi, logami strukturalnymi, śladami i metrykami wszystkich procesów w jednym miejscu. Dostaje dane przez OpenTelemetry. Lokalnie zastępuje Jaegera, Prometheusa i Grafanę.
+3. **Integracje i ServiceDefaults** — pakiety po stronie usługi (`Aspire.Npgsql.EntityFrameworkCore.PostgreSQL`, `Aspire.Confluent.Kafka`), które jednym wywołaniem rejestrują klienta, health check, ślady i metryki. `ServiceDefaults` to projekt we własnym repo (nie paczka), w którym jest wspólna konfiguracja: OpenTelemetry, `/health` i `/alive`, service discovery, odporność `HttpClient`.
+
+Do tego **publikacja**: `aspire publish` zamienia opis z AppHost na pliki wdrożeniowe. Dla nas to `docker-compose.yaml` na VM. Ten sam model dałby manifesty Kubernetes albo Azure Container Apps, gdyby kiedyś były potrzebne.
+
+### Dlaczego Aspire, a nie ręczny Compose
+
+Ręczny `docker-compose.yml` działa i już go mamy. Przy pięciu usługach zaczyna boleć:
+
+- connection stringi i adresy usług są przepisywane w trzech miejscach (Compose, `appsettings.Development.json`, testy) i rozjeżdżają się,
+- debugowanie usługi w IDE przy reszcie w Compose wymaga ręcznego przełączania adresów,
+- telemetria lokalnie wymaga własnego Jaegera i Grafany,
+- kolejność startu to `depends_on` z healthcheckiem pisanym ręcznie.
+
+AppHost jest kodem C# z typami, więc literówka w nazwie zasobu to błąd kompilacji (`ResourceNames`). Debugowanie: F5 na AppHost startuje wszystko z debuggerem podpiętym do każdego projektu.
+
+### Alternatywy
+
+- **Ręczny Compose + `launchSettings.json`** — zero nowych narzędzi, wszystkie bolączki z listy wyżej.
+- **Project Tye** — poprzednik Aspire od Microsoftu, porzucony w 2023.
+- **Dapr** (Apache 2.0) — runtime z sidecarami: pub/sub, stan, sekrety za jednym API. Rozwiązuje inny problem (abstrakcja infrastruktury w runtime) i dokłada proces obok każdej usługi. Aspire umie go hostować, gdyby kiedyś był potrzebny.
+- **Kubernetes lokalnie (kind, k3d) + Tilt/Skaffold** — realistyczne środowisko, ale ciężkie na laptopie i nie daje typów w C#.
+
+Aspire wygrywa, bo jest natywny dla .NET, darmowy (MIT), rozwijany przez zespół .NET z szablonami w SDK i wspierany przez eShop jako wzorzec. To jest odpowiedź na „co najlepsze i przyszłościowe”.
+
+### Koszt i ryzyko
+
+Aspire zmienia się szybko: API AppHost i publikacji ewoluowało między wersjami 8, 9 i 13. Część kodu w tym numerze może wymagać korekty nazw metod przy aktualizacji. AppHost wymaga Dockera na maszynie dewelopera. Publikacja do Compose jest nowsza niż reszta i nie wszystko, co działa w `aspire run`, ma odpowiednik w Compose (np. dashboard trzeba dodać jawnie albo zostać przy Jaegerze i Grafanie na VM). Dlatego telemetria na VM zostaje taka jak w [docs/CICD](../CICD/README.md).
+
+### ServiceDefaults jako projekt, nie paczka
+
+Szablon generuje `ServiceDefaults` jako kod w repo. To celowe: każdy zespół zmienia go pod siebie (u nas eksporter Prometheusa i `AddDefaultAuthentication` z [15-identity.md](15-identity.md)), a paczka NuGet wymuszałaby jedną konfigurację dla wszystkich.
 
 ## Klasy i ścieżki
 
@@ -17,13 +57,15 @@ Aspire to też kierunek, w którym idzie .NET. Nowe szablony i integracje (`Aspi
 | `src/aspire/JJDevHub.AppHost/ResourceNames.cs` | stałe nazw zasobów (`news-write`, `kafka`…) |
 | `src/aspire/JJDevHub.ServiceDefaults/JJDevHub.ServiceDefaults.csproj` | `IsAspireSharedProject`, OpenTelemetry, service discovery, resilience |
 | `src/aspire/JJDevHub.ServiceDefaults/ServiceDefaultsExtensions.cs` | `AddServiceDefaults`, `MapDefaultEndpoints` |
-| `src/aspire/JJDevHub.ServiceDefaults/TelemetryExtensions.cs` | OTel: zasoby, źródła, eksportery |
+| `src/aspire/JJDevHub.ServiceDefaults/TelemetryExtensions.cs` | OTel: zasoby, źródła, mierniki, eksportery, filtr |
+| `src/aspire/JJDevHub.ServiceDefaults/OtlpEndpoints.cs` | adres OTLP na sygnał, puste → `null` |
+| `src/aspire/JJDevHub.ServiceDefaults/RootClientSpanSampler.cs` | odrzuca span klienta bez rodzica |
 | `src/aspire/JJDevHub.ServiceDefaults/HealthCheckExtensions.cs` | `self`, tagi `live` |
 | `src/api/Program.cs` | `AddServiceDefaults()` zamiast ręcznego OTel, `MapDefaultEndpoints()` |
-| `src/building-blocks/JJDevHub.Cqrs`, `JJDevHub.Projections`, `JJDevHub.IntegrationEventLog`, `JJDevHub.EventBus.Kafka` | `ActivitySource` o nazwie projektu |
+| `src/building-blocks/JJDevHub.Cqrs`, `JJDevHub.Projections`, `JJDevHub.IntegrationEventLog`, `JJDevHub.EventBus.Kafka` | `ActivitySource` i `Meter` o nazwie projektu |
 | `tests/JJDevHub.AppHost.Tests/` | `Aspire.Hosting.Testing` |
 
-## Tutorial
+## Plan
 
 ### 1. Projekty
 
@@ -83,7 +125,9 @@ builder.Build().Run();
   - logi przez OTel z `IncludeFormattedMessage` i `IncludeScopes`,
   - metryki: ASP.NET Core, `HttpClient`, runtime, eksporter Prometheus (`/metrics` zostaje, jak dziś w [src/api/Program.cs](../../src/api/Program.cs)),
   - ślady: ASP.NET Core, `HttpClient`, `Npgsql`, źródła `JJDevHub.*` z bibliotek,
-  - OTLP tylko wtedy, gdy ustawiona jest zmienna `OTEL_EXPORTER_OTLP_ENDPOINT`. W dev ustawia ją Aspire (dashboard), a na VM [infra/docker/.env.example](../../infra/docker/.env.example) (Jaeger, tylko ślady),
+  - metryki z mierników `JJDevHub.*` z kroku 4 (`AddMeter`),
+  - eksport OTLP osobno na każdy sygnał (krok 3a), bez `UseOtlpExporter()`,
+  - filtr i sampler śladów (krok 3b),
 - `AddDefaultHealthChecks`: check `self` z tagiem `live`,
 - `AddServiceDiscovery`,
 - `ConfigureHttpClientDefaults`: `AddStandardResilienceHandler` i `AddServiceDiscovery`.
@@ -96,27 +140,79 @@ builder.Build().Run();
 
 Obecne ręczne `MapGet("/health")` i blok `AddOpenTelemetry` w [src/api/Program.cs](../../src/api/Program.cs) znikają na rzecz tych dwóch wywołań. Test `AuthAndHealthTests` sprawdza dalej `/health` z kodem 200.
 
-### 4. Źródła śladów w bibliotekach
+### 3a. Endpointy OTLP na sygnał
+
+Szablon ServiceDefaults woła `UseOtlpExporter()`, gdy ustawione jest `OTEL_EXPORTER_OTLP_ENDPOINT`. To wysyła ślady, metryki i logi na jeden adres. W dev to dobrze, bo dashboard Aspire przyjmuje wszystkie trzy. Na VM tym adresem jest Jaeger, który przyjmuje tylko ślady, a metryki i logi wisiałyby w ponowieniach. [docs/CICD/06-opentelemetry.md](../CICD/06-opentelemetry.md) opisuje ten problem i ten sam warunkowy `if`, który tu przechodzi do ServiceDefaults.
+
+`OtlpEndpoints.Resolve(IConfiguration)` zwraca trzy adresy (`Uri?`) według specyfikacji OpenTelemetry:
+
+| Sygnał | Zmienna własna | Zapas |
+| --- | --- | --- |
+| ślady | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | `OTEL_EXPORTER_OTLP_ENDPOINT` |
+| metryki | `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | `OTEL_EXPORTER_OTLP_ENDPOINT` |
+| logi | `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | `OTEL_EXPORTER_OTLP_ENDPOINT` |
+
+Pusty albo biały string to `null`, jak `OtelSetting` z 06, żeby `new Uri` nie wywrócił startu. `AddOtlpExporter` jest wołany tylko dla sygnału z niepustym adresem.
+
+- dev: Aspire ustawia `OTEL_EXPORTER_OTLP_ENDPOINT` na dashboard, więc idą wszystkie trzy sygnały,
+- VM: ustawione jest tylko `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://jaeger:4317`, a `OTEL_EXPORTER_OTLP_ENDPOINT` zostaje puste. Ślady idą do Jaegera, metryki zbiera Prometheus z `/metrics`, logi zostają w `docker logs` z `trace_id`.
+
+To jest zmiana względem 06 i 08, gdzie adres Jaegera siedzi w `OTEL_EXPORTER_OTLP_ENDPOINT`. Przestawienie env na VM robi [18-ci-uslug.md](18-ci-uslug.md). Do tego czasu obecne API działa ze starym env bez zmian, bo z jego `api.env` metryki i logi i tak nie mają adresu.
+
+### 3b. Ślady bez szumu tła
+
+Na VM Jaeger trzyma najwyżej 10 000 śladów w pamięci ([docs/CICD/08-jaeger.md](../CICD/08-jaeger.md)). Przy pięciu usługach szum zjadłby ten limit w godziny:
+
+- Prometheus co 15 s pyta `/metrics` każdej usługi,
+- `ProjectionWorker` i `OutboxDispatcher` co chwilę pytają bazę, a instrumentacja Npgsql robi z każdego pustego zapytania osobny ślad.
+
+Dwie reguły:
+
+- `AddAspNetCoreInstrumentation(o => o.Filter = ...)` odrzuca żądania na `/health`, `/alive` i `/metrics`,
+- `RootClientSpanSampler : Sampler` w ServiceDefaults, opakowany w `ParentBasedSampler`, odrzuca span bez rodzica o rodzaju `ActivityKind.Client`. Zapytanie Npgsql z pustej pętli workera nie ma rodzica, więc znika. To samo zapytanie wewnątrz żądania HTTP albo wewnątrz spanu workera ma rodzica i zostaje.
+
+Workery otwierają własny span dopiero wtedy, gdy jest praca (krok 4). Pusty obieg pętli nie zostawia śladu, a obieg z pracą pokazuje się jako jedno drzewo: `project article-summaries` → zapytania Npgsql.
+
+### 3c. Nazwa usługi
+
+Aspire ustawia `OTEL_SERVICE_NAME` na nazwę zasobu: `api` w tym numerze, potem `identity-api`, `news-api`, `users-api`, `notifications-worker`, `gateway`. W telemetrii obowiązuje ta nazwa, a nie `JJDevHub.Api` z 06. Wygenerowany Compose ustawia tę samą zmienną. Filtry w Jaegerze i Grafanie przechodzą na nowe nazwy w [18-ci-uslug.md](18-ci-uslug.md), razem z celami Prometheusa.
+
+### 4. Źródła śladów i mierniki w bibliotekach
 
 Każda biblioteka z pracą w tle albo na granicy ma statyczne `ActivitySource` o nazwie projektu:
 
 - `JJDevHub.Cqrs` — span `Send {RequestName}` w `LoggingBehavior`,
-- `JJDevHub.Projections` — span na przejście runnera,
-- `JJDevHub.IntegrationEventLog` — span na wysyłkę i odbiór,
+- `JJDevHub.Projections` — span `project {ProjectionName}` tylko na przejście, które dostało zdarzenia,
+- `JJDevHub.IntegrationEventLog` — span `outbox dispatch` tylko na paczkę z wierszami, span na odbiór w inboxie,
 - `JJDevHub.EventBus.Kafka` — span `publish {topic}` i `process {topic}`, z `traceparent` z [13-kafka.md](13-kafka.md).
 
-`System.Diagnostics.ActivitySource` jest w platformie. Biblioteki nie dostają pakietu OpenTelemetry.
+Te same biblioteki dostają statyczny `Meter` o nazwie projektu. Mierzą zdrowie potoku, którego nie widać w metrykach HTTP:
+
+| Miernik | Typ | Etykiety | Kto zapisuje |
+| --- | --- | --- | --- |
+| `jjdevhub.projection.lag` | gauge | `projection` | runner: najwyższe `Position` w magazynie minus checkpoint |
+| `jjdevhub.outbox.pending` | gauge | — | dispatcher: liczba wierszy bez `ProcessedOn` po ostatnim przejściu |
+| `jjdevhub.outbox.failed` | counter | `event_type` | dispatcher: nieudana wysyłka |
+| `jjdevhub.kafka.consumer.lag` | gauge | `topic`, `partition`, `group` | konsument: high watermark minus pozycja, z `GetWatermarkOffsets` |
+| `jjdevhub.kafka.dlq` | counter | `topic` | konsument: wiadomość przeniesiona do `*.dlq` |
+| `jjdevhub.inbox.duplicates` | counter | `consumer` | odbiornik: `ReceiveOutcome.Duplicate` |
+
+Gauge to `Meter.CreateObservableGauge` z wartością zapamiętaną przez pętlę, a nie zapytanie do bazy przy każdym scrapie. Etykiety mają małą liczbę wartości ([docs/CICD/07-prometheus.md](../CICD/07-prometheus.md)): bez id zdarzeń i id użytkowników. W Prometheusie nazwy dostają podkreślenia (`jjdevhub_projection_lag`).
+
+`System.Diagnostics.ActivitySource` i `System.Diagnostics.Metrics.Meter` są w platformie. Biblioteki nie dostają pakietu OpenTelemetry. ServiceDefaults rejestruje je przez `AddSource("JJDevHub.*")` i `AddMeter("JJDevHub.*")`.
 
 ### 5. Klienci Aspire w usługach
 
 Od `16` usługi biorą połączenia przez integracje klienckie zamiast własnych `UseNpgsql`:
 
 ```csharp
-builder.AddNpgsqlDbContext<NewsWriteContext>(ResourceNames.NewsWrite);
+builder.AddNpgsqlDbContext<NewsWriteContext>(
+    ResourceNames.NewsWrite,
+    settings => settings.DisableRetry = true);
 builder.AddKafkaProducer<string, string>(ResourceNames.Kafka);
 ```
 
-Integracja dodaje health check, ślady i metryki. `AddNewsWrite` z [09-komenda.md](09-komenda.md) i `AddNewsRead` z [10-projekcja.md](10-projekcja.md) dostają przeciążenia bez connection stringa, które pomijają `AddDbContext`. `AddKafkaEventBus` z [13-kafka.md](13-kafka.md) bierze `IProducer<string, string>` z DI, gdy już jest zarejestrowany.
+Integracja dodaje health check, ślady i metryki. Domyślnie włącza też `NpgsqlRetryingExecutionStrategy`, a ta strategia rzuca `InvalidOperationException` przy transakcji otwartej ręcznie (`BeginTransactionAsync` w `NewsUnitOfWork`). Konteksty, w których `TransactionBehavior` albo outbox otwiera transakcję (`news-write`, `identity`, `users`, `notifications`), dostają `DisableRetry = true`. Ponowienie całej komendy po błędzie przejściowym zostaje dla klienta HTTP i dla konsumenta Kafki, który i tak ponawia. Kontekst tylko do odczytu (`news-read`) zostaje z ponowieniami. `AddNewsWrite` z [09-komenda.md](09-komenda.md) i `AddNewsRead` z [10-projekcja.md](10-projekcja.md) dostają przeciążenia bez connection stringa, które pomijają `AddDbContext`. `AddKafkaEventBus` z [13-kafka.md](13-kafka.md) bierze `IProducer<string, string>` z DI, gdy już jest zarejestrowany.
 
 ### 6. Publikacja na VM
 
@@ -126,7 +222,7 @@ AppHost dostaje środowisko Compose:
 builder.AddDockerComposeEnvironment("jjdevhub");
 ```
 
-`aspire publish -o artifacts/compose` generuje `docker-compose.yaml` i `.env` z parametrami. Katalog `artifacts/` jest w `.gitignore`. Generuje go CI w [18-ci-uslug.md](18-ci-uslug.md). Prometheus, Jaeger i Grafana zostają w [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml) i łączą się z usługami przez wspólną zewnętrzną sieć Dockera `jjdevhub`. Sieć dopina `PublishAsDockerComposeService` na każdym projekcie. Nazwy metod publikacji zmieniały się między wersjami Aspire, więc przed generowaniem kodu trzeba je sprawdzić w dokumentacji wersji z `Directory.Packages.props`.
+`aspire publish -o artifacts/compose` generuje `docker-compose.yaml` i `.env` z parametrami. Katalog `artifacts/` jest w `.gitignore`. Generuje go CI w [18-ci-uslug.md](18-ci-uslug.md). Prometheus, Jaeger i Grafana zostają w [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml) i łączą się z usługami przez wspólną zewnętrzną sieć Dockera `jjdevhub`. Sieć dopina `PublishAsDockerComposeService` na każdym projekcie. Nazwy metod publikacji zmieniały się między wersjami Aspire, więc przed implementacją trzeba je sprawdzić w dokumentacji wersji z `Directory.Packages.props`.
 
 ### Co jest do czego
 
@@ -137,6 +233,9 @@ builder.AddDockerComposeEnvironment("jjdevhub");
 - `WaitFor` — usługa startuje, gdy baza odpowiada. Bez wyścigu przy migracji.
 - `JJDevHub.ServiceDefaults` — każda usługa ma te same endpointy zdrowia, tę samą telemetrię i odporny `HttpClient`.
 - `ActivitySource` w bibliotekach — ślad przechodzi od `POST` przez outbox i Kafkę do konsumenta.
+- `Meter` w bibliotekach — opóźnienie projekcji, zaległy outbox i lag konsumenta. Przy tej architekturze to są pierwsze liczby, na które patrzysz, gdy „artykuł się nie pokazuje”.
+- `OtlpEndpoints` — ślady do Jaegera, metryki do Prometheusa, każdy sygnał tam, gdzie ktoś go przyjmuje.
+- `RootClientSpanSampler` i filtr ścieżek — Jaeger pokazuje żądania i pracę, a nie scrape i puste pętle.
 - `AddDockerComposeEnvironment` — most do obecnego deployu na VM przez Compose.
 
 ## Testy
@@ -150,6 +249,16 @@ Projekt `tests/JJDevHub.AppHost.Tests`, klasa `AppHostTests`. `DistributedApplic
 | `Postgres_has_service_databases` | aplikacja uruchomiona | `SELECT datname FROM pg_database` przez connection string `postgres` | są `news_write`, `news_read`, `jjdevhub` |
 | `Kafka_becomes_healthy` | aplikacja uruchomiona | `WaitForResourceHealthyAsync("kafka")` | bez timeoutu |
 
+Klasa `TelemetryConfigurationTests` w tym samym projekcie, bez uruchamiania AppHost. `ConfigurationBuilder.AddInMemoryCollection`.
+
+| Fakt | Arrange | Act | Assert |
+| --- | --- | --- | --- |
+| `Shared_endpoint_feeds_all_signals` | tylko `OTEL_EXPORTER_OTLP_ENDPOINT` | `Resolve` | trzy równe adresy |
+| `Traces_endpoint_does_not_feed_metrics` | tylko `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | `Resolve` | ślady ustawione, metryki i logi `null` |
+| `Blank_endpoint_is_null` | `OTEL_EXPORTER_OTLP_ENDPOINT = " "` | `Resolve` | trzy `null` |
+| `Root_client_span_is_dropped` | `SamplingParameters` bez rodzica, `ActivityKind.Client` | `ShouldSample` | `Drop` |
+| `Root_server_span_is_kept` | bez rodzica, `ActivityKind.Server` | `ShouldSample` | `RecordAndSample` |
+
 Istniejące `tests/JJDevHub.Api.Tests` przechodzą bez zmian poza endpointem `/health`, który daje teraz ServiceDefaults.
 
 `dotnet test tests/JJDevHub.AppHost.Tests` i `dotnet test tests/JJDevHub.Api.Tests`.
@@ -159,13 +268,17 @@ Istniejące `tests/JJDevHub.Api.Tests` przechodzą bez zmian poza endpointem `/h
 - Nazwy zasobów są stałymi w `ResourceNames` i są nazwami connection stringów w usługach.
 - Usługa woła `AddServiceDefaults()` i `MapDefaultEndpoints()` jako pierwsze i ostatnie wywołanie konfiguracji.
 - Sekrety to parametry Aspire. W dev są w user secrets, na VM w `/etc/jjdevhub/<usługa>.env`. W repozytorium ich nie ma.
-- Biblioteki budulcowe nie referencjonują Aspire ani OpenTelemetry. Mają tylko `ActivitySource`.
+- Biblioteki budulcowe nie referencjonują Aspire ani OpenTelemetry. Mają tylko `ActivitySource` i `Meter` z platformy.
+- Każdy sygnał OTLP ma własny adres. Metryki i logi nie idą na adres Jaegera.
+- Etykieta metryki nie zawiera identyfikatora zdarzenia, użytkownika ani adresu e-mail.
 - Jedna baza na usługę, nawet gdy serwer jest wspólny.
 
 ## Poza zakresem
 
 - Kubernetes, Helm i `aspire publish` do Azure.
 - Zastąpienie Prometheusa, Jaegera i Grafany dashboardem Aspire na serwerze. Dashboard jest dla dev.
+- Backend logów na VM (Loki, OpenSearch). Logi zostają w `docker logs` z `trace_id`, a ślad prowadzi do linii logu.
+- Zmiana env, celów Prometheusa i dashboardów na VM — [18-ci-uslug.md](18-ci-uslug.md).
 - Identity, News.API, Users, Notifications w AppHost — numery `15`–`17`.
 - Pipeline publikacji — [18-ci-uslug.md](18-ci-uslug.md).
 
@@ -179,10 +292,16 @@ Istniejące `tests/JJDevHub.Api.Tests` przechodzą bez zmian poza endpointem `/h
 - [Aspire deployment with Docker Compose](https://learn.microsoft.com/en-us/dotnet/aspire/deployment/overview) — `aspire publish` i środowisko Compose.
 - [dotnet/eShop — eShop.AppHost](https://github.com/dotnet/eShop/tree/main/src/eShop.AppHost) i [eShop.ServiceDefaults](https://github.com/dotnet/eShop/tree/main/src/eShop.ServiceDefaults) — wzorzec składu.
 - [OpenTelemetry .NET](https://opentelemetry.io/docs/languages/dotnet/) — źródła, eksportery OTLP i Prometheus.
+- [OTLP exporter configuration](https://opentelemetry.io/docs/specs/otel/protocol/exporter/) — zmienne `OTEL_EXPORTER_OTLP_*` na sygnał i zapas na wspólny adres.
+- [Sampling](https://opentelemetry.io/docs/concepts/sampling/) — `ParentBased` i własny sampler korzenia.
+- [.NET metrics instrumentation](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation) — `Meter`, `CreateObservableGauge`, `Counter`.
+- [docs/CICD/06-opentelemetry.md](../CICD/06-opentelemetry.md) i [08-jaeger.md](../CICD/08-jaeger.md) — dlaczego metryki i logi nie idą do Jaegera i skąd limit śladów.
 
 ## Gotowe gdy
 
 - `aspire run` stawia Postgresa z bazami `jjdevhub`, `news_write`, `news_read`, Kafkę z Kafka UI i istniejące API.
 - API ma `/health`, `/alive` i `/metrics` z `MapDefaultEndpoints`, a ręczny blok OTel zniknął z `Program.cs`.
+- W dashboardzie Aspire nie ma śladów `/metrics`, `/health` ani pustych zapytań workerów.
+- `curl /metrics` pokazuje serie `jjdevhub_*` z kroku 4 dla bibliotek, które działają w procesie.
 - `aspire publish -o artifacts/compose` generuje plik Compose bez sekretów w treści.
 - `dotnet test tests/JJDevHub.AppHost.Tests` i `dotnet test tests/JJDevHub.Api.Tests` kończą się kodem 0.

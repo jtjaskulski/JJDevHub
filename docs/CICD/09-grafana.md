@@ -90,7 +90,7 @@ providers:
 
 ### 4. Minimalny dashboard (JSON)
 
-Plik `infra/grafana/dashboards/jjdevhub-api-overview.json` — wystarczy panel z PromQL i datasource UID `prometheus`. Poniższy szkielet da się rozbudować; agent wdrażający może dociągnąć panele (latency, RPS) pod metryki z 07:
+Plik `infra/grafana/dashboards/jjdevhub-api-overview.json` — wystarczy panel z PromQL i datasource UID `prometheus`. Poniższy szkielet da się rozbudować; przy wdrożeniu można dociągnąć panele (latency, RPS) pod metryki z 07:
 
 ```json
 {

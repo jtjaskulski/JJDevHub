@@ -1,6 +1,6 @@
 # Frontend JJDevHub
 
-Specyfikacja do późniejszego generowania kodu klienta. Ten plik ustala kolejność pozostałych dokumentów, mapę stron, zasady i granice. Kod aplikacji w tym kroku zostaje bez zmian.
+Specyfikacja klienta do późniejszej implementacji. Ten plik ustala kolejność pozostałych dokumentów, mapę stron, zasady i granice. Kod aplikacji w tym kroku zostaje bez zmian.
 
 Łańcuch webu: React składa HTML5, Vite podaje jeden CSS, Tailwind v4 daje klasy, shadcn i Motion siedzą na tym samym HTML. Telefon ma osobne ekrany i te same liczby z tokenów.
 
