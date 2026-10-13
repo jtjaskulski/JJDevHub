@@ -8,6 +8,50 @@ eShop przenosi zdarzenia przez RabbitMQ (`EventBusRabbitMQ`). My wybieramy Kafk�
 
 Kafka nie daje „dokładnie raz” między bazą a brokerem. To zapewniają outbox (nic nie ginie) i inbox (nic nie działa dwa razy). Tutaj zostaje transport: klucze, nagłówki, commit offsetu po przetworzeniu i temat na wiadomości, których nie da się przetworzyć.
 
+## Dlaczego ta technologia
+
+### Kafka jako szyna między usługami
+
+Kafka to rozproszony log: wiadomości są dopisywane do partycji tematu i zostają tam przez czas retencji (u nas 7 dni), niezależnie od tego, czy ktoś je przeczytał. Konsument pamięta tylko swój offset. Z tego wynikają trzy cechy, których potrzebujemy:
+
+- **odtworzenie** — nowa usługa albo naprawiony konsument może przeczytać zdarzenia od początku retencji, przesuwając offset,
+- **kolejność per klucz** — wiadomości z tym samym kluczem (id artykułu, id użytkownika) trafiają do jednej partycji i są czytane w kolejności zapisu,
+- **niezależni konsumenci** — Users i Notifications czytają ten sam temat w osobnych grupach i nie przeszkadzają sobie.
+
+Alternatywy:
+
+- **RabbitMQ** — klasyczny broker kolejek: lżejszy, prostszy w obsłudze, z bogatym routingiem. Wiadomość znika po potwierdzeniu, więc odtworzenia nie ma bez dodatkowych strumieni (RabbitMQ Streams). eShop używa RabbitMQ. Dla jednej VM byłby prostszy. Kafkę wybraliśmy świadomie: model logu i doświadczenie z nią są cenniejsze na rynku, a retencja daje odtworzenie.
+- **Postgres jako kolejka** — sam outbox z `SKIP LOCKED` u konsumentów. Najprostsze, ale łamie zasadę „usługa nie czyta cudzej bazy”.
+- **Azure Service Bus, AWS SQS** — chmura, a projekt działa na domowej VM.
+
+Koszt Kafki: proces na JVM z apetytem na pamięć (kontener potrzebuje ok. 1 GB), więcej pojęć (partycje, grupy, offsety, rebalancing) i brak wbudowanej kolejki opóźnionych ponowień.
+
+### KRaft zamiast ZooKeepera
+
+Od Kafki 3.3 metadane klastra trzyma sama Kafka (KRaft), a od 4.0 ZooKeeper jest usunięty. Jeden kontener zamiast dwóch, mniej konfiguracji. Aspire i Testcontainers uruchamiają Kafkę w trybie KRaft domyślnie.
+
+### Confluent.Kafka zamiast nakładki
+
+Confluent.Kafka (Apache 2.0) to oficjalny klient .NET na `librdkafka`, najszybszej i najlepiej utrzymywanej implementacji protokołu. Aspire ma do niego integrację (`Aspire.Confluent.Kafka`) z health checkiem i śladami. Nakładki:
+
+- **KafkaFlow** (MIT) — middleware, serializery, ponowienia; dobra, ale chowa offsety i commit, które są tematem tego numeru,
+- **MassTransit Rider** — płatny od `9`,
+- **Wolverine** (MIT) — transport Kafki w pakiecie z resztą Wolverine.
+
+Na kliencie bazowym widać każdą decyzję: kiedy commitujemy offset, co robimy z błędem, jak budujemy nagłówki.
+
+### Temat na kontekst zamiast tematu na typ zdarzenia
+
+`news.integration` niesie wszystkie zdarzenia News, a typ jest w nagłówku `event-type`. Temat na typ (`news.article-created`) dałby dziesiątki tematów i, co gorsza, zgubiłby kolejność między różnymi zdarzeniami tego samego artykułu (utworzony, potem zrewidowany w dwóch tematach może przyjść w odwrotnej kolejności). Temat na kontekst z kluczem = id agregatu zachowuje kolejność. Wzór opisuje Confluent („Should You Put Several Event Types in the Same Kafka Topic?”).
+
+### Ręczny commit offsetu i DLQ
+
+Automatyczny commit zatwierdza offset co kilka sekund, niezależnie od tego, czy handler skończył. Awaria w tym oknie gubi wiadomość. Ręczny commit po zapisie do inboxa daje at-least-once, a inbox z [12-outbox-inbox.md](12-outbox-inbox.md) usuwa duplikaty. Wiadomość, która pada pięć razy z rzędu (zły kształt, błąd w kodzie), blokowałaby partycję na zawsze, bo Kafka nie pozwala pominąć jednej wiadomości bez przesunięcia offsetu. Dlatego po ostatniej próbie trafia do `*.dlq` z nagłówkami błędu, a konsument idzie dalej.
+
+### `acks=all` i idempotentny producent
+
+`acks=all` oznacza, że broker potwierdza zapis dopiero po replikacji na wszystkie repliki w synchronizacji. Na jednym brokerze to bez różnicy, ale konfiguracja jest gotowa na trzy. `enable.idempotence` sprawia, że ponowiona przez klienta wysyłka nie tworzy duplikatu w partycji. Obie opcje to domyślne zalecenia Confluent dla danych, których nie wolno zgubić.
+
 ## Klasy i ścieżki
 
 | Plik | Odpowiedzialność |
@@ -22,7 +66,7 @@ Kafka nie daje „dokładnie raz” między bazą a brokerem. To zapewniają out
 | `src/building-blocks/JJDevHub.EventBus.Kafka/KafkaServiceCollectionExtensions.cs` | `AddKafkaEventBus`, `AddKafkaConsumer` |
 | `tests/JJDevHub.EventBus.Kafka.Tests/` | Testcontainers.Kafka |
 
-## Tutorial
+## Plan
 
 ### 1. Projekt
 

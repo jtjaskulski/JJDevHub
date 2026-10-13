@@ -8,6 +8,24 @@ CQRS w dokumentacji Microsoftu rozdziela zapis od odczytu także w kodzie. eShop
 
 Port w Application i implementacja w Infrastructure to cebula z GeekLemon. Handler da się przetestować na stubie, a EF zostaje tam, gdzie reszta bazy.
 
+## Dlaczego ta technologia
+
+### Zapytanie przez mediator
+
+Endpoint mógłby czytać `NewsReadContext` sam. Przechodząc przez mediator, zapytanie dostaje te same zachowania co komenda: log z czasem i walidację parametrów. `TransactionBehavior` rozpoznaje `IQuery` i transakcji nie otwiera. Jednolitość kosztuje jedną klasę handlera, a daje jedno miejsce na późniejszy cache zapytań.
+
+### Port `IArticleSummaryReader` zamiast `IQueryable` albo kontekstu w Application
+
+Application mówi, czego potrzebuje (`FindAsync`, `ListAsync`), a nie jak to zdobyć. `IQueryable<ArticleSummaryRow>` wystawione do Application wyglądałoby elastycznie, ale przenosi EF do warstwy, która nie powinna go znać: zapytanie składane w handlerze wykonuje się dopiero w bazie, a błąd tłumaczenia LINQ wychodzi w runtime. Port z dwiema metodami jest nudny i dlatego dobry. Implementacja w Infrastructure używa `AsNoTracking`, bo widok jest tylko do odczytu.
+
+### Model odczytu `ArticleSummary` osobno od wiersza tabeli
+
+`ArticleSummaryRow` to encja EF (mapowanie, klucz, kolumny). `ArticleSummary` to rekord, który wychodzi z Application. Rozdzielenie pozwala zmienić tabelę (np. dodać kolumnę techniczną) bez zmiany kontraktu odczytu.
+
+### Stronicowanie offsetem z limitem 50
+
+`OFFSET/LIMIT` jest najprostsze i wystarcza, dopóki artykułów jest setki. Przy dziesiątkach tysięcy duży offset staje się wolny i lepszy jest keyset (`WHERE CreatedOn < @ostatni`). Limit 50 w walidatorze chroni bazę przed `PageSize=100000` już dziś. Przejście na keyset zmienia tylko czytnik i parametry zapytania.
+
 ## Klasy i ścieżki
 
 | Plik | Odpowiedzialność |
@@ -23,7 +41,7 @@ Port w Application i implementacja w Infrastructure to cebula z GeekLemon. Handl
 | `tests/News.Application.Tests/GetArticleQueryTests.cs` | handler na stubie |
 | `tests/News.Infrastructure.Tests/ArticleSummaryReaderTests.cs` | czytnik na kontenerze |
 
-## Tutorial
+## Plan
 
 ### 1. Model odczytu
 
@@ -60,7 +78,7 @@ public interface IArticleSummaryReader
 ### 3. Zapytania i handlery
 
 - `GetArticleQuery(Guid ArticleId) : IQuery<ArticleSummary>`. `GetArticleQueryHandler(IArticleSummaryReader reader)` zwraca `NotFound` dla `null`, inaczej `Ok`.
-- `ListArticlesQuery(int Page, int PageSize) : IQuery<IReadOnlyList<ArticleSummary>>`. Walidator: `Page >= 1`, `PageSize` od 1 do 50, inaczej `Invalid`. Handler woła `ListAsync((Page - 1) * PageSize, PageSize)`.
+- `ListArticlesQuery(int Page, int PageSize) : IQuery<IReadOnlyList<ArticleSummary>>`. Walidator `ListArticlesQueryValidator : AbstractValidator<ListArticlesQuery>`: `RuleFor(q => q.Page).GreaterThanOrEqualTo(1)` i `RuleFor(q => q.PageSize).InclusiveBetween(1, 50)`. `ValidatorBehavior` zamienia porażkę na `Invalid`. Handler woła `ListAsync((Page - 1) * PageSize, PageSize)`.
 
 Zapytanie nie przechodzi przez transakcję: `TransactionBehavior` z [08-mediator.md](08-mediator.md) pomija `IQuery`.
 

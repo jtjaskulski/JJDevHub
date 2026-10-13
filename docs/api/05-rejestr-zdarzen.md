@@ -8,6 +8,28 @@ Wcześniejsza wersja tej specyfikacji zapisywała `AssemblyQualifiedName`. Pierw
 
 Drugi problem to ewolucja. Zdarzenie w bazie się nie zmienia, a kod tak. Upcaster to mała funkcja „JSON w wersji 1 → JSON w wersji 2”, wołana przy odczycie. Stare wiersze zostają nietknięte, a domena widzi tylko najnowszy kształt.
 
+## Dlaczego ta technologia
+
+### Rejestr nazw budowany przy starcie
+
+Magazyn zapisuje nazwę `news.article-created.v1`, a przy odczycie musi wiedzieć, na jaki typ C# ją zdeserializować. Rejestr skanuje zestawy raz, przy starcie, i buduje dwie mapy: nazwa → typ i typ → nazwa. Duplikat nazwy albo zdarzenie bez atrybutu to wyjątek przy starcie, a nie cichy błąd przy pierwszym odczycie w nocy. Alternatywą jest `Type.GetType(nazwa)` w momencie odczytu, ale to właśnie jest stara zależność od nazwy CLR, którą ten numer usuwa.
+
+Rejestr żyje w `JJDevHub.Domain`, bo używają go dwa światy: magazyn zdarzeń domenowych i szyna zdarzeń integracyjnych w [12-outbox-inbox.md](12-outbox-inbox.md). Oba mają atrybut `[EventName]`.
+
+### System.Text.Json zamiast Newtonsoft.Json
+
+System.Text.Json jest częścią platformy, szybszy i domyślny w ASP.NET Core. Newtonsoft.Json (MIT) ma więcej funkcji, m.in. `TypeNameHandling`, który wpisuje nazwę typu do JSON-a. To jest dokładnie to, czego nie chcemy, i znane źródło podatności przy deserializacji danych z zewnątrz. Opcje `JsonSerializerDefaults.Web` (camelCase) dają ten sam kształt JSON-a co API, więc wiersz w bazie czyta się jak odpowiedź HTTP.
+
+### Upcasting na `JsonObject`
+
+Zdarzenie `v1` zapisane rok temu nie ma pola, które `v2` uważa za wymagane. Są trzy drogi:
+
+- trzymać w kodzie wszystkie stare klasy (`ArticleCreatedV1`, `V2`) i obsługiwać każdą w `Apply`: agregat puchnie z każdą wersją,
+- przepisać dane w bazie migracją: niszczy niezmienność historii i jest ryzykowne,
+- zamienić stary JSON na nowy w locie, przed deserializacją: to jest upcasting.
+
+Wybieramy trzecią. `IEventUpcaster` dostaje `JsonObject` (modyfikowalne drzewo JSON z System.Text.Json) i nazwę, a zwraca nowy obiekt z nową nazwą. Łańcuch upcasterów prowadzi `v1 → v2 → v3`, więc agregat zna tylko najnowszą klasę. Wykrywanie cykli chroni przed pomyłką `v2 → v1`. Greg Young opisuje te techniki w *Versioning in an Event Sourced System*.
+
 ## Klasy i ścieżki
 
 | Plik | Odpowiedzialność |
@@ -20,7 +42,7 @@ Drugi problem to ewolucja. Zdarzenie w bazie się nie zmienia, a kod tak. Upcast
 | `tests/JJDevHub.Domain.Tests/EventTypeRegistryTests.cs` | skanowanie i duplikaty |
 | `tests/JJDevHub.EventStore.Tests/JsonEventSerializerTests.cs` | runda i upcasting |
 
-## Tutorial
+## Plan
 
 ### 1. Rejestr
 

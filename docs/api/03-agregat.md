@@ -12,6 +12,34 @@ Z GeekLemon bierzemy trzy rzeczy:
 - abstrakcję czasu (`AppTime`) — u nas `TimeProvider` z platformy,
 - statyczną fabrykę zamiast metody `Create` na pustym obiekcie, która dawała się zawołać dwa razy.
 
+## Dlaczego ta technologia
+
+### Agregat jako granica spójności
+
+Agregat to grupa obiektów zmienianych razem, z jednym wejściem (korzeniem). Wszystko, co musi być prawdą po każdej zmianie (tytuł niepusty, rewizję robi autor), sprawdza korzeń. Poza nim nikt nie zmienia pól. Dzięki temu reguła nie rozjeżdża się po kontrolerach i serwisach. Evans opisuje to jako podstawowy wzorzec taktyczny DDD, Vernon dodaje zasadę „małe agregaty, referencja po id”. `Article` jest mały: tytuł, treść, autor, daty.
+
+### `Apply` jako jedyne miejsce zmiany stanu
+
+W event sourcingu stan powstaje na dwa sposoby: nowa operacja (`Create`, `Revise`) i odtworzenie ze strumienia (`Replay`). Gdyby każda droga ustawiała pola sama, prędzej czy później by się rozjechały: nowa operacja ustawia `UpdatedAt`, a replay zapomina. Dlatego obie drogi idą przez `Apply(event)`. Operacja sprawdza reguły i tworzy zdarzenie, `Apply` je wykonuje. `Apply` rzuca wyjątek przy nieznanym zdarzeniu, bo cicha ignorancja oznacza stan, który różni się od zapisanej historii.
+
+Alternatywą są osobne metody `When(ArticleCreated)` wywoływane refleksją (styl wielu bibliotek, w tym Eventuous). `switch` po typie jest jawny, szybki i kompilator pomaga przy wzorcach.
+
+### `IBusinessRule` jako klasa
+
+Reguła `OnlyAuthorCanReviseRule` w osobnej klasie ma nazwę, test i błąd (`Forbidden`). Ten sam `if` w środku `Revise` jest krótszy, ale nie da się go nazwać w raporcie testów ani przenieść. GeekLemon robi tak z `IScoringRejectRule`. Koszt: więcej plików. Dla dwóch reguł to akceptowalne, a wzór się skaluje.
+
+### Statyczna fabryka zamiast publicznego konstruktora
+
+Konstruktor nie może zwrócić `Result<T>`. Może tylko rzucić wyjątek albo stworzyć niepoprawny obiekt. `Article.Create(...)` zwraca `Result<Article>`, więc odmowa jest zwykłą wartością. Publiczny konstruktor bez parametrów zostaje tylko dla `Replay`: repozytorium z ograniczeniem `new()` tworzy pusty obiekt i nakłada historię. Pusty `Article` nie ma tytułu, więc nie jest poprawnym artykułem, dopóki nie dostanie zdarzeń. To cena za generyczne repozytorium bez refleksji. Alternatywa (fabryka `Func<T>` w DI) dokłada rejestrację na każdy agregat.
+
+### `TimeProvider` zamiast `DateTime.UtcNow`
+
+Kod, który woła zegar sam, nie da się przetestować deterministycznie: „data utworzenia równa się teraz” to test, który czasem pada. GeekLemon rozwiązuje to własnym `AppTime`. Od .NET 8 platforma ma `TimeProvider` w bibliotece standardowej, a pakiet `Microsoft.Extensions.TimeProvider.Testing` daje `FakeTimeProvider`. Nie piszemy własnego interfejsu zegara, bo standardowy już istnieje i znają go wszystkie biblioteki Microsoftu. W testach wystarcza mały `FixedTimeProvider`.
+
+### `internal MarkPersisted` przez `InternalsVisibleTo`
+
+Wersję agregatu po zapisie musi ustawić magazyn, ale nikt inny. Metoda publiczna (jak dawne `MarkVersion`) pozwalała każdemu przestawić wersję i zepsuć optymistyczną współbieżność. `internal` z `InternalsVisibleTo("JJDevHub.EventStore")` daje dostęp tylko temu jednemu projektowi. To kompromis: domena wie o istnieniu projektu magazynu z nazwy, ale nie zależy od niego w kodzie.
+
 ## Klasy i ścieżki
 
 | Plik | Odpowiedzialność |
@@ -27,7 +55,7 @@ Z GeekLemon bierzemy trzy rzeczy:
 | `tests/JJDevHub.Domain.Tests/AggregateRootTests.cs` | mechanika korzenia na agregacie testowym |
 | `tests/News.Domain.Tests/ArticleTests.cs` | reguły i fakty artykułu |
 
-## Tutorial
+## Plan
 
 ### 1. Encja i znacznik
 

@@ -1,6 +1,6 @@
 # API — od zdarzenia domenowego do mikroserwisów
 
-Specyfikacja do generowania kodu kawałek po kawałku. Ten plik ustala szablon numerów, słownik nazw, bazy, pakiety i kolejność. Obraz całości (usługi, szyna, bazy) jest w [architektura.md](architektura.md). Każdy numer `01`–`18` to jedna sesja agenta: kod, testy, zielony `dotnet test`.
+Specyfikacja budowana kawałek po kawałku. Ten plik ustala szablon numerów, słownik nazw, bazy, pakiety i kolejność. Obraz całości (usługi, szyna, bazy) jest w [architektura.md](architektura.md). Każdy numer `01`–`18` to jeden zamknięty krok: kod, testy, zielony `dotnet test`.
 
 Dziś w repo jest jedno API w [src/api](../../src/api) z Identity i JWT ([`AppDbContext`](../../src/api/Data/AppDbContext.cs), migracja `InitialIdentity`). Ciąg buduje obok biblioteki w `src/building-blocks`, usługę News z event sourcingiem, a od numeru `14` składa całość w .NET Aspire i rozcina na procesy połączone Kafką.
 
@@ -18,15 +18,16 @@ Każdy plik `NN-*.md` ma te sekcje, w tej kolejności:
 | --- | --- |
 | wstęp | jeden akapit: co powstaje, link do numeru poprzedniego i następnego |
 | `## Po co` | problem, który numer rozwiązuje, i odniesienie do eShop, GeekLemon albo dokumentacji |
+| `## Dlaczego ta technologia` | podsekcja `### <wybór>` na każdą decyzję: co to jest, jaki problem rozwiązuje, alternatywy i dlaczego przegrały, koszt |
 | `## Klasy i ścieżki` | tabela plik → odpowiedzialność |
-| `## Tutorial` | kroki `### 1.` …, kod tylko tam, gdzie kształt jest decyzją; na końcu `### Co jest do czego` |
+| `## Plan` | kroki `### 1.` … do wykonania, kod tylko tam, gdzie kształt jest decyzją; na końcu `### Co jest do czego` |
 | `## Testy` | projekt, klasa, tabela Fakt / Arrange / Act / Assert, komenda `dotnet test` |
 | `## Zasady` | reguły, których kod nie łamie |
 | `## Poza zakresem` | co jest gdzie indziej, z linkiem do numeru |
 | `## Źródła` | `[tytuł](url) — po co`, plus książki bez linku |
 | `## Gotowe gdy` | warunki do sprawdzenia, ostatni to komenda z kodem 0 |
 
-`### Co jest do czego` to lista dla studenta: element, po co istnieje, kto go woła. Ma odpowiadać na pytanie „dlaczego ta klasa w ogóle jest”, a nie powtarzać kroków.
+`## Dlaczego ta technologia` tłumaczy wybory, zanim powstanie kod. `## Plan` to same kroki, bez uzasadnień, bo te są wyżej. `### Co jest do czego` na końcu planu to lista dla studenta: element, po co istnieje, kto go woła. Ma odpowiadać na pytanie „dlaczego ta klasa w ogóle jest”, a nie powtarzać kroków.
 
 Zasady C# są w [.cursor/rules/csharp.mdc](../../.cursor/rules/csharp.mdc): jeden publiczny typ na plik, `sealed`, rekord dla danych, oczekiwany błąd jako `Result<T>`, `CancellationToken` w każdej metodzie `async`.
 
@@ -73,7 +74,7 @@ Zasady C# są w [.cursor/rules/csharp.mdc](../../.cursor/rules/csharp.mdc): jede
 | [15-identity.md](15-identity.md) | `Identity.API`, klucz RSA, JWKS, `UserRegisteredIntegrationEvent` |
 | [16-usluga-news.md](16-usluga-news.md) | `News.API`, endpointy, autor z tokenu, `JJDevHub.Gateway` (YARP) |
 | [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md) | `Users.API`, `Notifications.Worker`, testy kontraktów |
-| [18-ci-uslug.md](18-ci-uslug.md) | reużywalny workflow, runnery `build` i `deploy`, obraz po digeście |
+| [18-ci-uslug.md](18-ci-uslug.md) | `ci.yml` z wykrywaniem zmian, reużywalny workflow, obraz po digeście, przejście VM (nginx → gateway, Prometheus na usługę, RAM) |
 
 Numery `01`–`13` nie dotykają [src/api](../../src/api). Do `14` istniejące API działa jak dziś.
 
@@ -98,6 +99,7 @@ Numery `01`–`13` nie dotykają [src/api](../../src/api). Do `14` istniejące A
 | `IRequest<T>`, `ICommand<T>`, `IQuery<T>`, handlery | `JJDevHub.Cqrs` | eShop Ordering |
 | `IMediator.Send`, `IPipelineBehavior<TRequest, TResponse>` | `JJDevHub.Cqrs` | łańcuch zachowań z eShop |
 | `LoggingBehavior`, `ValidatorBehavior`, `TransactionBehavior`, `IUnitOfWork` | `JJDevHub.Cqrs` | te same nazwy co w eShop |
+| `AbstractValidator<T>`, sufiks `Validator` | FluentValidation, w Application | eShop: `CreateOrderCommandValidator` |
 | `CreateArticleCommand`, `ReviseArticleCommand`, `GetArticleQuery` | `News.Application` | komenda i zapytanie |
 | `ReadContext`, `Checkpoint`, `IProjection`, `ProjectionWorker` | `JJDevHub.Projections` | materialized view |
 | `ArticleSummary`, `IArticleSummaryReader` | `News.Application` | model odczytu i port |
@@ -138,21 +140,37 @@ Connection stringi nazywają się jak zasoby Aspire: `ConnectionStrings:news-wri
 
 Wersje centralnie w [Directory.Packages.props](../../Directory.Packages.props). Numer dopisuje wersję tylko wtedy, gdy pakietu jeszcze nie ma.
 
-| Pakiet | Rola | Od numeru |
-| --- | --- | --- |
-| `Npgsql.EntityFrameworkCore.PostgreSQL` (jest) | `NewsWriteContext`, `ReadContext`, konteksty usług | `06` |
-| `Microsoft.EntityFrameworkCore.Design` (jest) | migracje, `PrivateAssets` przy projekcie startowym | `06` |
-| `Testcontainers.PostgreSql` (jest) | testy baz | `06` |
-| `Testcontainers.Kafka` | test szyny | `13` |
-| `Confluent.Kafka` | producent i konsument | `13` |
-| `Aspire.Hosting.AppHost`, `Aspire.Hosting.PostgreSQL`, `Aspire.Hosting.Kafka`, `Aspire.Hosting.Docker` | AppHost i publikacja Compose | `14` |
-| `Aspire.Npgsql.EntityFrameworkCore.PostgreSQL`, `Aspire.Confluent.Kafka` | klienci w usługach | `14` |
-| `Aspire.Hosting.Testing` | test AppHost | `14` |
-| `Microsoft.Extensions.ServiceDiscovery`, `Microsoft.Extensions.Http.Resilience` | `ServiceDefaults` | `14` |
-| `OpenTelemetry.*` (są) | `ServiceDefaults` | `14` |
-| `Yarp.ReverseProxy`, `Microsoft.Extensions.ServiceDiscovery.Yarp` | `JJDevHub.Gateway` | `16` |
+| Pakiet | Licencja | Rola | Od numeru |
+| --- | --- | --- | --- |
+| `Npgsql.EntityFrameworkCore.PostgreSQL` (jest) | PostgreSQL | `NewsWriteContext`, `ReadContext`, konteksty usług | `06` |
+| `Microsoft.EntityFrameworkCore.Design` (jest) | MIT | migracje, `PrivateAssets` przy projekcie startowym | `06` |
+| `Testcontainers.PostgreSql` (jest) | MIT | testy baz | `06` |
+| `FluentValidation`, `FluentValidation.DependencyInjectionExtensions` | Apache 2.0 | walidatory komend i zapytań | `08` |
+| `Testcontainers.Kafka` | MIT | test szyny | `13` |
+| `Confluent.Kafka` | Apache 2.0 | producent i konsument | `13` |
+| `Aspire.Hosting.AppHost`, `Aspire.Hosting.PostgreSQL`, `Aspire.Hosting.Kafka`, `Aspire.Hosting.Docker` | MIT | AppHost i publikacja Compose | `14` |
+| `Aspire.Npgsql.EntityFrameworkCore.PostgreSQL`, `Aspire.Confluent.Kafka` | MIT | klienci w usługach | `14` |
+| `Aspire.Hosting.Testing` | MIT | test AppHost | `14` |
+| `Microsoft.Extensions.ServiceDiscovery`, `Microsoft.Extensions.Http.Resilience` | MIT | `ServiceDefaults` | `14` |
+| `OpenTelemetry.*` (są) | Apache 2.0 | `ServiceDefaults` | `14` |
+| `Yarp.ReverseProxy`, `Microsoft.Extensions.ServiceDiscovery.Yarp` | MIT | `JJDevHub.Gateway` | `16` |
 
-Poza ciągiem: Ardalis, Marten, EventFlow, Eventuous, MediatR, MassTransit, Wolverine, FluentValidation, Dapper.
+### Licencje
+
+Dozwolone jest wszystko na otwartej, darmowej licencji (MIT, Apache 2.0, BSD, PostgreSQL), także spoza tabeli: Ardalis, Marten, Wolverine, Eventuous, Dapper. Nowy pakiet dopisuje się do tabeli w numerze, który go wprowadza.
+
+Odpadają wersje z licencją komercyjną albo wymagającą rejestracji klucza na produkcji:
+
+| Pakiet | Od wersji | Co się stało |
+| --- | --- | --- |
+| MediatR | `13` | licencja podwójna (RPL 1.5 albo komercyjna); darmowa edycja Community wymaga klucza i progu przychodu |
+| AutoMapper | `15` | jak MediatR |
+| MassTransit | `9` | tylko płatna subskrypcja; `8` bez wsparcia |
+| Duende IdentityServer | — | płatna licencja dla firm; Identity wydaje tokeny samo ([15-identity.md](15-identity.md)) |
+
+Starej wersji z wolną licencją nie przypinamy: nie dostanie poprawek bezpieczeństwa ani wsparcia dla .NET 11.
+
+Mediator, rejestr zdarzeń, magazyn zdarzeń i outbox piszemy sami nie z powodu zakazu, tylko dlatego, że to są tematy ciągu. Uzasadnienie jest w sekcji `## Dlaczego ta technologia` numerów `04`–`08` i `12`.
 
 ## Ścieżki w repo
 

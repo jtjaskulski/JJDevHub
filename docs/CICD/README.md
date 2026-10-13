@@ -1,6 +1,6 @@
 # CI/CD — spis dokumentów
 
-Numerowane pliki poniżej to kolejność wdrożenia. Agent wykonuje **jeden numer naraz** — nie łączy kilku kroków w jednej sesji.
+Numerowane pliki poniżej to kolejność wdrożenia. Wdrażasz **jeden numer naraz** — bez łączenia kilku kroków w jednym podejściu.
 
 | Plik | Temat |
 | --- | --- |

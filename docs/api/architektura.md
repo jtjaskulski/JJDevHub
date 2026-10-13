@@ -4,7 +4,7 @@ Obraz całości, do którego prowadzą numery `01`–`18`. Ten plik nie jest num
 
 ## Po co
 
-Agent, który generuje jeden numer, widzi tylko swój kawałek. Ten plik pilnuje, żeby kawałki składały się w system z wyraźnymi granicami: usługa ma własną bazę, własny kontrakt na szynie i nie zagląda do sąsiada. To samo cięcie ma eShop: `Ordering.API` nie czyta bazy `Catalog.API`, tylko dostaje zdarzenie.
+Każdy numer opisuje tylko swój kawałek. Ten plik pilnuje, żeby kawałki składały się w system z wyraźnymi granicami: usługa ma własną bazę, własny kontrakt na szynie i nie zagląda do sąsiada. To samo cięcie ma eShop: `Ordering.API` nie czyta bazy `Catalog.API`, tylko dostaje zdarzenie.
 
 ## Usługi
 
@@ -35,7 +35,7 @@ flowchart LR
 | Identity | EF + ASP.NET Identity, CRUD | `identity.integration`: `UserRegisteredIntegrationEvent` | — | `15` |
 | News | DDD, event sourcing, CQRS | `news.integration`: `ArticleCreatedIntegrationEvent` | — | `01`–`11`, `16` |
 | Users | EF, CRUD | — | `identity.integration` | `17` |
-| Notifications | worker bez HTTP | — | `identity.integration`, `news.integration` | `17` |
+| Notifications | worker, HTTP tylko `/health` i `/metrics` | — | `identity.integration`, `news.integration` | `17` |
 | Gateway | YARP, bez logiki | — | — | `16` |
 
 Event sourcing jest tylko w News. To świadomy wybór, jak w eShop, gdzie DDD dostaje `Ordering`, a `Catalog` jest zwykłym CRUD-em. Profil użytkownika nie ma historii wartej odtwarzania. Artykuł ma: powstanie, rewizje, a później publikację i wycofanie.
@@ -102,7 +102,7 @@ Odczyt jest ostatecznie spójny. `POST` zwraca id i wersję, a `GET` może przez
 | Środowisko | Skład | Telemetria |
 | --- | --- | --- |
 | dev | `aspire run`: AppHost stawia Postgresa, Kafkę z Kafka UI i usługi | dashboard Aspire |
-| CI | self-hosted runner `jjdevhub-build` z [18-ci-uslug.md](18-ci-uslug.md), Testcontainers w testach, bez AppHost poza `JJDevHub.AppHost.Tests` | brak |
+| CI | PR na `ubuntu-latest`, `main` na `jjdevhub-build` z [18-ci-uslug.md](18-ci-uslug.md), Testcontainers w testach, bez AppHost poza `JJDevHub.AppHost.Tests` | brak |
 | VM (Proxmox) | Compose wygenerowany przez `aspire publish`, sekrety w `/etc/jjdevhub/<usługa>.env` | Jaeger, Prometheus, Grafana z [docs/CICD](../CICD/README.md) |
 
 ## Źródła

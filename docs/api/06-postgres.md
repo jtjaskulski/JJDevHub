@@ -8,6 +8,32 @@ Biblioteka nie może mieć własnego `DbContext` z migracjami, bo każda usługa
 
 Globalna kolumna `Position` ma jedną pułapkę w Postgresie. Sekwencja przydziela numery przy `INSERT`, a nie przy commicie. Transakcja z pozycją 11 może się zatwierdzić przed transakcją z pozycją 10. Worker przeczyta wtedy 11, zapisze checkpoint 11 i nigdy nie zobaczy 10. Dlatego zapis bierze `pg_advisory_xact_lock`: zapisy zdarzeń w jednej bazie idą po kolei, a kolejność commitów zgadza się z kolejnością pozycji. Przy ruchu bloga to tani koszt.
 
+## Dlaczego ta technologia
+
+### PostgreSQL jako magazyn zdarzeń
+
+Postgres już działa w projekcie (Identity), ma transakcje, `jsonb` z indeksami i sprawdzoną obsługę na jednej VM. Magazyn zdarzeń to w gruncie rzeczy tabela tylko do dopisywania z unikalnym `(StreamId, Version)`, a to relacyjna baza robi dobrze. Najważniejszy argument: zdarzenia i outbox z [12-outbox-inbox.md](12-outbox-inbox.md) zapisują się w jednej transakcji tej samej bazy. Osobny serwer zdarzeń (KurrentDB) wymagałby rozproszonej transakcji albo innego mechanizmu publikacji.
+
+MongoDB i SQL Server przegrywają, bo dokładają drugi silnik bazodanowy bez korzyści, które by to uzasadniały.
+
+### `jsonb` zamiast `json` albo kolumn
+
+Zdarzenia mają różne kształty, więc kolumna na pole nie wchodzi w grę. `jsonb` jest przechowywany w postaci binarnej: wolniejszy zapis o ułamek, ale szybkie zapytania po polach (`Data->>'authorIdentityGuid'`) i możliwe indeksy GIN, gdy kiedyś będą potrzebne do diagnostyki. `json` trzyma tekst dosłownie, łącznie z kolejnością kluczy, czego nie potrzebujemy.
+
+### EF Core zamiast Dappera albo czystego Npgsql
+
+Dapper (Apache 2.0) jest dozwolony i dałby szybsze, ręczne SQL-e. EF Core wygrywa z trzech powodów: migracje schematu w tym samym narzędziu co Identity, jedna transakcja `DbContext` wspólna dla zdarzeń i outboxa, oraz gotowe integracje Aspire (health check, ślady, metryki) z [14-aspire.md](14-aspire.md). Ścieżka zapisu to jeden `INSERT` kilku wierszy, więc narzut ORM jest pomijalny. Tam, gdzie EF nie wystarcza (advisory lock), wołamy SQL przez `Database.ExecuteSqlAsync`.
+
+### Biblioteka bez własnego `DbContext`
+
+`JJDevHub.EventStore.Postgres` daje tylko mapowanie (`ApplyEventStore(modelBuilder)`) i klasę generyczną po kontekście (`PostgresEventStore<TContext>`). Kontekst i migracje należą do usługi (`NewsWriteContext`). Gdyby biblioteka miała własny kontekst, outbox (inny kontekst) nie mógłby wejść do tej samej transakcji bez współdzielenia połączenia ręcznie. eShop robi podobnie z `IntegrationEventLogEF`: mapowanie w bibliotece, kontekst w usłudze.
+
+### Advisory lock zamiast samej sekwencji
+
+`Position` to kolumna `identity`. Sekwencja Postgresa przydziela numery w chwili `INSERT`, a nie commitu. Transakcja A dostaje 10, transakcja B dostaje 11 i commituje pierwsza. Projekcja czyta „wszystko po 9”, widzi 11, zapisuje checkpoint 11 i nigdy nie zobaczy 10. To realny błąd, opisany przy wielu magazynach na Postgresie. `pg_advisory_xact_lock` na jedną stałą serializuje dopisywanie do magazynu: numery są przydzielane w kolejności commitów. Koszt: zapisy do News nie idą równolegle. Przy blogu z jednym autorem to bez znaczenia. Marten rozwiązuje ten sam problem „high water mark” bardziej złożonym algorytmem.
+
+Poziom izolacji `SERIALIZABLE` też by pomógł, ale kończyłby się ponawianiem transakcji, a lock po prostu czeka.
+
 ## Klasy i ścieżki
 
 | Plik | Odpowiedzialność |
@@ -25,7 +51,7 @@ Globalna kolumna `Position` ma jedną pułapkę w Postgresie. Sekwencja przydzie
 | `tests/JJDevHub.EventStore.Postgres.Tests/` | magazyn na kontekście testowym |
 | `tests/News.Infrastructure.Tests/` | migracja usługi |
 
-## Tutorial
+## Plan
 
 ### 1. Projekty
 
