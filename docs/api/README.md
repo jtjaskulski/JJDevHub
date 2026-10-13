@@ -1,0 +1,242 @@
+# API — od zdarzenia domenowego do mikroserwisów
+
+Specyfikacja do generowania kodu kawałek po kawałku. Ten plik ustala szablon numerów, słownik nazw, bazy, pakiety i kolejność. Obraz całości (usługi, szyna, bazy) jest w [architektura.md](architektura.md). Każdy numer `01`–`18` to jedna sesja agenta: kod, testy, zielony `dotnet test`.
+
+Dziś w repo jest jedno API w [src/api](../../src/api) z Identity i JWT ([`AppDbContext`](../../src/api/Data/AppDbContext.cs), migracja `InitialIdentity`). Ciąg buduje obok biblioteki w `src/building-blocks`, usługę News z event sourcingiem, a od numeru `14` składa całość w .NET Aspire i rozcina na procesy połączone Kafką.
+
+## Po co
+
+Wzorce są dwa. [dotnet/eShop](https://github.com/dotnet/eshop) daje układ usług (`Ordering.Domain`, `Ordering.Infrastructure`, `Ordering.API`), Aspire (`eShop.AppHost`, `eShop.ServiceDefaults`), outbox (`IntegrationEventLogEF`) i pragmatyzm: DDD i CQRS tylko tam, gdzie domena tego wymaga, reszta jest zwykłym CRUD-em. [GeekLemonConference](https://github.com/PanNiebieski/GeekLemonConference-CQRS-EventSourcing-CleanArchitecture-DDD-Example) daje bogatą domenę: value objecty, reguły biznesowe jako klasy, abstrakcję czasu (`AppTime`) i event sourcing w warstwie infrastruktury.
+
+Paczek z tych przykładów nie bierzemy. Biblioteki budulcowe są nasze, żeby student widział każdy mechanizm i żeby dało się je później wydać jako NuGet.
+
+## Szablon numeru
+
+Każdy plik `NN-*.md` ma te sekcje, w tej kolejności:
+
+| Sekcja | Co zawiera |
+| --- | --- |
+| wstęp | jeden akapit: co powstaje, link do numeru poprzedniego i następnego |
+| `## Po co` | problem, który numer rozwiązuje, i odniesienie do eShop, GeekLemon albo dokumentacji |
+| `## Klasy i ścieżki` | tabela plik → odpowiedzialność |
+| `## Tutorial` | kroki `### 1.` …, kod tylko tam, gdzie kształt jest decyzją; na końcu `### Co jest do czego` |
+| `## Testy` | projekt, klasa, tabela Fakt / Arrange / Act / Assert, komenda `dotnet test` |
+| `## Zasady` | reguły, których kod nie łamie |
+| `## Poza zakresem` | co jest gdzie indziej, z linkiem do numeru |
+| `## Źródła` | `[tytuł](url) — po co`, plus książki bez linku |
+| `## Gotowe gdy` | warunki do sprawdzenia, ostatni to komenda z kodem 0 |
+
+`### Co jest do czego` to lista dla studenta: element, po co istnieje, kto go woła. Ma odpowiadać na pytanie „dlaczego ta klasa w ogóle jest”, a nie powtarzać kroków.
+
+Zasady C# są w [.cursor/rules/csharp.mdc](../../.cursor/rules/csharp.mdc): jeden publiczny typ na plik, `sealed`, rekord dla danych, oczekiwany błąd jako `Result<T>`, `CancellationToken` w każdej metodzie `async`.
+
+## Kolejność
+
+### Część A — domena
+
+| Plik | Zakres |
+| --- | --- |
+| [01-zdarzenie.md](01-zdarzenie.md) | `IDomainEvent`, `EventNameAttribute`, `ArticleCreatedDomainEvent` |
+| [02-value-object.md](02-value-object.md) | `Result<T>`, `ValueObject`, `ArticleId`, `ArticleTitle` |
+| [03-agregat.md](03-agregat.md) | `Entity`, `AggregateRoot`, `IBusinessRule`, `Article`, `TimeProvider` |
+
+### Część B — zapis zdarzeń
+
+| Plik | Zakres |
+| --- | --- |
+| [04-strumien.md](04-strumien.md) | `IEventStore`, `InMemoryEventStore`, konflikt `Version`, globalne `Position` |
+| [05-rejestr-zdarzen.md](05-rejestr-zdarzen.md) | `EventTypeRegistry`, `JsonEventSerializer`, `IEventUpcaster` |
+| [06-postgres.md](06-postgres.md) | `ApplyEventStore`, `PostgresEventStore<TContext>`, `NewsWriteContext`, baza `news_write` |
+| [07-repozytorium.md](07-repozytorium.md) | `IRepository<T>`, `Repository<T>`, `IStreamNaming<T>` |
+
+### Część C — CQRS
+
+| Plik | Zakres |
+| --- | --- |
+| [08-mediator.md](08-mediator.md) | `IMediator`, `IPipelineBehavior`, `LoggingBehavior`, `ValidatorBehavior`, `TransactionBehavior` |
+| [09-komenda.md](09-komenda.md) | `CreateArticleCommand`, `ReviseArticleCommand`, walidatory, handlery |
+| [10-projekcja.md](10-projekcja.md) | `ReadContext`, `Checkpoint`, `IProjection`, `ProjectionWorker`, baza `news_read` |
+| [11-zapytanie.md](11-zapytanie.md) | `GetArticleQuery`, `IArticleSummaryReader`, `ArticleSummary` |
+
+### Część D — integracja
+
+| Plik | Zakres |
+| --- | --- |
+| [12-outbox-inbox.md](12-outbox-inbox.md) | `IIntegrationEvent`, `OutboxMessage`, `InboxMessage`, `OutboxDispatcher` |
+| [13-kafka.md](13-kafka.md) | `IEventBus`, `KafkaEventBus`, `KafkaConsumerWorker`, tematy i DLQ |
+
+### Część E — platforma i usługi
+
+| Plik | Zakres |
+| --- | --- |
+| [14-aspire.md](14-aspire.md) | `JJDevHub.AppHost`, `JJDevHub.ServiceDefaults`, publikacja do Compose |
+| [15-identity.md](15-identity.md) | `Identity.API`, klucz RSA, JWKS, `UserRegisteredIntegrationEvent` |
+| [16-usluga-news.md](16-usluga-news.md) | `News.API`, endpointy, autor z tokenu, `JJDevHub.Gateway` (YARP) |
+| [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md) | `Users.API`, `Notifications.Worker`, testy kontraktów |
+| [18-ci-uslug.md](18-ci-uslug.md) | reużywalny workflow, runnery `build` i `deploy`, obraz po digeście |
+
+Numery `01`–`13` nie dotykają [src/api](../../src/api). Do `14` istniejące API działa jak dziś.
+
+## Nazwy
+
+| Nazwa | Gdzie | Skąd |
+| --- | --- | --- |
+| `Entity`, `ValueObject`, `IAggregateRoot`, `AggregateRoot` | `JJDevHub.Domain` | model domeny w e-booku mikroserwisów .NET |
+| `IDomainEvent`, sufiks `DomainEvent`, `DateOccurred` | `JJDevHub.Domain` | eShop: `OrderStartedDomainEvent` |
+| `EventNameAttribute`, nazwa `news.article-created.v1` | `JJDevHub.Domain` | stabilny kontrakt zamiast nazwy CLR |
+| `IBusinessRule` | `JJDevHub.Domain` | GeekLemon: `IScoringRejectRule` |
+| `Result<T>`, `ResultError` (`None`, `Invalid`, `NotFound`, `Conflict`, `Forbidden`) | `JJDevHub.Domain` | jeden typ wyniku w całym ciągu |
+| `AddDomainEvent`, `DomainEvents`, `Apply`, `Replay`, `MarkPersisted` | `AggregateRoot` | eShop + event sourcing |
+| `Article`, `ArticleId`, `ArticleTitle` | `News.Domain` | przykład agregatu z event sourcingiem |
+| `IEventStore`, `AppendAsync`, `LoadAsync`, `ReadAllAsync` | `JJDevHub.EventStore` | wzorzec Event Sourcing |
+| `Version`, `Position`, `StoredEvent`, `EventStreamRead` | `JJDevHub.EventStore` | wersja w strumieniu, pozycja globalna |
+| `EventTypeRegistry` | `JJDevHub.Domain` | nazwa ↔ typ dla zdarzeń domenowych i integracyjnych |
+| `IEventSerializer`, `JsonEventSerializer`, `IEventUpcaster` | `JJDevHub.EventStore` | wersjonowanie zdarzeń |
+| `IRepository<T>`, `GetAsync`, `SaveAsync`, `IStreamNaming<T>` | `JJDevHub.EventStore` | repozytorium z dokumentacji Microsoftu |
+| `EventStream`, `EventRecord`, `ApplyEventStore`, `PostgresEventStore<TContext>` | `JJDevHub.EventStore.Postgres` | klocki do kontekstu usługi |
+| `NewsWriteContext`, `NewsReadContext` | `News.Infrastructure` | jak `OrderingContext : DbContext` w eShop |
+| `IRequest<T>`, `ICommand<T>`, `IQuery<T>`, handlery | `JJDevHub.Cqrs` | eShop Ordering |
+| `IMediator.Send`, `IPipelineBehavior<TRequest, TResponse>` | `JJDevHub.Cqrs` | łańcuch zachowań z eShop |
+| `LoggingBehavior`, `ValidatorBehavior`, `TransactionBehavior`, `IUnitOfWork` | `JJDevHub.Cqrs` | te same nazwy co w eShop |
+| `CreateArticleCommand`, `ReviseArticleCommand`, `GetArticleQuery` | `News.Application` | komenda i zapytanie |
+| `ReadContext`, `Checkpoint`, `IProjection`, `ProjectionWorker` | `JJDevHub.Projections` | materialized view |
+| `ArticleSummary`, `IArticleSummaryReader` | `News.Application` | model odczytu i port |
+| `IIntegrationEvent`, sufiks `IntegrationEvent` | `JJDevHub.EventBus` | eShop: `OrderStartedIntegrationEvent` |
+| `IEventBus`, `IIntegrationEventHandler<T>` | `JJDevHub.EventBus` | eShop: `IEventBus` |
+| `IntegrationEnvelope`, `ReceiveOutcome` (`Handled`, `Duplicate`, `Ignored`) | `JJDevHub.EventBus` | koperta na szynę i wynik odbioru |
+| `OutboxMessage`, `InboxMessage`, `IIntegrationEventOutbox`, `OutboxDispatcher` | `JJDevHub.IntegrationEventLog` | eShop: `IntegrationEventLogEF` |
+| `PublishOutbox` | opcja `AddIntegrationEventLog` | usługa tylko konsumująca nie uruchamia dispatchera |
+| `KafkaEventBus`, `KafkaConsumerWorker`, `KafkaOptions` | `JJDevHub.EventBus.Kafka` | adapter jak `EventBusRabbitMQ` w eShop |
+| `JJDevHub.AppHost`, `JJDevHub.ServiceDefaults`, `AddServiceDefaults` | `src/aspire` | eShop: `eShop.AppHost`, `eShop.ServiceDefaults` |
+| `ResourceNames` (`news-write`, `kafka`, `identity-api`, `news-api`, `users-api`, `notifications-worker`, `gateway`…) | `JJDevHub.AppHost` | nazwy zasobów i connection stringów |
+| `IdentityGuid` | wszędzie | eShop: id użytkownika Identity na agregacie `Buyer` |
+| `UserRegisteredIntegrationEvent`, `ArticleCreatedIntegrationEvent` | `*.Contracts` | kontrakty publikowane na szynę |
+
+### Dlaczego `Article`, a nie `News`
+
+Usługa nazywa się News, a jej namespace to `JJDevHub.News.*`. Klasa `News` w takim drzewie trafia na błąd CS0118: kompilator widzi `News` jako namespace, nie typ. eShop omija to tak samo: usługa `Ordering`, agregat `Order`. U nas usługa News, agregat `Article`. Strumień: `article-{guid}`.
+
+## Bazy
+
+Jeden serwer Postgres 16 (Compose dziś, Aspire od `14`), osobna baza na usługę. Usługa nie otwiera cudzej bazy.
+
+| Baza | Usługa | Co w niej leży | Od numeru |
+| --- | --- | --- | --- |
+| `news_write` | News | `EventStreams`, `EventRecords`, `OutboxMessages` (od `12`) | `06` |
+| `news_read` | News | `ArticleSummaries`, `Checkpoints` | `10` |
+| `jjdevhub` (zasób `identity`) | Identity | tabele `AspNetUsers`…, `OutboxMessages` | `15` |
+| `users` | Users | `Users`, `InboxMessages` | `17` |
+| `notifications` | Notifications | `SentNotifications`, `InboxMessages` | `17` |
+
+Do numeru `14` testy dostają bazy z Testcontainers. Istniejąca baza `jjdevhub` zostaje bazą obecnego API. W `15` dostaje nazwę zasobu `identity`, a fizyczna nazwa zostaje, więc dane nie wymagają migracji.
+
+Każda baza ma jeden kontekst i domyślną tabelę `__EFMigrationsHistory`. Biblioteki budulcowe nie mają własnych migracji: dają mapowanie (`ApplyEventStore`, `ApplyIntegrationEventLog`), a kontekst i migracje są w usłudze.
+
+Connection stringi nazywają się jak zasoby Aspire: `ConnectionStrings:news-write`, `news-read`, `identity`, `users`, `notifications`, `kafka`.
+
+## Pakiety
+
+Wersje centralnie w [Directory.Packages.props](../../Directory.Packages.props). Numer dopisuje wersję tylko wtedy, gdy pakietu jeszcze nie ma.
+
+| Pakiet | Rola | Od numeru |
+| --- | --- | --- |
+| `Npgsql.EntityFrameworkCore.PostgreSQL` (jest) | `NewsWriteContext`, `ReadContext`, konteksty usług | `06` |
+| `Microsoft.EntityFrameworkCore.Design` (jest) | migracje, `PrivateAssets` przy projekcie startowym | `06` |
+| `Testcontainers.PostgreSql` (jest) | testy baz | `06` |
+| `Testcontainers.Kafka` | test szyny | `13` |
+| `Confluent.Kafka` | producent i konsument | `13` |
+| `Aspire.Hosting.AppHost`, `Aspire.Hosting.PostgreSQL`, `Aspire.Hosting.Kafka`, `Aspire.Hosting.Docker` | AppHost i publikacja Compose | `14` |
+| `Aspire.Npgsql.EntityFrameworkCore.PostgreSQL`, `Aspire.Confluent.Kafka` | klienci w usługach | `14` |
+| `Aspire.Hosting.Testing` | test AppHost | `14` |
+| `Microsoft.Extensions.ServiceDiscovery`, `Microsoft.Extensions.Http.Resilience` | `ServiceDefaults` | `14` |
+| `OpenTelemetry.*` (są) | `ServiceDefaults` | `14` |
+| `Yarp.ReverseProxy`, `Microsoft.Extensions.ServiceDiscovery.Yarp` | `JJDevHub.Gateway` | `16` |
+
+Poza ciągiem: Ardalis, Marten, EventFlow, Eventuous, MediatR, MassTransit, Wolverine, FluentValidation, Dapper.
+
+## Ścieżki w repo
+
+| Ścieżka | Co tam leży | Od numeru |
+| --- | --- | --- |
+| `src/building-blocks/JJDevHub.Domain` | `Entity`, `AggregateRoot`, `ValueObject`, `IDomainEvent`, `IBusinessRule`, `Result<T>`, `EventTypeRegistry` | `01` |
+| `src/building-blocks/JJDevHub.EventStore` | `IEventStore`, `InMemoryEventStore`, rejestr, serializer, `IRepository<T>` | `04` |
+| `src/building-blocks/JJDevHub.EventStore.Postgres` | `EventStream`, `EventRecord`, `ApplyEventStore`, `PostgresEventStore<TContext>` | `06` |
+| `src/building-blocks/JJDevHub.Cqrs` | mediator i zachowania | `08` |
+| `src/building-blocks/JJDevHub.Projections` | `ReadContext`, `Checkpoint`, `ProjectionWorker` | `10` |
+| `src/building-blocks/JJDevHub.EventBus` | `IIntegrationEvent`, `IEventBus`, `InMemoryEventBus` | `12` |
+| `src/building-blocks/JJDevHub.IntegrationEventLog` | outbox, inbox, dispatcher | `12` |
+| `src/building-blocks/JJDevHub.EventBus.Kafka` | adapter Kafki | `13` |
+| `src/aspire/JJDevHub.AppHost`, `src/aspire/JJDevHub.ServiceDefaults` | skład i wspólne ustawienia | `14` |
+| `src/services/News/News.Domain` | `Article`, zdarzenia, value objecty | `01` |
+| `src/services/News/News.Application` | komendy, zapytania, porty | `09` |
+| `src/services/News/News.Infrastructure` | `NewsWriteContext`, `NewsReadContext`, projekcja, czytnik | `06` |
+| `src/services/News/News.Contracts` | `ArticleCreatedIntegrationEvent` | `12` |
+| `src/services/News/News.API` | endpointy | `16` |
+| `src/services/Identity/Identity.API`, `Identity.Contracts` | konto, JWT, JWKS | `15` |
+| `src/services/Users/Users.API` | profil użytkownika | `17` |
+| `src/services/Notifications/Notifications.Worker` | konsument zdarzeń | `17` |
+| `src/gateway/JJDevHub.Gateway` | YARP przed klientem web | `16` |
+
+Do czasu paczki NuGet wszystko idzie przez `ProjectReference`. Nazwa projektu jest przyszłym identyfikatorem paczki.
+
+Puste katalogi po starym podejściu (`src/JJDevHub.Aggregates`, `src/JJDevHub.Events`, `src/JJDevHub.EventStore`, `tests/JJDevHub.EventSourcing.Tests`) znikają w numerze `01`, zanim powstanie nowy kod.
+
+## Testy
+
+Runner to xUnit (`[Fact]`), jak w [tests/JJDevHub.Api.Tests](../../tests/JJDevHub.Api.Tests). Jeden test ma jeden powód do padnięcia. Nazwa metody mówi, co jest prawdą, gdy test przechodzi (`Create_blank_title_returns_invalid`). Kontenery: `postgres:16-alpine` i `confluentinc/cp-kafka` w trybie KRaft (obraz domyślny `Testcontainers.Kafka`).
+
+| Projekt testowy | Numery | Co jest prawdą na końcu |
+| --- | --- | --- |
+| `tests/JJDevHub.Domain.Tests` | `01`–`03`, `05` | atrybut nazwy, równość value objectu, mechanika `AggregateRoot`, rejestr nazw |
+| `tests/News.Domain.Tests` | `01`–`03` | `ArticleTitle`, `Article.Create`, `Article.Revise`, reguły |
+| `tests/JJDevHub.EventStore.Tests` | `04`, `05`, `07` | konflikt wersji, `Position`, rejestr, upcasting, runda repozytorium w pamięci |
+| `tests/JJDevHub.EventStore.Postgres.Tests` | `06` | wiersze strumienia, `Position`, konflikt w bazie |
+| `tests/JJDevHub.Cqrs.Tests` | `08` | kolejność zachowań, brak handlera, walidacja |
+| `tests/News.Application.Tests` | `09`, `11` | handlery na stubach, bez bazy |
+| `tests/News.Infrastructure.Tests` | `06`, `07`, `09`–`12` | migracje, repozytorium na Postgresie, komenda w kontenerze, projekcja, czytnik, outbox |
+| `tests/JJDevHub.IntegrationEventLog.Tests` | `12` | outbox w transakcji, dispatcher, inbox |
+| `tests/JJDevHub.EventBus.Kafka.Tests` | `13` | publikacja, konsumpcja, DLQ |
+| `tests/JJDevHub.AppHost.Tests` | `14` | zasoby i health checki w Aspire |
+| `tests/Identity.API.Tests` | `15` | rejestracja, outbox, JWKS (przemianowany `JJDevHub.Api.Tests`) |
+| `tests/News.API.Tests` | `16` | endpointy, 401, 409, trasa przez gateway |
+| `tests/Users.API.Tests`, `tests/Notifications.Worker.Tests`, `tests/JJDevHub.Contracts.Tests` | `17` | konsumpcja, idempotencja, snapshot kontraktów |
+
+`18` nie dodaje projektu testowego. Sprawdzeniem jest `actionlint` i zielony przebieg workflowu.
+
+## Zasady
+
+- Jeden publiczny typ na plik. Namespace file-scoped. Klasa `sealed`. Zdarzenie, komenda, zapytanie i DTO to `record`.
+- Zdarzenie niesie typy proste (`Guid`, `string`, `DateTimeOffset`). Value object nie wchodzi do JSON-a strumienia.
+- Typ zdarzenia w bazie i na szynie to nazwa z `[EventName]`. Nazwa CLR nie trafia do danych.
+- Pole agregatu zmienia tylko `Apply`. `AddDomainEvent` i `Replay` to dwie drogi do tego samego `Apply`.
+- Handler komendy nie otwiera bazy odczytu. Handler zapytania nie woła `IEventStore`.
+- Oczekiwany błąd (pusty tytuł, brak wiersza, konflikt wersji, brak uprawnień) to `Result<T>`. Wyjątek zostaje dla awarii IO i błędu składu aplikacji.
+- Między usługami idzie zdarzenie integracyjne przez outbox i Kafkę. Usługa nie woła cudzej komendy i nie czyta cudzej bazy.
+- Event sourcing tylko w News. Users i Notifications to EF bez strumieni.
+
+## Poza zakresem
+
+- Keycloak, Vault, Jenkins, EventStoreDB, MongoDB, OpenSearch, RabbitMQ.
+- Kubernetes i Helm. Docelowo jest Compose wygenerowany przez Aspire na jednej VM.
+- Snapshoty strumieni. Agregat `Article` ma kilka zdarzeń, replay jest tani.
+- Saga i proces wieloetapowy między usługami.
+- Publikacja paczek na nuget.org.
+
+## Źródła
+
+- [.NET microservices: architecture for containerized .NET applications](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/) — e-book, z którego biorą się nazwy warstw i klas.
+- [dotnet/eShop](https://github.com/dotnet/eshop) — referencyjna aplikacja: Aspire, usługi, outbox, szyna.
+- [GeekLemonConference](https://github.com/PanNiebieski/GeekLemonConference-CQRS-EventSourcing-CleanArchitecture-DDD-Example) — Cezary Walenciuk: cebula, value objecty, reguły, event sourcing.
+- [Event Sourcing pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing) — strumień jako źródło stanu.
+- [CQRS pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs) — osobny model zapisu i odczytu.
+- [Transactional outbox pattern](https://learn.microsoft.com/en-us/azure/architecture/databases/guide/transactional-outbox-cosmos) — zapis i publikacja w jednej transakcji (przykład na Cosmos DB, idea ta sama dla Postgresa).
+- [.NET Aspire overview](https://learn.microsoft.com/en-us/dotnet/aspire/get-started/aspire-overview) — AppHost i ServiceDefaults.
+- [Apache Kafka documentation](https://kafka.apache.org/documentation/) — tematy, partycje, grupy konsumentów.
+- Eric Evans, *Domain-Driven Design*; Vaughn Vernon, *Implementing Domain-Driven Design*.
+
+## Gotowe gdy
+
+- Ten plik wymienia kolejność `01`–`18`, szablon numeru i słownik nazw.
+- Każda baza ma jedną usługę-właściciela.
+- Każdy pakiet ma numer, w którym dochodzi.
+- Każdy projekt testowy ma numery, które go zasilają.

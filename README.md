@@ -102,6 +102,8 @@ infra/ci/                         release cron + deploy script
 .github/workflows/web.yml         GitHub Actions (React / pnpm)
 ```
 
+Event sourcing and CQRS library plan (PL): [docs/api/README.md](docs/api/README.md).
+
 ---
 
 # JJDevHub
@@ -207,3 +209,5 @@ infra/ci/                         cron wydania + skrypt deployu
 .github/workflows/api.yml         GitHub Actions (API)
 .github/workflows/web.yml         GitHub Actions (React / pnpm)
 ```
+
+Plan bibliotek event sourcingu i CQRS: [docs/api/README.md](docs/api/README.md).
