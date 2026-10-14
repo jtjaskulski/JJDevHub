@@ -1,10 +1,12 @@
-namespace JJDevHub.Domain;
-
-public enum ResultError
+namespace JJDevHub.Domain
 {
-    None,
-    Invalid,
-    NotFound,
-    Conflict,
-    Forbidden,
+
+    public enum ResultError
+    {
+        None,
+        Invalid,
+        NotFound,
+        Conflict,
+        Forbidden,
+    }
 }

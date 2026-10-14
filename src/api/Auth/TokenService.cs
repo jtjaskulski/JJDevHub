@@ -5,34 +5,36 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
-namespace JJDevHub.Api.Auth;
-
-public sealed class TokenService(IOptions<JwtOptions> jwtOptions)
+namespace JJDevHub.Api.Auth
 {
-    private readonly JwtOptions _jwt = jwtOptions.Value;
 
-    public string CreateToken(IdentityUser user)
+    public sealed class TokenService(IOptions<JwtOptions> jwtOptions)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Key));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        var expires = DateTime.UtcNow.AddMinutes(_jwt.ExpiryMinutes);
+        private readonly JwtOptions _jwt = jwtOptions.Value;
 
-        var claims = new List<Claim>
+        public string CreateToken(IdentityUser user)
         {
-            new(JwtRegisteredClaimNames.Sub, user.Id),
-            new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
-            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-        };
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwt.Key));
+            var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var expires = DateTime.UtcNow.AddMinutes(_jwt.ExpiryMinutes);
 
-        var token = new JwtSecurityToken(
-            issuer: _jwt.Issuer,
-            audience: _jwt.Audience,
-            claims: claims,
-            expires: expires,
-            signingCredentials: credentials);
+            var claims = new List<Claim>
+            {
+                new(JwtRegisteredClaimNames.Sub, user.Id),
+                new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
+                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            };
 
-        return new JwtSecurityTokenHandler().WriteToken(token);
+            var token = new JwtSecurityToken(
+                issuer: _jwt.Issuer,
+                audience: _jwt.Audience,
+                claims: claims,
+                expires: expires,
+                signingCredentials: credentials);
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+        public DateTime GetExpiry() => DateTime.UtcNow.AddMinutes(_jwt.ExpiryMinutes);
     }
-
-    public DateTime GetExpiry() => DateTime.UtcNow.AddMinutes(_jwt.ExpiryMinutes);
 }

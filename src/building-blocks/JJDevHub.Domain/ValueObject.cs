@@ -1,35 +1,37 @@
-namespace JJDevHub.Domain;
-
-public abstract class ValueObject
+namespace JJDevHub.Domain
 {
-    protected abstract IEnumerable<object?> GetEqualityComponents();
 
-    public override bool Equals(object? obj)
+    public abstract class ValueObject
     {
-        if (obj is not ValueObject other || other.GetType() != GetType())
+        protected abstract IEnumerable<object?> GetEqualityComponents();
+
+        public override bool Equals(object? obj)
         {
-            return false;
+            if (obj is not ValueObject other || other.GetType() != GetType())
+            {
+                return false;
+            }
+
+            return GetEqualityComponents().SequenceEqual(other.GetEqualityComponents());
         }
 
-        return GetEqualityComponents().SequenceEqual(other.GetEqualityComponents());
+        public override int GetHashCode() => GetEqualityComponents().Aggregate(0, HashCode.Combine);
+
+        public static bool operator ==(ValueObject? left, ValueObject? right)
+        {
+            if (left is null && right is null)
+            {
+                return true;
+            }
+
+            if (left is null || right is null)
+            {
+                return false;
+            }
+
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(ValueObject? left, ValueObject? right) => !(left == right);
     }
-
-    public override int GetHashCode() => GetEqualityComponents().Aggregate(0, HashCode.Combine);
-
-    public static bool operator ==(ValueObject? left, ValueObject? right)
-    {
-        if (left is null && right is null)
-        {
-            return true;
-        }
-
-        if (left is null || right is null)
-        {
-            return false;
-        }
-
-        return left.Equals(right);
-    }
-
-    public static bool operator !=(ValueObject? left, ValueObject? right) => !(left == right);
 }
