@@ -9,7 +9,10 @@ alwaysApply: false
 Specyfikacja: [docs/frontend/README.md](../../docs/frontend/README.md).
 
 - React 19, Vite, pnpm, TypeScript. HTML5 w JSX. Jeden `src/styles.css`. Tailwind CSS v4, shadcn/ui, Motion (`motion/react`).
-- Kolory, skala, odstępy, radius i czasy tylko w `src/Clients/shared/theme/tokens.ts`. Paleta `#f5f5f7`, `#1d1d1f`, `#0071e3`, krój Inter. Tailwind i NativeWind mapują te liczby.
+- Kolory, skala, odstępy, radius i czasy tylko w `src/Clients/shared/theme/tokens.ts`. Paleta jasna `#f3efe6`, `#1a1814`, `#9a3412`, krój Inter. Tailwind i NativeWind mapują te liczby.
 - Telefon osobno: NativeWind, React Native Reusables, Reanimated. Osobne ekrany.
-- Produkt: trasy `pl`/`en` (zły język i `*` na `/pl`; login i register poza językiem), treść z JSON w bundlu, `cv.local.json` i wygenerowany `cv.json` poza gitem, `fetch` tylko przy auth.
+- Produkt: trasy `pl`/`en` (zły język i `*` na `/pl`; login, register i `/intranet/*` poza językiem).
+- Treść: dziś JSON w bundlu i `cv.local.json` poza gitem. Strona przeniesiona na API ([react/05-tresc-z-api.md](../../docs/frontend/react/05-tresc-z-api.md)) woła usługi tylko przez klientów z `src/app/api/` (typy z OpenAPI, TanStack Query). Ręcznie pisany typ odpowiedzi API i `fetch` w komponencie strony to błąd.
+- HTML z API tylko przez `ServerHtml` (Trusted Types, DOMPurify). Jedno `dangerouslySetInnerHTML` w aplikacji.
+- Intranet w `src/app/pages/intranet/`, ładowany przez `lazy` za `OwnerRoute`. Zapis zawsze z `If-Match`.
 - Zero nowych `*.scss`.

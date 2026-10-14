@@ -1,8 +1,8 @@
 # API — od zdarzenia domenowego do mikroserwisów
 
-Specyfikacja budowana kawałek po kawałku. Ten plik ustala szablon numerów, słownik nazw, bazy, pakiety i kolejność. Obraz całości (usługi, szyna, bazy) jest w [architektura.md](architektura.md). Każdy numer `01`–`18` to jeden zamknięty krok: kod, testy, zielony `dotnet test`.
+Specyfikacja budowana kawałek po kawałku. Ten plik ustala szablon numerów, słownik nazw, bazy, pakiety i kolejność. Obraz całości (usługi, szyna, bazy) jest w [architektura.md](architektura.md). Każdy numer `01`–`22` to jeden zamknięty krok: kod, testy, zielony `dotnet test`.
 
-Dziś w repo jest jedno API w [src/api](../../src/api) z Identity i JWT ([`AppDbContext`](../../src/api/Data/AppDbContext.cs), migracja `InitialIdentity`). Ciąg buduje obok biblioteki w `src/building-blocks`, usługę News z event sourcingiem, a od numeru `14` składa całość w .NET Aspire i rozcina na procesy połączone Kafką.
+Dziś w repo jest jedno API w [src/api](../../src/api) z Identity i JWT ([`AppDbContext`](../../src/api/Data/AppDbContext.cs), migracja `InitialIdentity`). Ciąg buduje obok biblioteki w `src/building-blocks`, usługę News z event sourcingiem, a od numeru `14` składa całość w .NET Aspire i rozcina na procesy połączone Kafką. Część F przenosi treść strony z bundla klienta do usług: kompendium z kursami, wyszukiwanie, notatki i żywe CV, edytowane w intranecie tego samego klienta web.
 
 ## Po co
 
@@ -71,12 +71,21 @@ Zasady C# są w [.cursor/rules/csharp.mdc](../../.cursor/rules/csharp.mdc): jede
 | Plik | Zakres |
 | --- | --- |
 | [14-aspire.md](14-aspire.md) | `JJDevHub.AppHost`, `JJDevHub.ServiceDefaults`, publikacja do Compose |
-| [15-identity.md](15-identity.md) | `Identity.API`, klucz RSA, JWKS, `UserRegisteredIntegrationEvent` |
+| [15-identity.md](15-identity.md) | `Identity.API`, klucz RSA, JWKS, `UserRegisteredIntegrationEvent`, role `owner` i `student`, kody zaproszeń |
 | [16-usluga-news.md](16-usluga-news.md) | `News.API`, endpointy, autor z tokenu, `JJDevHub.Gateway` (YARP) |
 | [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md) | `Users.API`, `Notifications.Worker`, testy kontraktów |
-| [18-ci-uslug.md](18-ci-uslug.md) | `ci.yml` z wykrywaniem zmian, reużywalny workflow, obraz po digeście, przejście VM (nginx → gateway, Prometheus na usługę, RAM) |
+| [18-ci-uslug.md](18-ci-uslug.md) | `ci.yml` z wykrywaniem zmian, reużywalny workflow, obraz przy wydaniu, deploy z wydania, przejście VM (nginx → gateway, Prometheus na usługę, RAM) |
 
-Numery `01`–`13` nie dotykają [src/api](../../src/api). Do `14` istniejące API działa jak dziś.
+### Część F — treść
+
+| Plik | Zakres |
+| --- | --- |
+| [19-learning.md](19-learning.md) | `Learning.*`: technologie, kursy z lekcjami, wykłady, hasła, widoczność, Markdown, import z GitHuba, postęp studenta, `learning.integration` ze stanem |
+| [20-wyszukiwanie.md](20-wyszukiwanie.md) | wyszukiwanie w Learning: pełny tekst Postgresa i pgvector, RRF, model ONNX w procesie, `EmbeddingWorker` |
+| [21-notatki.md](21-notatki.md) | `Article` jako notatka: publikacja, wycofanie, lekcja, slug, historia z projekcji od zera, `JJDevHub.Markdown` |
+| [22-cv.md](22-cv.md) | `Cv.API`: żywe CV z dowodami z Learning i News, `HybridCache`, `If-Match` na `xmin`, JSON Resume, PDF z Typst |
+
+Numery `01`–`13` nie dotykają [src/api](../../src/api). Do `14` istniejące API działa jak dziś. Kolejność części F wynika z zależności: notatki przypinają się do lekcji z `19`, a CV liczy dowody z `19` i `21`.
 
 ## Nazwy
 
@@ -110,13 +119,25 @@ Numery `01`–`13` nie dotykają [src/api](../../src/api). Do `14` istniejące A
 | `PublishOutbox` | opcja `AddIntegrationEventLog` | usługa tylko konsumująca nie uruchamia dispatchera |
 | `KafkaEventBus`, `KafkaConsumerWorker`, `KafkaOptions` | `JJDevHub.EventBus.Kafka` | adapter jak `EventBusRabbitMQ` w eShop |
 | `JJDevHub.AppHost`, `JJDevHub.ServiceDefaults`, `AddServiceDefaults` | `src/aspire` | eShop: `eShop.AppHost`, `eShop.ServiceDefaults` |
-| `ResourceNames` (`news-write`, `kafka`, `identity-api`, `news-api`, `users-api`, `notifications-worker`, `gateway`…) | `JJDevHub.AppHost` | nazwy zasobów i connection stringów |
+| `ResourceNames` (`news-write`, `kafka`, `identity-api`, `news-api`, `users-api`, `notifications-worker`, `gateway`, `learning`, `learning-api`, `cv`, `cv-api`…) | `JJDevHub.AppHost` | nazwy zasobów i connection stringów |
 | `IdentityGuid` | wszędzie | eShop: id użytkownika Identity na agregacie `Buyer` |
 | `UserRegisteredIntegrationEvent`, `ArticleCreatedIntegrationEvent` | `*.Contracts` | kontrakty publikowane na szynę |
+| `Roles` (`owner`, `student`), `Policies` (`Owner`, `Student`) | `JJDevHub.ServiceDefaults` | role ASP.NET Identity w tokenie |
+| `StudentInvite`, `InviteCode` | `Identity.API` | kod zaproszenia, w bazie tylko skrót |
+| `ResultHttpExtensions`, `EntityTag`, `CurrentUser` | `JJDevHub.ServiceDefaults/Http` | `Result<T>` → HTTP, `ETag` i `If-Match`, użytkownik z tokenu |
+| `Technology`, `Track`, `Lesson`, `Lecture`, `Term` | `Learning.Domain` | kompendium: technologia, kurs z lekcjami, wykład, hasło |
+| `Slug`, `LocalizedText`, `LocalizedMarkdown`, `Visibility` (`Private`, `Students`, `Public`), `Audience` | `Learning.Domain` | adres, dwa języki, kto widzi treść |
+| `Revision`, `*ChangedIntegrationEvent`, `IsDeleted` | `Learning.Contracts` | pełny stan agregatu na szynie, wersja do porównania |
+| `IContentChanges` | `Learning.Application` | jedno miejsce po zapisie: outbox, a od `20` indeks wyszukiwania |
+| `MarkdownRenderer`, `WikiLinkExtension`, `MarkdownRenderResult` | `JJDevHub.Markdown` | Markdown → bezpieczny HTML, linki `[[slug]]` do haseł |
+| `ISearchIndex`, `SearchDocument`, `SearchChunk`, `EmbeddingWorker`, `OnnxEmbeddingGenerator` | Learning | wyszukiwanie hybrydowe i wektory w procesie |
+| `ArticleStatus`, `ArticleVisibility`, `LessonReference`, `ArticleSlug` | `News.Domain` | notatka: szkic, publikacja, wycofanie, lekcja |
+| `ArticlePublishedIntegrationEvent`, `ArticleWithdrawnIntegrationEvent`, `FirstPublication` | `News.Contracts` | stan opublikowanej notatki na szynie |
+| `Resume`, `Skill`, `Period`, `EvidenceItem`, `ResumeView` | `Cv.API` | żywe CV i dowody z innych usług |
 
 ### Dlaczego `Article`, a nie `News`
 
-Usługa nazywa się News, a jej namespace to `JJDevHub.News.*`. Klasa `News` w takim drzewie trafia na błąd CS0118: kompilator widzi `News` jako namespace, nie typ. eShop omija to tak samo: usługa `Ordering`, agregat `Order`. U nas usługa News, agregat `Article`. Strumień: `article-{guid}`.
+Usługa nazywa się News, a jej namespace to `JJDevHub.News.*`. Klasa `News` w takim drzewie trafia na błąd CS0118: kompilator widzi `News` jako namespace, nie typ. eShop omija to tak samo: usługa `Ordering`, agregat `Order`. U nas usługa News, agregat `Article`. Strumień: `article-{guid}`. Tak samo w [22-cv.md](22-cv.md): usługa Cv, agregat `Resume`.
 
 ## Bazy
 
@@ -124,17 +145,21 @@ Jeden serwer Postgres 16 (Compose dziś, Aspire od `14`), osobna baza na usług�
 
 | Baza | Usługa | Co w niej leży | Od numeru |
 | --- | --- | --- | --- |
-| `news_write` | News | `EventStreams`, `EventRecords`, `OutboxMessages` (od `12`) | `06` |
-| `news_read` | News | `ArticleSummaries`, `Checkpoints` | `10` |
-| `jjdevhub` (zasób `identity`) | Identity | tabele `AspNetUsers`…, `OutboxMessages` | `15` |
+| `news_write` | News | `EventStreams`, `EventRecords`, `OutboxMessages` (od `12`), `ArticleSlugs` (od `21`) | `06` |
+| `news_read` | News | `ArticleSummaries`, `Checkpoints`, `ArticleRevisions` (od `21`) | `10` |
+| `jjdevhub` (zasób `identity`) | Identity | tabele `AspNetUsers`…, `AspNetRoles`, `StudentInvites`, `OutboxMessages` | `15` |
 | `users` | Users | `Users`, `InboxMessages` | `17` |
 | `notifications` | Notifications | `SentNotifications`, `InboxMessages` | `17` |
+| `learning` | Learning | `Technologies`, `Tracks`, `Lessons`, `Lectures`, `Terms`, `TermLinks`, `LessonProgress`, `OutboxMessages`; od `20` `SearchDocuments`, `SearchChunks` | `19` |
+| `cv` | Cv | `Resumes`, `EvidenceItems`, `CvState`, `ResumeDocuments`, `InboxMessages` | `22` |
 
 Do numeru `14` testy dostają bazy z Testcontainers. Istniejąca baza `jjdevhub` zostaje bazą obecnego API. W `15` dostaje nazwę zasobu `identity`, a fizyczna nazwa zostaje, więc dane nie wymagają migracji.
 
+Od [20-wyszukiwanie.md](20-wyszukiwanie.md) serwer działa na obrazie `pgvector/pgvector:pg16` (Postgres 16 z rozszerzeniem `vector`, Debian). Przejście z `postgres:16-alpine` na VM idzie przez zrzut i odtworzenie, bo zmiana biblioteki C zmienia porządek sortowania tekstu.
+
 Każda baza ma jeden kontekst i domyślną tabelę `__EFMigrationsHistory`. Biblioteki budulcowe nie mają własnych migracji: dają mapowanie (`ApplyEventStore`, `ApplyIntegrationEventLog`), a kontekst i migracje są w usłudze.
 
-Connection stringi nazywają się jak zasoby Aspire: `ConnectionStrings:news-write`, `news-read`, `identity`, `users`, `notifications`, `kafka`.
+Connection stringi nazywają się jak zasoby Aspire: `ConnectionStrings:news-write`, `news-read`, `identity`, `users`, `notifications`, `learning`, `cv`, `kafka`.
 
 ## Pakiety
 
@@ -154,10 +179,28 @@ Wersje centralnie w [Directory.Packages.props](../../Directory.Packages.props). 
 | `Microsoft.Extensions.ServiceDiscovery`, `Microsoft.Extensions.Http.Resilience` | MIT | `ServiceDefaults` | `14` |
 | `OpenTelemetry.*` (są) | Apache 2.0 | `ServiceDefaults` | `14` |
 | `Yarp.ReverseProxy`, `Microsoft.Extensions.ServiceDiscovery.Yarp` | MIT | `JJDevHub.Gateway` | `16` |
+| `Asp.Versioning.Http` | MIT | wersja API w nagłówku `api-version`, `ServiceDefaults` | `16` |
+| `Markdig` | BSD-2-Clause | Markdown → HTML; od `21` w `JJDevHub.Markdown` | `19` |
+| `HtmlSanitizer` | MIT | lista dozwolonych znaczników po renderze | `19` |
+| `Pgvector.EntityFrameworkCore` | MIT | typ `vector` i operatory odległości w EF | `20` |
+| `Microsoft.Extensions.AI.Abstractions`, `Microsoft.Extensions.AI` | MIT | `IEmbeddingGenerator`, cache i telemetria wokół generatora | `20` |
+| `Microsoft.ML.OnnxRuntime` | MIT | model wektorów w procesie, na CPU | `20` |
+| `Microsoft.ML.Tokenizers` | MIT | tokenizer SentencePiece modelu | `20` |
+| `Microsoft.Extensions.Caching.Hybrid` | MIT | `HybridCache` widoku CV | `22` |
+| `UglyToad.PdfPig` | Apache 2.0 | odczyt tekstu i linków PDF w testach | `22` |
+| `JsonSchema.Net` | MIT | walidacja eksportu JSON Resume w testach | `22` |
+
+Poza NuGetem:
+
+| Składnik | Licencja | Rola | Od numeru |
+| --- | --- | --- | --- |
+| `intfloat/multilingual-e5-small` (ONNX) | MIT | model wektorów, pobierany przez `infra/models/download.sh` po sumie SHA-256 | `20` |
+| Typst | Apache 2.0 | skład PDF CV, w obrazie bazowym `jjdevhub/cv-base` | `22` |
+| Inter | SIL OFL 1.1 | czcionka PDF, ta sama co na stronie | `22` |
 
 ### Licencje
 
-Dozwolone jest wszystko na otwartej, darmowej licencji (MIT, Apache 2.0, BSD, PostgreSQL), także spoza tabeli: Ardalis, Marten, Wolverine, Eventuous, Dapper. Nowy pakiet dopisuje się do tabeli w numerze, który go wprowadza.
+Dozwolone jest wszystko na otwartej, darmowej licencji (MIT, Apache 2.0, BSD, PostgreSQL, a dla czcionek SIL OFL), także spoza tabeli: Ardalis, Marten, Wolverine, Eventuous, Dapper. Nowy pakiet dopisuje się do tabeli w numerze, który go wprowadza.
 
 Odpadają wersje z licencją komercyjną albo wymagającą rejestracji klucza na produkcji:
 
@@ -167,6 +210,7 @@ Odpadają wersje z licencją komercyjną albo wymagającą rejestracji klucza na
 | AutoMapper | `15` | jak MediatR |
 | MassTransit | `9` | tylko płatna subskrypcja; `8` bez wsparcia |
 | Duende IdentityServer | — | płatna licencja dla firm; Identity wydaje tokeny samo ([15-identity.md](15-identity.md)) |
+| QuestPDF | `2022.12` | licencja Community tylko poniżej progu przychodu, typ licencji deklarowany w kodzie; PDF składa Typst ([22-cv.md](22-cv.md)) |
 
 Starej wersji z wolną licencją nie przypinamy: nie dostanie poprawek bezpieczeństwa ani wsparcia dla .NET 11.
 
@@ -194,6 +238,11 @@ Mediator, rejestr zdarzeń, magazyn zdarzeń i outbox piszemy sami nie z powodu 
 | `src/services/Users/Users.API` | profil użytkownika | `17` |
 | `src/services/Notifications/Notifications.Worker` | konsument zdarzeń | `17` |
 | `src/gateway/JJDevHub.Gateway` | YARP przed klientem web | `16` |
+| `src/services/Learning/Learning.Domain`, `.Application`, `.Infrastructure`, `.Contracts`, `.API` | kompendium, kursy, wykłady, hasła; od `20` wyszukiwanie | `19` |
+| `src/building-blocks/JJDevHub.Markdown` | `MarkdownRenderer` wspólny dla Learning i News | `21` |
+| `src/services/Cv/Cv.API` | żywe CV, dowody, eksport, PDF | `22` |
+| `infra/models` | manifest i skrypt pobrania modelu wektorów | `20` |
+| `infra/cv` | obraz bazowy z Typst i skrypt instalacji | `22` |
 
 Do czasu paczki NuGet wszystko idzie przez `ProjectReference`. Nazwa projektu jest przyszłym identyfikatorem paczki.
 
@@ -201,36 +250,44 @@ Puste katalogi po starym podejściu (`src/JJDevHub.Aggregates`, `src/JJDevHub.Ev
 
 ## Testy
 
-Runner to xUnit (`[Fact]`), jak w [tests/JJDevHub.Api.Tests](../../tests/JJDevHub.Api.Tests). Jeden test ma jeden powód do padnięcia. Nazwa metody mówi, co jest prawdą, gdy test przechodzi (`Create_blank_title_returns_invalid`). Kontenery: `postgres:16-alpine` i `confluentinc/cp-kafka` w trybie KRaft (obraz domyślny `Testcontainers.Kafka`).
+Runner to xUnit (`[Fact]`), jak w [tests/JJDevHub.Api.Tests](../../tests/JJDevHub.Api.Tests). Jeden test ma jeden powód do padnięcia. Nazwa metody mówi, co jest prawdą, gdy test przechodzi (`Create_blank_title_returns_invalid`). Kontenery: `postgres:16-alpine` i `confluentinc/cp-kafka` w trybie KRaft (obraz domyślny `Testcontainers.Kafka`). Testy Learning biorą `pgvector/pgvector:pg16`.
 
 | Projekt testowy | Numery | Co jest prawdą na końcu |
 | --- | --- | --- |
 | `tests/JJDevHub.Domain.Tests` | `01`–`03`, `05` | atrybut nazwy, równość value objectu, mechanika `AggregateRoot`, rejestr nazw |
-| `tests/News.Domain.Tests` | `01`–`03` | `ArticleTitle`, `Article.Create`, `Article.Revise`, reguły |
+| `tests/News.Domain.Tests` | `01`–`03`, `21` | `ArticleTitle`, `Article.Create`, `Article.Revise`, reguły, publikacja i wycofanie |
 | `tests/JJDevHub.EventStore.Tests` | `04`, `05`, `07` | konflikt wersji, `Position`, rejestr, upcasting, runda repozytorium w pamięci |
 | `tests/JJDevHub.EventStore.Postgres.Tests` | `06` | wiersze strumienia, `Position`, konflikt w bazie |
 | `tests/JJDevHub.Cqrs.Tests` | `08` | kolejność zachowań, brak handlera, walidacja |
 | `tests/News.Application.Tests` | `09`, `11` | handlery na stubach, bez bazy |
-| `tests/News.Infrastructure.Tests` | `06`, `07`, `09`–`12` | migracje, repozytorium na Postgresie, komenda w kontenerze, projekcja, czytnik, outbox |
+| `tests/News.Infrastructure.Tests` | `06`, `07`, `09`–`12`, `21` | migracje, repozytorium na Postgresie, komenda w kontenerze, projekcja, czytnik, outbox, upcaster, rezerwacja sluga, historia |
 | `tests/JJDevHub.IntegrationEventLog.Tests` | `12` | outbox w transakcji, dispatcher, inbox |
-| `tests/JJDevHub.EventBus.Kafka.Tests` | `13` | publikacja, konsumpcja, DLQ |
-| `tests/JJDevHub.AppHost.Tests` | `14` | zasoby i health checki w Aspire |
-| `tests/Identity.API.Tests` | `15` | rejestracja, outbox, JWKS (przemianowany `JJDevHub.Api.Tests`) |
-| `tests/News.API.Tests` | `16` | endpointy, 401, 409, trasa przez gateway |
-| `tests/Users.API.Tests`, `tests/Notifications.Worker.Tests`, `tests/JJDevHub.Contracts.Tests` | `17` | konsumpcja, idempotencja, snapshot kontraktów |
+| `tests/JJDevHub.EventBus.Kafka.Tests` | `13`, `19` | publikacja, konsumpcja, DLQ, temat kompaktowany |
+| `tests/JJDevHub.AppHost.Tests` | `14`–`16`, `19`, `22` | zasoby, health checki, polityki, trasy gatewaya |
+| `tests/Identity.API.Tests` | `15` | rejestracja, outbox, JWKS, role, zaproszenia (przemianowany `JJDevHub.Api.Tests`) |
+| `tests/News.API.Tests` | `16`, `21`, `22` | endpointy, 401, 409, trasa przez gateway, notatki, ponowna publikacja stanu |
+| `tests/Users.API.Tests`, `tests/Notifications.Worker.Tests`, `tests/JJDevHub.Contracts.Tests` | `17`, `19`, `21` | konsumpcja, idempotencja, snapshot kontraktów |
+| `tests/Learning.Domain.Tests`, `tests/Learning.Infrastructure.Tests`, `tests/Learning.API.Tests` | `19`, `20` | reguły treści, widoczność, Markdown, import, wyszukiwanie |
+| `tests/JJDevHub.Markdown.Tests` | `21` | render i sanitacja po przeniesieniu z Learning |
+| `tests/Cv.API.Tests` | `22` | import, dowody, cache, JSON Resume, PDF |
 
 `18` nie dodaje projektu testowego. Sprawdzeniem jest `actionlint` i zielony przebieg workflowu.
 
+Testy, które potrzebują pliku spoza repozytorium, mają cechę i filtr: `[Trait("Category", "Model")]` dla modelu wektorów z `20`, `[Trait("Category", "Typst")]` dla Typst z `22`. CI pobiera oba przez pole `setup` w `infra/ci/services.json`. Lokalnie bez nich: `--filter "Category!=Model&Category!=Typst"`.
+
 ## Zasady
 
-- Jeden publiczny typ na plik. Namespace file-scoped. Klasa `sealed`. Zdarzenie, komenda, zapytanie i DTO to `record`.
+- Jeden publiczny typ na plik. Namespace w klamrach (`namespace X.Y { … }`), jak w [csharp.mdc](../../.cursor/rules/csharp.mdc) i w kodzie numerów `01`–`04`. Klasa `sealed`. Zdarzenie, komenda, zapytanie i DTO to `record`.
 - Zdarzenie niesie typy proste (`Guid`, `string`, `DateTimeOffset`). Value object nie wchodzi do JSON-a strumienia.
 - Typ zdarzenia w bazie i na szynie to nazwa z `[EventName]`. Nazwa CLR nie trafia do danych.
 - Pole agregatu zmienia tylko `Apply`. `AddDomainEvent` i `Replay` to dwie drogi do tego samego `Apply`.
 - Handler komendy nie otwiera bazy odczytu. Handler zapytania nie woła `IEventStore`.
 - Oczekiwany błąd (pusty tytuł, brak wiersza, konflikt wersji, brak uprawnień) to `Result<T>`. Wyjątek zostaje dla awarii IO i błędu składu aplikacji.
 - Między usługami idzie zdarzenie integracyjne przez outbox i Kafkę. Usługa nie woła cudzej komendy i nie czyta cudzej bazy.
-- Event sourcing tylko w News. Users i Notifications to EF bez strumieni.
+- Event sourcing tylko w News. Users, Notifications, Learning i Cv to EF bez strumieni.
+- Usługa, której stan jest potrzebny innym (Learning, notatki News), publikuje pełny stan z wersją. Konsument trzyma kopię i pomija wiadomość ze starszą wersją.
+- Treść niewidoczna dla czytelnika to `404`, nie `403`. Odpowiedź nie zdradza, że coś istnieje.
+- Zapis z `ETag` wymaga `If-Match`: brak to `428`, nieaktualny to `412`.
 
 ## Poza zakresem
 
@@ -239,6 +296,9 @@ Runner to xUnit (`[Fact]`), jak w [tests/JJDevHub.Api.Tests](../../tests/JJDevHu
 - Snapshoty strumieni. Agregat `Article` ma kilka zdarzeń, replay jest tani.
 - Saga i proces wieloetapowy między usługami.
 - Publikacja paczek na nuget.org.
+- Kilka instancji jednej usługi: cache drugiego poziomu, rozproszone blokady, kolejka zadań poza procesem.
+- Zewnętrzne API modeli językowych. Wektory liczy model w procesie ([20-wyszukiwanie.md](20-wyszukiwanie.md)).
+- Ekrany klienta. Intranet i strony treści są w [docs/frontend](../frontend/README.md).
 
 ## Źródła
 
@@ -249,12 +309,13 @@ Runner to xUnit (`[Fact]`), jak w [tests/JJDevHub.Api.Tests](../../tests/JJDevHu
 - [CQRS pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs) — osobny model zapisu i odczytu.
 - [Transactional outbox pattern](https://learn.microsoft.com/en-us/azure/architecture/databases/guide/transactional-outbox-cosmos) — zapis i publikacja w jednej transakcji (przykład na Cosmos DB, idea ta sama dla Postgresa).
 - [.NET Aspire overview](https://learn.microsoft.com/en-us/dotnet/aspire/get-started/aspire-overview) — AppHost i ServiceDefaults.
-- [Apache Kafka documentation](https://kafka.apache.org/documentation/) — tematy, partycje, grupy konsumentów.
+- [Apache Kafka documentation](https://kafka.apache.org/documentation/) — tematy, partycje, grupy konsumentów, kompaktowanie.
+- [What do you mean by “Event-Driven”?](https://martinfowler.com/articles/201701-event-driven.html) — Martin Fowler: powiadomienie o zdarzeniu a przenoszenie stanu w zdarzeniu.
 - Eric Evans, *Domain-Driven Design*; Vaughn Vernon, *Implementing Domain-Driven Design*.
 
 ## Gotowe gdy
 
-- Ten plik wymienia kolejność `01`–`18`, szablon numeru i słownik nazw.
+- Ten plik wymienia kolejność `01`–`22`, szablon numeru i słownik nazw.
 - Każda baza ma jedną usługę-właściciela.
 - Każdy pakiet ma numer, w którym dochodzi.
 - Każdy projekt testowy ma numery, które go zasilają.

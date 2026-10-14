@@ -1,3 +1,5 @@
-namespace JJDevHub.Api.Auth;
+namespace JJDevHub.Api.Auth
+{
 
-public sealed record AuthResponse(string Token, DateTime ExpiresAt);
+    public sealed record AuthResponse(string Token, DateTime ExpiresAt);
+}

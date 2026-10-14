@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "api/14-aspire.md",
-                "mode": "source",
+                "file": "api/01-zdarzenie.md",
+                "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "14-aspire"
+              "title": "01-zdarzenie"
             }
           }
         ]
@@ -190,10 +190,21 @@
   },
   "active": "2ce45363221384f6",
   "lastOpenFiles": [
-    "api/18-ci-uslug.md",
-    "api/03-agregat.md",
+    "api/12-outbox-inbox.md",
+    "api/13-kafka.md",
+    "api/14-aspire.md",
+    "api/README.md",
+    "CICD/README.md",
+    "CICD/przyszlosc.md",
+    "CICD/01-proxmox.md",
+    "api/architektura.md",
     "api/02-value-object.md",
+    "CICD/13-lancuch-dostaw.md",
     "api/01-zdarzenie.md",
-    "CICD/01-proxmox.md"
+    "CICD/12-sekrety.md",
+    "CICD/11-branche-i-wydania.md",
+    "api/19-learning.md",
+    "api/18-ci-uslug.md",
+    "api/03-agregat.md"
   ]
 }

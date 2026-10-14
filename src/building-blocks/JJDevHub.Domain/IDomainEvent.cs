@@ -1,8 +1,10 @@
-namespace JJDevHub.Domain;
-
-public interface IDomainEvent
+namespace JJDevHub.Domain
 {
-    Guid EventId { get; }
 
-    DateTimeOffset DateOccurred { get; }
+    public interface IDomainEvent
+    {
+        Guid EventId { get; }
+
+        DateTimeOffset DateOccurred { get; }
+    }
 }
