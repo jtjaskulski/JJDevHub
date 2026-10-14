@@ -1,35 +1,37 @@
 using JJDevHub.Domain;
 
-namespace JJDevHub.News.Domain.Articles;
-
-public sealed class ArticleTitle : ValueObject
+namespace JJDevHub.News.Domain.Articles
 {
-    public const int MaxLength = 200;
 
-    private ArticleTitle(string value) => Value = value;
-
-    public string Value { get; }
-
-    public static Result<ArticleTitle> Create(string? value)
+    public sealed class ArticleTitle : ValueObject
     {
-        if (string.IsNullOrWhiteSpace(value))
+        public const int MaxLength = 200;
+
+        private ArticleTitle(string value) => Value = value;
+
+        public string Value { get; }
+
+        public static Result<ArticleTitle> Create(string? value)
         {
-            return Result<ArticleTitle>.Fail(ResultError.Invalid);
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return Result<ArticleTitle>.Fail(ResultError.Invalid);
+            }
+
+            var trimmed = value.Trim();
+            if (trimmed.Length > MaxLength)
+            {
+                return Result<ArticleTitle>.Fail(ResultError.Invalid);
+            }
+
+            return Result<ArticleTitle>.Ok(new ArticleTitle(trimmed));
         }
 
-        var trimmed = value.Trim();
-        if (trimmed.Length > MaxLength)
+        public override string ToString() => Value;
+
+        protected override IEnumerable<object?> GetEqualityComponents()
         {
-            return Result<ArticleTitle>.Fail(ResultError.Invalid);
+            yield return Value;
         }
-
-        return Result<ArticleTitle>.Ok(new ArticleTitle(trimmed));
-    }
-
-    public override string ToString() => Value;
-
-    protected override IEnumerable<object?> GetEqualityComponents()
-    {
-        yield return Value;
     }
 }

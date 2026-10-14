@@ -8,7 +8,7 @@ alwaysApply: false
 
 Typ i metoda robią jedną rzecz. Czytelnik nie schodzi w zagnieżdżenie.
 
-- Jeden publiczny typ na plik. Namespace file-scoped. Klasa `sealed`. Dane bez zachowania to `record`.
+- Jeden publiczny typ na plik. Namespace w klamrach (`namespace X.Y { … }`), bez file-scoped (`namespace X.Y;`). Klasa `sealed`. Dane bez zachowania to `record`.
 - Klasa mieści się na jednym ekranie. Drugi powód do zmiany albo drugi ekran to nowy typ.
 - Kolejność składowych: pola, konstruktory, właściwości, metody. W grupie najpierw publiczne, potem prywatne, a statyczne przed instancją.
 - Primary constructor zostaje na deklaracji typu. Dalsze konstruktory idą za polami.
