@@ -1,3 +1,5 @@
-namespace JJDevHub.Api.Auth;
+namespace JJDevHub.Api.Auth
+{
 
-public sealed record RegisterRequest(string Email, string Password);
+    public sealed record RegisterRequest(string Email, string Password);
+}
