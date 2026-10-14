@@ -1,13 +1,15 @@
 ---
-description: Workflow GitHub — filtry ścieżek i deploy tylko na VM
+description: Workflow GitHub — wydania, sekrety i łańcuch dostaw
 globs: .github/**/*
 alwaysApply: false
 ---
 
 # Workflow
 
-- `api.yml` i `web.yml` zostają na PR i na pushu do `main`, z filtrem ścieżek. Push, który nie tyka API, nie uruchamia `api`. To samo dla `web`.
-- `deploy.yml` startuje na self-hosted runnerze `jjdevhub`, gdy `api` albo `web` na `main` jest zielone. Nie ustawiaj deployu na `ubuntu-latest`.
-- Godzinny cron zostaje zapasem, gdy runner jest offline.
-- Nie dokładaj `pull_request` do jobów na produkcyjnej VM (deploy, Sonar na `127.0.0.1:9000`).
-- W workflow nie ma sekretów produkcyjnych. Env serwera to `/etc/jjdevhub/api.env`.
+- Jeden `ci.yml` bez `paths`. Wymagane checki: `ci`, `web`, `pr-title` (i po CICD 12–13 także `secrets` i `zizmor`). Workflow z filtrem `paths` nie może być wymagany.
+- Joby `pull_request` tylko na `ubuntu-latest`. Żaden job z `self-hosted` nie startuje na PR.
+- Tytuł PR sprawdza `pr-title.yml` (Conventional Commits).
+- `release.yml` robi wydanie (release-please), czeka na zielone CI tego SHA i wdraża w tym samym przebiegu. Tag z `GITHUB_TOKEN` nie uruchamia innych workflowów — dlatego deploy jest tu, a nie w osobnym `workflow_run`.
+- `deploy.yml` zostaje do `workflow_dispatch`: ponowne wdrożenie albo rollback podanego tagu. Deploy tylko z wydania, na `[self-hosted, jjdevhub]`, `environment: production`.
+- Obraz na produkcję tylko po digeście, ze sprawdzoną atestacją. Akcje w `uses:` przypięte do pełnego SHA z komentarzem wersji.
+- W workflow nie ma sekretów produkcji. Sekrety są w `infra/secrets/*.sops.env` i odszyfrowują się na VM. Token Sonara jest w environment `sonar`, tylko z `main`.

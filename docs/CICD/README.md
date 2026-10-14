@@ -14,4 +14,7 @@ Numerowane pliki poniżej to kolejność wdrożenia. Wdrażasz **jeden numer nar
 | [08-jaeger.md](08-jaeger.md) | Tracing rozproszony w Jaegerze. |
 | [09-grafana.md](09-grafana.md) | Dashboardy i wizualizacja w Grafanie. |
 | [10-sonarqube.md](10-sonarqube.md) | Jakość kodu i SonarQube. |
-| [przyszlosc.md](przyszlosc.md) | Kafka, event sourcing i Jenkins — tylko kierunek, bez kroków wdrożenia. |
+| [11-branche-i-wydania.md](11-branche-i-wydania.md) | Trunk-based, Conventional Commits, release-please, deploy z tagu wydania. |
+| [12-sekrety.md](12-sekrety.md) | SOPS + age w gicie, klucz VM w vTPM, sekrety Compose. |
+| [13-lancuch-dostaw.md](13-lancuch-dostaw.md) | Akcje po SHA, zizmor, Scorecard, SBOM i atestacje przed deployem. |
+| [przyszlosc.md](przyszlosc.md) | OpenBao, Kubernetes, staging — tylko kierunek, bez kroków wdrożenia. |

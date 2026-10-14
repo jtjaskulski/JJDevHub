@@ -27,7 +27,7 @@ Klient web: `src/Clients/web`, menedżer **pnpm** `10.33.0`.
 | `@fontsource-variable/inter` | `^5.2.6` | krój Inter |
 | `@jjdevhub/theme` | `file:../shared/theme` | tokeny |
 
-Docelowe pakiety dopisują pliki katalogów. Ten spis podaje tylko nazwy: `tailwindcss` i `@tailwindcss/vite` (Tailwind v4), komponenty shadcn kopiowane do repo, `motion` (import z `motion/react`), NativeWind, React Native Reusables, Reanimated.
+Docelowe pakiety dopisują pliki katalogów. Ten spis podaje tylko nazwy: `tailwindcss` i `@tailwindcss/vite` (Tailwind v4), komponenty shadcn kopiowane do repo, `motion` (import z `motion/react`), NativeWind, React Native Reusables, Reanimated. Treść z API dokłada `openapi-fetch`, `openapi-typescript`, `@tanstack/react-query` i `dompurify` ([react/05-tresc-z-api.md](react/05-tresc-z-api.md)), a intranet CodeMirror 6, `@dnd-kit/sortable` i `diff` ([intranet/02-edytor.md](intranet/02-edytor.md)). Wszystkie na licencjach MIT, BSD albo Apache.
 
 Telefon: React Native `0.84` w `src/Clients/mobile/JJDevHubMobile`. Ten sam React co web.
 
@@ -42,10 +42,12 @@ Telefon: React Native `0.84` w `src/Clients/mobile/JJDevHubMobile`. Ten sam Reac
 | `src/Clients/web/src/app/LangGate.tsx` | tylko `pl` i `en` |
 | `src/Clients/web/src/content/pl.json` | treść po polsku, w bundlu |
 | `src/Clients/web/src/content/en.json` | treść po angielsku, w bundlu |
-| `src/Clients/web/src/content/cv.example.json` | placeholdery CV w gicie |
-| `src/Clients/web/src/content/cv.local.json` | lokalne CV, poza gitem |
-| `src/Clients/web/src/content/cv.json` | plik wygenerowany, poza gitem |
-| `src/Clients/web/scripts/copy-cv.mjs` | kopiuje CV przed startem, buildem i testem |
+| `src/Clients/web/src/content/cv.example.json` | placeholdery CV w gicie, do importu CV z [api/22](../api/22-cv.md) |
+| `src/Clients/web/src/content/cv.local.json` | lokalne CV, poza gitem, do importu CV |
+| `src/Clients/web/src/content/cv.json` | plik wygenerowany, poza gitem, do importu CV |
+| `src/Clients/web/scripts/copy-cv.mjs` | kopiuje CV przed startem, buildem i testem, do importu CV |
+| `src/Clients/web/src/app/api/` | docelowo: klienci HTTP, typy z OpenAPI, hooki zapytań |
+| `src/Clients/web/src/app/pages/intranet/` | docelowo: ekrany intranetu, ładowane leniwie |
 | `src/Clients/web/vite.config.ts` | port `4200`, proxy, alias motywu |
 | `src/Clients/web/src/styles.css` | docelowe jedyne wejście CSS |
 | `src/Clients/web/src/components/ui/` | docelowe komponenty shadcn |
@@ -67,6 +69,7 @@ Czytanie idzie wzdłuż łańcucha. Numer w nazwie to porządek wewnątrz katalo
 | [react/02-trasy.md](react/02-trasy.md) | `react-router` 7, `BrowserRouter`, drzewo z `App.tsx`, shell, przełącznik języka. |
 | [react/03-tresc-i-auth.md](react/03-tresc-i-auth.md) | JSON w bundlu, `cv.local.json`, `fetch` przy logowaniu i rejestracji. |
 | [react/04-testy.md](react/04-testy.md) | Vitest, Testing Library, jsdom. Test widoku użytkownika. |
+| [react/05-tresc-z-api.md](react/05-tresc-z-api.md) | Treść z usług [api/19](../api/19-learning.md)–[22](../api/22-cv.md). Typy z dokumentów OpenAPI w gicie, `openapi-fetch`, TanStack Query, HTML z serwera przez Trusted Types i DOMPurify, CSP w nginx. Trasy `technologies`, `learn`, wyszukiwanie, postęp studenta. Koniec `cv.local.json`. |
 
 ### 2. HTML5 w JSX
 
@@ -120,6 +123,15 @@ Wejście docelowe: `src/Clients/web/src/styles.css` z `@import "tailwindcss"`. T
 | [reusables.md](reusables.md) | Jeden plik. React Native Reusables kopiowane do repo: przycisk, pole, karta, formularz logowania. Instalacja NativeWind zostaje w `nativewind/01-instalacja.md`. |
 | [reanimated.md](reanimated.md) | Jeden plik. Przesunięcie hero względem offsetu listy i wyłączenie ruchu. Osobno od `motion/02-hero.md`. |
 
+### 8. Intranet w tym samym kliencie
+
+Po [react/05-tresc-z-api.md](react/05-tresc-z-api.md), na komponentach z [shadcn/03-komponenty.md](shadcn/03-komponenty.md).
+
+| Plik | Zakres |
+| --- | --- |
+| [intranet/01-dostep-i-trasy.md](intranet/01-dostep-i-trasy.md) | `/intranet/*` poza językiem, `OwnerRoute` z ról z `GET /api/auth/me`, `next` po logowaniu, leniwy chunk, listy z widocznością, studenci, zaproszenia, operacje jednorazowe. |
+| [intranet/02-edytor.md](intranet/02-edytor.md) | CodeMirror 6, podgląd z `POST /api/learning/preview`, `If-Match` i dialog konfliktu `412`, szkic w `localStorage`, `useOptimistic`, kolejność lekcji, import z GitHuba, publikacja i historia notatki, CV z wyborem dowodów. |
+
 ## Tutorial
 
 Generator bierze jedną stronę, otwiera pliki łańcucha po kolei i dopisuje kod tylko w warstwie, którą dany plik opisuje.
@@ -160,22 +172,28 @@ Ta sama lista na telefonie czyta [nativewind/02-ekrany.md](nativewind/02-ekrany.
 
 `BrowserRouter` w webie. Shell owija całe drzewo. Dozwolone języki: `pl` i `en`. `/` oraz zły `:lang` i `*` idą na `/pl` (`Navigate` z `replace`).
 
-Przełącznik w shellu podmienia pierwszy segment ścieżki (`pl` ↔ `en`) i zachowuje resztę, query oraz hash. Na `/login` i `/register` przełącznik nic nie zmienia: te ścieżki są poza językiem.
+Przełącznik w shellu podmienia pierwszy segment ścieżki (`pl` ↔ `en`) i zachowuje resztę, query oraz hash. Na `/login`, `/register` i `/intranet/*` przełącznik nic nie zmienia: te ścieżki są poza językiem.
 
-| URL | Ekran | Język w URL | Dane |
-| --- | --- | --- | --- |
-| `/` | przekierowanie na `/pl` | — | — |
-| `/:lang` | home | `pl` \| `en` | `pl.json` / `en.json` |
-| `/:lang/cv` | CV | `pl` \| `en` | `cv.json` z bundla |
-| `/:lang/courses` | lista kursów | `pl` \| `en` | JSON w bundlu |
-| `/:lang/courses/:slug` | szczegół kursu | `pl` \| `en` | JSON w bundlu |
-| `/:lang/compendium` | kompendium | `pl` \| `en` | JSON w bundlu |
-| `/:lang/compendium/:slug` | hasło kompendium | `pl` \| `en` | JSON w bundlu |
-| `/:lang/notes` | lista notatek | `pl` \| `en` | JSON w bundlu |
-| `/:lang/notes/:slug` | szczegół notatki | `pl` \| `en` | JSON w bundlu |
-| `/login` | logowanie, trasa gościa | poza językiem | `fetch` na `/api` |
-| `/register` | rejestracja, trasa gościa | poza językiem | `fetch` na `/api` |
-| inny `:lang`, `*` | przekierowanie na `/pl` | — | — |
+Kolumna „Dane” podaje stan dzisiejszy i docelowy. Strona przechodzi na API po numerze z [react/05-tresc-z-api.md](react/05-tresc-z-api.md).
+
+| URL | Ekran | Język w URL | Dane dziś | Dane docelowo |
+| --- | --- | --- | --- | --- |
+| `/` | przekierowanie na `/pl` | — | — | — |
+| `/:lang` | home | `pl` \| `en` | `pl.json` / `en.json`, `cv.json` | copy z bundla, hero z `GET /api/cv/{lang}`, notatki z `GET /api/articles` |
+| `/:lang/cv` | CV | `pl` \| `en` | `cv.json` z bundla | `GET /api/cv/{lang}`, linki do PDF i JSON Resume |
+| `/:lang/courses` | lista wykładów | `pl` \| `en` | JSON w bundlu | `GET /api/learning/lectures` |
+| `/:lang/courses/:slug` | szczegół wykładu | `pl` \| `en` | JSON w bundlu | `GET /api/learning/lectures/{slug}` |
+| `/:lang/compendium` | kompendium: technologie, wyszukiwanie, hasła | `pl` \| `en` | JSON w bundlu | `GET /api/learning/technologies`, `…/terms`, `…/search` |
+| `/:lang/compendium/:slug` | hasło kompendium | `pl` \| `en` | JSON w bundlu | `GET /api/learning/terms/{slug}` |
+| `/:lang/technologies/:slug` | technologia z kursami i hasłami | `pl` \| `en` | — | `GET /api/learning/technologies/{slug}` |
+| `/:lang/learn/:track` | spis lekcji kursu | `pl` \| `en` | — | `GET /api/learning/tracks/{slug}` |
+| `/:lang/learn/:track/:lesson` | lekcja | `pl` \| `en` | — | `GET /api/learning/tracks/{slug}/lessons/{lessonSlug}` |
+| `/:lang/notes` | lista notatek | `pl` \| `en` | JSON w bundlu | `GET /api/articles?lang=` |
+| `/:lang/notes/:slug` | szczegół notatki | `pl` \| `en` | JSON w bundlu | `GET /api/articles/{lang}/{slug}` |
+| `/login` | logowanie, trasa gościa | poza językiem | `fetch` na `/api` | `identityApi`, powrót na `next` |
+| `/register` | rejestracja, trasa gościa | poza językiem | `fetch` na `/api` | `identityApi`, pole kodu zaproszenia |
+| `/intranet/*` | intranet ownera | poza językiem | — | endpointy z polityką `Owner` |
+| inny `:lang`, `*` | przekierowanie na `/pl` | — | — | — |
 
 Wzorzec drzewa, który ma utrzymać [react/02-trasy.md](react/02-trasy.md):
 
@@ -183,6 +201,7 @@ Wzorzec drzewa, który ma utrzymać [react/02-trasy.md](react/02-trasy.md):
 /                          → /pl
 /login                     LoginPage w GuestRoute
 /register                  RegisterPage w GuestRoute
+/intranet/*                OwnerRoute, lazy IntranetRoutes (docelowo)
 /:lang                     LangGate (tylko pl, en)
   index                    HomePage
   cv                       CvPage
@@ -190,16 +209,19 @@ Wzorzec drzewa, który ma utrzymać [react/02-trasy.md](react/02-trasy.md):
   courses/:slug            CourseDetailPage
   compendium               CompendiumPage
   compendium/:slug         CompendiumDetailPage
+  technologies/:slug       TechnologyPage (docelowo)
+  learn/:track             TrackPage (docelowo)
+  learn/:track/:lesson     LessonPage (docelowo)
   notes                    NotesPage
   notes/:slug              NoteDetailPage
 *                          → /pl
 ```
 
-Nawigacja shellu prowadzi do home, CV, kursów, kompendium i notatek w bieżącym języku. Login i register zostają poza tym menu językowym.
+Nawigacja shellu prowadzi do home, CV, kursów, kompendium i notatek w bieżącym języku. Technologie i kursy z lekcjami są osiągalne z kompendium. Login i register zostają poza tym menu językowym, a owner widzi dodatkowo link „Intranet”.
 
 Telefon powtarza produkt osobnymi ekranami. Pierwszy ekran w specyfikacji to lista kursów i jej pusty stan. Wspólne z webem są tokeny i kształt treści, a pliki ekranów zostają w `src/Clients/mobile/JJDevHubMobile`.
 
-Intranet dochodzi później w tym samym kliencie web, gdy treść siedzi w API. CRUD używa komponentów z [shadcn/03-komponenty.md](shadcn/03-komponenty.md). Osobnej aplikacji intranetu specyfikacja nie przewiduje.
+Intranet dochodzi w tym samym kliencie web, gdy treść siedzi w API: [intranet/01-dostep-i-trasy.md](intranet/01-dostep-i-trasy.md) i [intranet/02-edytor.md](intranet/02-edytor.md). CRUD używa komponentów z [shadcn/03-komponenty.md](shadcn/03-komponenty.md). Kod intranetu jest w osobnym chunku, więc gość go nie pobiera. Osobnej aplikacji intranetu specyfikacja nie przewiduje.
 
 ## Przypadki użycia
 
@@ -207,9 +229,10 @@ Intranet dochodzi później w tym samym kliencie web, gdy treść siedzi w API. 
 2. **Lista kursów.** Siatka kart, duży oddech, mało ramek. Pusta lista to wczesny widok pustego stanu, opisany w teście.
 3. **Szczegół notatki.** Artykuł: jeden `h1`, szerokość z [tailwind/03-uklad.md](tailwind/03-uklad.md), treść z JSON-a bundla.
 4. **Logowanie.** `/login` poza językiem. Formularz z button i input shadcn. Błąd pola widać przy polu. Żądanie idzie `fetch` na `/api` przez proxy w dev.
-5. **CV.** Strona `/:lang/cv` czyta wygenerowany `cv.json`. Autor trzyma prawdziwe dane w `cv.local.json` poza gitem.
+5. **CV.** Dziś strona `/:lang/cv` czyta wygenerowany `cv.json`, a autor trzyma prawdziwe dane w `cv.local.json` poza gitem. Docelowo CV jest w usłudze Cv z [api/22](../api/22-cv.md): jednorazowy import pliku, potem edycja w intranecie, PDF i JSON Resume z API, umiejętności z dowodami z kursów i notatek.
 6. **Lista kursów na telefonie.** Osobny ekran, klasy NativeWind, te same liczby. Scroll dokumentu i `backdrop-filter` zostają przy webie.
-7. **Intranet później.** Ten sam klient, te same komponenty UI, gdy lista i formularz czytają API.
+7. **Intranet.** Owner wchodzi na `/intranet`, pisze lekcję w Markdown z podglądem z serwera, importuje kurs z repozytorium GitHub, publikuje notatkę dla studentów i wybiera dowody do CV. Ten sam klient, te same komponenty UI, zapisy z `If-Match`. Student i gość wracają na `/pl`.
+8. **Kurs dla studenta.** Student rejestruje się z kodem zaproszenia, wchodzi z kompendium w technologię, otwiera kurs i oznacza lekcje jako przeczytane. Lekcje `Students` widzi tylko zalogowany z rolą.
 
 ## Zasady
 
@@ -217,9 +240,10 @@ Intranet dochodzi później w tym samym kliencie web, gdy treść siedzi w API. 
 - Paleta jasna: płótno `#f3efe6`, atrament `#1a1814`, akcent `#9a3412`. Paleta ciemna: płótno `#141210`, atrament `#f3efe6`, akcent `#d4784a`. Krój: Inter. Pełna skala w [motyw.md](motyw.md). Masthead home używa `darkChapter`, nie pełnoekranowego teatru.
 - Przełącznik trybu stoi w shellu obok języka. Zapis: `jjdevhub.theme`. Brak zapisu oznacza `prefers-color-scheme`. Oba tryby podmieniają te same zmienne CSS. Klas `dark:` nie ma.
 - Ekrany weba i telefonu są osobne. Wspólny jest kontrakt tokenów.
-- Strony treści czytają `pl.json`, `en.json` i wygenerowany `cv.json` z bundla. HTTP do API zostaje przy `/login` i `/register`, zwykłym `fetch`.
-- `cv.local.json` i wygenerowany `cv.json` zostają poza gitem. W repo jest `cv.example.json`.
-- Locale w URL: tylko `pl` i `en`. Login i register bez prefiksu języka.
+- Dziś strony treści czytają `pl.json`, `en.json` i wygenerowany `cv.json` z bundla, a HTTP do API zostaje przy `/login` i `/register`. Po [react/05-tresc-z-api.md](react/05-tresc-z-api.md) bundle niesie tylko tekst interfejsu, a treść przychodzi z API przez klientów z typami z OpenAPI i TanStack Query.
+- Do importu CV z [api/22](../api/22-cv.md) `cv.local.json` i wygenerowany `cv.json` zostają poza gitem, a w repo jest `cv.example.json`. Po imporcie te pliki i `copy-cv.mjs` znikają z klienta.
+- HTML z API wchodzi do DOM tylko przez `ServerHtml` (Trusted Types, DOMPurify). Obraz web wysyła CSP.
+- Locale w URL: tylko `pl` i `en`. Login, register i intranet bez prefiksu języka.
 - Jeden plik CSS weba: `src/styles.css`. Znaczniki HTML5 niosą klasy Tailwinda.
 - `prefers-reduced-motion` wyłącza ruch na webie i na telefonie.
 - Jeden komponent na plik, eksport nazwany, funkcja. Test sprawdza tekst, rolę i stan, które widzi użytkownik.
@@ -242,7 +266,7 @@ Poza tą specyfikacją zostają:
 ## Gotowe gdy
 
 - Generator ma tu pełną kolejność plików `01`–reszta wzdłuż łańcucha i wie, którego pliku nie powtarzać.
-- Mapa URL zgadza się z drzewem `App.tsx`: `pl`/`en`, home, cv, courses, compendium, notes, login i register poza językiem, zły język na `/pl`.
-- Zasady wskazują tokeny, paletę, osobne ekrany, JSON w bundlu, `cv.local.json` i `fetch` przy auth.
+- Mapa URL zgadza się z drzewem `App.tsx`: `pl`/`en`, home, cv, courses, compendium, notes, login i register poza językiem, zły język na `/pl`. Trasy docelowe (`technologies`, `learn`, `intranet`) są oznaczone.
+- Zasady wskazują tokeny, paletę, osobne ekrany, JSON w bundlu dziś i API docelowo, `cv.local.json` do importu CV.
 - Granice odcinają Tamagui, wspólny parallax, drugi klient intranetu i SCSS.
-- Intranet ma zapisane miejsce: później, w tym samym kliencie web.
+- Intranet ma swoje pliki: dostęp i trasy oraz edytor, w tym samym kliencie web.

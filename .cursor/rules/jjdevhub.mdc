@@ -6,9 +6,11 @@ alwaysApply: true
 # JJDevHub
 
 - Stos dziś: jedno API .NET 11 (Preview 7, Identity + JWT + PostgreSQL), klient web React 19 + Vite, szkielet React Native.
-- Kierunek: mikroserwisy w `src/services/<Usługa>/` (warstwy `Domain`, `Application`, `Infrastructure`, `API`), biblioteki w `src/building-blocks/`, orkiestracja .NET Aspire w `src/aspire/`, transport między usługami Kafka. Specyfikacja i kolejność są w `docs/api/` (numery `01`–`18`).
-- Poza tym drzewem: Keycloak, Vault, Jenkins i stare mikroserwisy. Stary kod jest na `archive/pre-rewrite` pod `legacy/`.
-- `docs/CICD/` idzie po numerach `01`–`10`. W jednej sesji rób jeden numer. `docs/CICD/przyszlosc.md` nie jest do wdrożenia.
-- README: angielski, potem `---`, potem polski — szczegóły w regule `readme`. Pliki w `docs/` po polsku. W plikach `.md` (README i `docs/`) nie pisz o agentach, sesjach ani generowaniu kodu. Commity i branche po angielsku (`feature/kebab-case`, zdanie rozkazujące).
-- W gicie: `infra/docker/.env.example`. Poza gitem: `infra/docker/.env`, `/etc/jjdevhub/*.env` (jeden plik na usługę, dziś `api.env`), `cv.local.json`, wygenerowany `cv.json`, `.idea/`, `.pnpm-store/`, `.cursor/settings.json`.
-- `.cursor/rules/` commituj. Sekretów do workflow nie wkładaj.
+- Kierunek: mikroserwisy w `src/services/<Usługa>/` (warstwy `Domain`, `Application`, `Infrastructure`, `API`), biblioteki w `src/building-blocks/`, orkiestracja .NET Aspire w `src/aspire/`, transport między usługami Kafka. Specyfikacja i kolejność są w `docs/api/` (numery `01`–`22`). Intranet jest w tym samym kliencie web (`/intranet/*`).
+- Poza tym drzewem: Keycloak, Vault, OpenBao, Jenkins i stare mikroserwisy. Stary kod jest na `archive/pre-rewrite` pod `legacy/`.
+- `docs/CICD/` idzie po numerach `01`–`13`. W jednej sesji rób jeden numer. `docs/CICD/przyszlosc.md` nie jest do wdrożenia.
+- README: angielski, potem `---`, potem polski — szczegóły w regule `readme`. Pliki w `docs/` po polsku. W plikach `.md` (README i `docs/`) nie pisz o agentach, sesjach ani generowaniu kodu.
+- Commity i branche po angielsku. Prefiksy gałęzi: `feature/`, `fix/`, `docs/`, `chore/`, `ci/`, `refactor/`, `test/` plus kebab-case. Tytuł PR jest commitem squash w formacie Conventional Commits (`feat(web): add lesson search`); opis PR zostaje zdaniem rozkazującym.
+- Wydania: tagi `<komponent>-vX.Y.Z` z release-please. Deploy tylko z wydania.
+- W gicie: `infra/docker/.env.example`, zaszyfrowane `infra/secrets/*.sops.env`. Poza gitem: `infra/docker/.env`, odszyfrowane sekrety, `cv.local.json` (do importu), wygenerowany `cv.json`, `.idea/`, `.pnpm-store/`, `.cursor/settings.json`.
+- `.cursor/rules/` commituj. Sekretów produkcji do workflow nie wkładaj.
