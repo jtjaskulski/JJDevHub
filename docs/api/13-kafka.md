@@ -91,6 +91,8 @@ Wersje `Confluent.Kafka` i `Testcontainers.Kafka` dochodzą do [Directory.Packag
 | `identity.integration` | Identity | 3 | `users` |
 | `*.dlq` | konsument | 1 | człowiek, przez Kafka UI |
 
+Tabela pokazuje stan po tym numerze. [19-learning.md](19-learning.md) dodaje kompaktowany `learning.integration`, a [22-cv.md](22-cv.md) grupę `cv` przy `learning.integration` i `news.integration`. Pełna lista jest w [architektura.md](architektura.md).
+
 Retencja tematów integracyjnych: 7 dni. Kafka nie jest źródłem prawdy. Źródłem są bazy usług, a outbox może wysłać ponownie.
 
 `KafkaTopicInitializer : IHostedService` tworzy przy starcie `PublishedTopics` usługi i DLQ jej `SubscribedTopics` przez `IAdminClient.CreateTopicsAsync`. Wyjątek `CreateTopicsException` z kodem `TopicAlreadyExists` jest oczekiwany i pomijany. Broker na VM ma wyłączone `auto.create.topics.enable`, więc literówka w nazwie tematu kończy się błędem, nie nowym tematem.

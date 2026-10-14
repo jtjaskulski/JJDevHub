@@ -363,7 +363,7 @@ Negatyw: `https://hub.example.com` nie serwuje `:9000`. Compose aplikacji (`jjde
 
 ## Następny numer
 
-[przyszlosc.md](przyszlosc.md) — krótka notatka (Kafka, event sourcing, Jenkins). **To nie jest tutorial wdrożeniowy** i nie ma kroków build/deploy.
+[11-branche-i-wydania.md](11-branche-i-wydania.md) — trunk-based, Conventional Commits, release-please i deploy z tagu wydania.
 
 ---
 

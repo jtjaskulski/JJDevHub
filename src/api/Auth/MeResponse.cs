@@ -1,3 +1,5 @@
-namespace JJDevHub.Api.Auth;
+namespace JJDevHub.Api.Auth
+{
 
-public sealed record MeResponse(string Id, string? Email);
+    public sealed record MeResponse(string Id, string? Email);
+}

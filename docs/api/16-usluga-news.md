@@ -22,7 +22,23 @@ Wersja mogłaby jechać w JSON-ie (`{ "version": 3, ... }`). Standard HTTP ma na
 
 ### ProblemDetails dla błędów
 
-`Result<T>` z błędem zamienia się na odpowiedź `application/problem+json` (RFC 9457) z `type`, `title`, `status`. Jeden kształt błędu w całym systemie, obsługiwany przez `AddProblemDetails` w ASP.NET Core i rozumiany przez generatory klientów OpenAPI.
+`Result<T>` z błędem zamienia się na odpowiedź `application/problem+json` (RFC 9457) z `type`, `title`, `status`. Jeden kształt błędu w całym systemie, obsługiwany przez `AddProblemDetails` w ASP.NET Core i rozumiany przez generatory klientów OpenAPI. Nieoczekiwany wyjątek dostaje ten sam kształt z `GlobalExceptionHandler` z [14-aspire.md](14-aspire.md).
+
+`ResultError.Invalid` to `400`, a nie `422 Unprocessable Content`. RFC 9110 pozwala na oba: `422` znaczy „składnia poprawna, treść nie do przyjęcia”, `400` obejmuje też ten przypadek. `ValidationProblem` w ASP.NET Core i walidacja modelu domyślnie zwracają `400`, więc pusty tytuł z walidatora i zły JSON z bindera mają ten sam kod. Klient reaguje na oba tak samo: pokazuje błędy pól z `errors`. Drugi kod nie zmieniłby żadnej decyzji po stronie klienta, a rozdzielałby jeden przypadek na dwa.
+
+### Wersjonowanie API
+
+Klient web wdraża się razem z usługami, więc zmiana kontraktu HTTP i nowy bundle trafiają na serwer jednym deployem. Klient mobilny ([src/Clients/mobile](../../src/Clients/mobile)) tak nie działa: stara wersja aplikacji zostaje na telefonach tygodniami. Zmiana, która łamie kształt odpowiedzi, musi wtedy żyć obok starej. To jest powód wersjonowania, a nie moda.
+
+`Asp.Versioning.Http` (MIT, .NET Foundation) to biblioteka wersjonowania dla Minimal API. Grupa endpointów dostaje zestaw wersji (`ApiVersionSet`), wersja przychodzi w nagłówku `api-version`, a odpowiedź niesie `api-supported-versions` i `api-deprecated-versions`. Żądanie bez nagłówka dostaje wersję domyślną `1.0`, więc dzisiejszy klient web i ścieżki z [docs/frontend](../frontend/README.md) działają bez zmian. Nieznana wersja kończy się `400` ProblemDetails.
+
+Alternatywy:
+
+- **Segment w ścieżce** (`/api/v1/articles`) — najczytelniejszy w logach i w cache, ale zmienia każdą ścieżkę: trasy gatewaya, `nginx.conf`, proxy Vite i `fetch` przy logowaniu. Przy jednej wersji to koszt bez zysku. Biblioteka obsługuje segment, więc przejście jest zmianą czytnika wersji, gdy pojawi się `2.0`.
+- **Typ mediów** (`Accept: application/json;v=2`) — poprawny w teorii REST, niewygodny w kliencie i w narzędziach do testów.
+- **Bez wersjonowania, tylko zmiany addytywne** — działa, dopóki nikt nie usuwa pola. Pierwsza zmiana łamiąca psuje stare aplikacje mobilne bez ostrzeżenia.
+
+Koszt: jeden pakiet, jedno wywołanie w składzie i `WithApiVersionSet` na grupie. Kontrakty na szynie wersjonują się osobno, przez sufiks nazwy (`.v1`) z [12-outbox-inbox.md](12-outbox-inbox.md).
 
 ### YARP jako gateway
 
@@ -52,6 +68,7 @@ Projekcja i dispatcher outboxa działają jako `BackgroundService` w procesie `N
 | `src/services/News/News.API/Http/EntityTag.cs` | `ETag` ↔ wersja |
 | `src/services/News/News.API/Http/CurrentUser.cs` | `sub` z tokenu |
 | `src/services/News/News.API/Migrations/DevelopmentMigrator.cs` | `MigrateAsync` obu kontekstów tylko w dev |
+| `src/aspire/JJDevHub.ServiceDefaults/ApiVersioningExtensions.cs` | `AddDefaultApiVersioning`: nagłówek `api-version`, domyślnie `1.0` |
 | `src/gateway/JJDevHub.Gateway/JJDevHub.Gateway.csproj` | `Yarp.ReverseProxy`, `Microsoft.Extensions.ServiceDiscovery.Yarp`, ServiceDefaults |
 | `src/gateway/JJDevHub.Gateway/Program.cs` | YARP z konfiguracji |
 | `src/gateway/JJDevHub.Gateway/appsettings.json` | trasy i klastry |
@@ -70,6 +87,7 @@ dotnet add src/services/News/News.API reference src/services/News/News.Infrastru
 dotnet add src/gateway/JJDevHub.Gateway reference src/aspire/JJDevHub.ServiceDefaults
 dotnet add src/gateway/JJDevHub.Gateway package Yarp.ReverseProxy
 dotnet add src/gateway/JJDevHub.Gateway package Microsoft.Extensions.ServiceDiscovery.Yarp
+dotnet add src/aspire/JJDevHub.ServiceDefaults package Asp.Versioning.Http
 dotnet add src/aspire/JJDevHub.AppHost reference src/services/News/News.API src/gateway/JJDevHub.Gateway
 dotnet add tests/News.API.Tests reference src/services/News/News.API
 ```
@@ -91,7 +109,7 @@ builder.Services
     .AddNewsRead()
     .AddIntegrationEventLog<NewsWriteContext>(typeof(ArticleCreatedIntegrationEvent).Assembly)
     .AddKafkaEventBus(builder.Configuration, options => options.PublishedTopics = ["news.integration"])
-    .AddProblemDetails();
+    .AddDefaultApiVersioning();
 
 if (builder.Environment.IsDevelopment())
 {
@@ -105,6 +123,8 @@ app.MapArticles();
 app.MapDefaultEndpoints();
 app.Run();
 ```
+
+`AddProblemDetails` jest już w `AddServiceDefaults` z [14-aspire.md](14-aspire.md), razem z `GlobalExceptionHandler`.
 
 `ResourceNames` dostaje projekt współdzielony z AppHost (plik linkowany przez `<Compile Include="..\..\..\aspire\JJDevHub.AppHost\ResourceNames.cs" Link="ResourceNames.cs" />`), żeby usługa nie kopiowała stałych.
 
@@ -122,6 +142,29 @@ app.Run();
 | `PUT /api/articles/{id:guid}` | `RequireAuthorization()` | `If-Match` + `ReviseArticleRequest` → `ReviseArticleCommand` | `200` + `ETag`, `400`, `403`, `404`, `412`, `428` |
 
 Endpoint to statyczna metoda z parametrami `IMediator`, `CurrentUser` (dla zapisu) i `CancellationToken`. Bez logiki poza mapowaniem.
+
+### 3a. Wersja API
+
+`AddDefaultApiVersioning(this IServiceCollection services)` w ServiceDefaults, żeby każda usługa HTTP miała te same reguły:
+
+```csharp
+services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new ApiVersion(1, 0);
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.ReportApiVersions = true;
+    options.ApiVersionReader = new HeaderApiVersionReader("api-version");
+});
+```
+
+`MapArticles` buduje zestaw wersji i podpina go pod grupę:
+
+```csharp
+var versions = app.NewApiVersionSet().HasApiVersion(new ApiVersion(1, 0)).Build();
+var group = app.MapGroup("/api/articles").WithApiVersionSet(versions).WithTags("Articles");
+```
+
+Endpoint, który zmienia kształt w `2.0`, dostaje drugą metodę z `MapToApiVersion(2, 0)`. Stara zostaje z `HasDeprecatedApiVersion(1, 0)`, a odpowiedź niesie `api-deprecated-versions: 1.0`, dopóki w sklepie jest wersja aplikacji mobilnej, która jej używa. Gateway przekazuje nagłówek `api-version` bez zmian.
 
 ### 4. ETag i If-Match
 
@@ -206,6 +249,7 @@ Na VM tunel Cloudflare z [docs/CICD/02-cloudflare-tunnel.md](../CICD/02-cloudfla
 - `CreateArticleRequest` / `ReviseArticleRequest` — kształt JSON-a od klienta. Autor nie przychodzi w body, tylko z tokenu.
 - `EntityTag` — wersja agregatu w nagłówku HTTP. Łączy `Version` ze strumienia z `If-Match` klienta.
 - `ResultHttpExtensions` — jedno mapowanie błędów na kody.
+- `AddDefaultApiVersioning` — miejsce na drugą wersję endpointu, zanim aplikacja mobilna w sklepie zostanie z kontraktem, którego serwer już nie zna.
 - `CurrentUser` — `IdentityGuid` zalogowanego użytkownika dla komend.
 - `DevelopmentMigrator` — wygoda dev. W produkcji schemat zmienia osobny krok wdrożenia.
 - `JJDevHub.Gateway` — jedno wejście, trasy do usług. Bez logiki biznesowej i bez walidacji tokenu.
@@ -233,6 +277,8 @@ Klasa `ArticleEndpointsTests`.
 | `Put_by_other_user_returns_403` | artykuł `a` | `PUT` z tokenem `b` | `403` |
 | `Put_returns_new_etag` | artykuł `a` w wersji 1 | `PUT` z `If-Match: "1"` | `200`, `ETag` `"2"` |
 | `List_too_large_page_returns_400` | dowolnie | `GET ?pageSize=51` | `400` |
+| `Request_without_version_uses_default` | dowolnie | `GET /api/articles` bez `api-version` | `200`, `api-supported-versions: 1.0` |
+| `Unknown_version_returns_400` | dowolnie | `GET` z `api-version: 9.0` | `400` ProblemDetails |
 
 Klasa `AppHostTests` z [14-aspire.md](14-aspire.md) dostaje:
 
@@ -251,11 +297,12 @@ Klasa `AppHostTests` z [14-aspire.md](14-aspire.md) dostaje:
 - Kody HTTP zna tylko `ResultHttpExtensions`.
 - Gateway nie zna usług z nazwy w kodzie, tylko z konfiguracji. Nie waliduje tokenu.
 - Migracje przy starcie tylko w `Development`.
+- Każda grupa endpointów ma zestaw wersji. Żądanie bez `api-version` dostaje `1.0`.
 
 ## Poza zakresem
 
 - Rate limiting i cache na gatewayu.
-- Publikacja i wycofanie artykułu jako osobne endpointy. Te same kroki co rewizja.
+- Publikacja, wycofanie i przypięcie artykułu do lekcji — [21-notatki.md](21-notatki.md).
 - Upload obrazów.
 - Users w gatewayu — [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md).
 - OpenAPI usługi. `AddOpenApi` i Scalar według wzoru z obecnego `Identity.API`, gdy klient zacznie generować typy.
@@ -270,6 +317,8 @@ Klasa `AppHostTests` z [14-aspire.md](14-aspire.md) dostaje:
 - [Service discovery in .NET](https://learn.microsoft.com/en-us/dotnet/core/extensions/service-discovery) — `AddServiceDiscoveryDestinationResolver` dla YARP.
 - [The API gateway pattern](https://learn.microsoft.com/en-us/dotnet/architecture/microservices/architect-microservice-container-applications/direct-client-to-microservice-communication-versus-the-api-gateway-pattern) — jedno wejście przed usługami.
 - [Problem details](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling#problem-details) — format błędów `400`.
+- [RFC 9110: 422 Unprocessable Content](https://www.rfc-editor.org/rfc/rfc9110#name-422-unprocessable-content) — dlaczego `400` wystarcza.
+- [dotnet/aspnet-api-versioning](https://github.com/dotnet/aspnet-api-versioning) — `Asp.Versioning.Http`, `ApiVersionSet`, czytniki wersji.
 
 ## Gotowe gdy
 
@@ -277,4 +326,5 @@ Klasa `AppHostTests` z [14-aspire.md](14-aspire.md) dostaje:
 - `POST` z tokenem zwraca `201` z `Location` i `ETag`, a bez tokenu `401`.
 - `PUT` bez `If-Match` zwraca `428`, a ze starą wersją `412`.
 - Artykuł zapisany przez API ma `IdentityGuid` strumienia równy `sub` z tokenu.
+- Odpowiedź niesie `api-supported-versions: 1.0`, a nieznana wersja w `api-version` daje `400`.
 - `dotnet test tests/News.API.Tests` i `dotnet test tests/JJDevHub.AppHost.Tests` kończą się kodem 0.

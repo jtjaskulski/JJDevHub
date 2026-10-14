@@ -48,6 +48,20 @@ Aspire zmienia się szybko: API AppHost i publikacji ewoluowało między wersjam
 
 Szablon generuje `ServiceDefaults` jako kod w repo. To celowe: każdy zespół zmienia go pod siebie (u nas eksporter Prometheusa i `AddDefaultAuthentication` z [15-identity.md](15-identity.md)), a paczka NuGet wymuszałaby jedną konfigurację dla wszystkich.
 
+### Globalny handler wyjątków w ServiceDefaults
+
+Oczekiwany błąd to `Result<T>` i zamienia się na kod HTTP w endpointach usługi ([16-usluga-news.md](16-usluga-news.md)). Zostaje wyjątek: zerwane połączenie z bazą, błąd serializacji, błąd składu. Bez obsługi ASP.NET Core zwraca pusty `500`, a ślad w Jaegerze ma status `Unset`, więc w widoku błędów go nie widać.
+
+`IExceptionHandler` (ASP.NET Core od 8) to interfejs, który middleware `UseExceptionHandler` woła po kolei dla każdego zarejestrowanego handlera. Jeden handler w ServiceDefaults daje każdej usłudze to samo zachowanie: log `Error` z wyjątkiem, `Activity.SetStatus(ActivityStatusCode.Error)` i zdarzenie `exception` na bieżącym spanie oraz odpowiedź `500` jako ProblemDetails z `traceId`, bez treści wyjątku. Użytkownik dostaje identyfikator, po którym znajdzie się ślad i linia logu.
+
+Alternatywy:
+
+- **Middleware pisany ręcznie** (`try`/`catch` wokół `next`) — robi to samo, ale omija `IProblemDetailsService` i trzeba samemu pilnować, żeby odpowiedź nie była już rozpoczęta.
+- **`UseDeveloperExceptionPage`** — tylko dev, pokazuje stos. Zostaje w dev jako domyślne zachowanie szablonu.
+- **Filtr na grupie endpointów** — łapie tylko wyjątki z handlerów endpointów, a nie z middleware i workerów hostowanych przez HTTP.
+
+Koszt: jedna klasa i dwa wywołania. Handler nie zamienia wyjątków na `400` ani `404`. To byłoby sterowanie przepływem wyjątkami, a od tego jest `Result<T>`.
+
 ## Klasy i ścieżki
 
 | Plik | Odpowiedzialność |
@@ -61,6 +75,7 @@ Szablon generuje `ServiceDefaults` jako kod w repo. To celowe: każdy zespół z
 | `src/aspire/JJDevHub.ServiceDefaults/OtlpEndpoints.cs` | adres OTLP na sygnał, puste → `null` |
 | `src/aspire/JJDevHub.ServiceDefaults/RootClientSpanSampler.cs` | odrzuca span klienta bez rodzica |
 | `src/aspire/JJDevHub.ServiceDefaults/HealthCheckExtensions.cs` | `self`, tagi `live` |
+| `src/aspire/JJDevHub.ServiceDefaults/GlobalExceptionHandler.cs` | `IExceptionHandler`: log, status spanu, `500` ProblemDetails z `traceId` |
 | `src/api/Program.cs` | `AddServiceDefaults()` zamiast ręcznego OTel, `MapDefaultEndpoints()` |
 | `src/building-blocks/JJDevHub.Cqrs`, `JJDevHub.Projections`, `JJDevHub.IntegrationEventLog`, `JJDevHub.EventBus.Kafka` | `ActivitySource` i `Meter` o nazwie projektu |
 | `tests/JJDevHub.AppHost.Tests/` | `Aspire.Hosting.Testing` |
@@ -177,6 +192,42 @@ Workery otwierają własny span dopiero wtedy, gdy jest praca (krok 4). Pusty ob
 
 Aspire ustawia `OTEL_SERVICE_NAME` na nazwę zasobu: `api` w tym numerze, potem `identity-api`, `news-api`, `users-api`, `notifications-worker`, `gateway`. W telemetrii obowiązuje ta nazwa, a nie `JJDevHub.Api` z 06. Wygenerowany Compose ustawia tę samą zmienną. Filtry w Jaegerze i Grafanie przechodzą na nowe nazwy w [18-ci-uslug.md](18-ci-uslug.md), razem z celami Prometheusa.
 
+### 3d. Nieoczekiwany wyjątek
+
+`AddServiceDefaults` rejestruje `AddProblemDetails()` i `AddExceptionHandler<GlobalExceptionHandler>()`. `MapDefaultEndpoints` woła `app.UseExceptionHandler()` poza `Development`. W dev zostaje strona wyjątku ze stosem.
+
+```csharp
+namespace JJDevHub.ServiceDefaults
+{
+    public sealed class GlobalExceptionHandler(
+        IProblemDetailsService problemDetails,
+        ILogger<GlobalExceptionHandler> logger) : IExceptionHandler
+    {
+        public async ValueTask<bool> TryHandleAsync(
+            HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
+        {
+            logger.LogError(exception, "Unhandled exception on {Path}", httpContext.Request.Path);
+            Activity.Current?.AddException(exception);
+            Activity.Current?.SetStatus(ActivityStatusCode.Error);
+
+            httpContext.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            return await problemDetails.TryWriteAsync(new ProblemDetailsContext
+            {
+                HttpContext = httpContext,
+                Exception = exception,
+                ProblemDetails =
+                {
+                    Title = "Unexpected error",
+                    Extensions = { ["traceId"] = Activity.Current?.TraceId.ToString() ?? httpContext.TraceIdentifier },
+                },
+            });
+        }
+    }
+}
+```
+
+Treść wyjątku nie trafia do odpowiedzi. `OperationCanceledException` przy przerwanym żądaniu (`httpContext.RequestAborted.IsCancellationRequested`) idzie do logu na poziomie `Debug` zamiast `Error`, bez statusu `Error` na spanie: klient sam zrezygnował i odpowiedzi już nie czyta.
+
 ### 4. Źródła śladów i mierniki w bibliotekach
 
 Każda biblioteka z pracą w tle albo na granicy ma statyczne `ActivitySource` o nazwie projektu:
@@ -236,6 +287,7 @@ builder.AddDockerComposeEnvironment("jjdevhub");
 - `Meter` w bibliotekach — opóźnienie projekcji, zaległy outbox i lag konsumenta. Przy tej architekturze to są pierwsze liczby, na które patrzysz, gdy „artykuł się nie pokazuje”.
 - `OtlpEndpoints` — ślady do Jaegera, metryki do Prometheusa, każdy sygnał tam, gdzie ktoś go przyjmuje.
 - `RootClientSpanSampler` i filtr ścieżek — Jaeger pokazuje żądania i pracę, a nie scrape i puste pętle.
+- `GlobalExceptionHandler` — awaria w dowolnej usłudze kończy się tym samym `500` z `traceId`, czerwonym spanem i linią logu. Od `traceId` z odpowiedzi do przyczyny jest jedno wyszukiwanie.
 - `AddDockerComposeEnvironment` — most do obecnego deployu na VM przez Compose.
 
 ## Testy
@@ -259,6 +311,14 @@ Klasa `TelemetryConfigurationTests` w tym samym projekcie, bez uruchamiania AppH
 | `Root_client_span_is_dropped` | `SamplingParameters` bez rodzica, `ActivityKind.Client` | `ShouldSample` | `Drop` |
 | `Root_server_span_is_kept` | bez rodzica, `ActivityKind.Server` | `ShouldSample` | `RecordAndSample` |
 
+Klasa `GlobalExceptionHandlerTests` w tym samym projekcie. `WebApplication.CreateSlimBuilder()` z `AddServiceDefaults()`, `WebHost.UseTestServer()` (`Microsoft.AspNetCore.TestHost` przychodzi z `Microsoft.AspNetCore.Mvc.Testing`), środowisko `Production`, endpoint `/boom` rzucający `InvalidOperationException("secret detail")`.
+
+| Fakt | Arrange | Act | Assert |
+| --- | --- | --- | --- |
+| `Unhandled_exception_returns_problem_500` | host z `/boom` | `GET /boom` | `500`, `Content-Type` `application/problem+json` |
+| `Problem_has_trace_id` | host z `/boom` | `GET /boom` | pole `traceId` niepuste |
+| `Problem_hides_exception_message` | host z `/boom` | `GET /boom` | treść bez `secret detail` |
+
 Istniejące `tests/JJDevHub.Api.Tests` przechodzą bez zmian poza endpointem `/health`, który daje teraz ServiceDefaults.
 
 `dotnet test tests/JJDevHub.AppHost.Tests` i `dotnet test tests/JJDevHub.Api.Tests`.
@@ -272,6 +332,7 @@ Istniejące `tests/JJDevHub.Api.Tests` przechodzą bez zmian poza endpointem `/h
 - Każdy sygnał OTLP ma własny adres. Metryki i logi nie idą na adres Jaegera.
 - Etykieta metryki nie zawiera identyfikatora zdarzenia, użytkownika ani adresu e-mail.
 - Jedna baza na usługę, nawet gdy serwer jest wspólny.
+- Nieoczekiwany wyjątek kończy się `500` ProblemDetails z `traceId`. Treść wyjątku jest tylko w logu i w spanie.
 
 ## Poza zakresem
 
@@ -296,6 +357,7 @@ Istniejące `tests/JJDevHub.Api.Tests` przechodzą bez zmian poza endpointem `/h
 - [Sampling](https://opentelemetry.io/docs/concepts/sampling/) — `ParentBased` i własny sampler korzenia.
 - [.NET metrics instrumentation](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/metrics-instrumentation) — `Meter`, `CreateObservableGauge`, `Counter`.
 - [docs/CICD/06-opentelemetry.md](../CICD/06-opentelemetry.md) i [08-jaeger.md](../CICD/08-jaeger.md) — dlaczego metryki i logi nie idą do Jaegera i skąd limit śladów.
+- [Handle errors in ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling) — `IExceptionHandler`, `UseExceptionHandler`, `IProblemDetailsService`.
 
 ## Gotowe gdy
 
@@ -304,4 +366,5 @@ Istniejące `tests/JJDevHub.Api.Tests` przechodzą bez zmian poza endpointem `/h
 - W dashboardzie Aspire nie ma śladów `/metrics`, `/health` ani pustych zapytań workerów.
 - `curl /metrics` pokazuje serie `jjdevhub_*` z kroku 4 dla bibliotek, które działają w procesie.
 - `aspire publish -o artifacts/compose` generuje plik Compose bez sekretów w treści.
+- Wyjątek w endpoincie poza dev zwraca `500` ProblemDetails z `traceId`, a span w dashboardzie ma status `Error`.
 - `dotnet test tests/JJDevHub.AppHost.Tests` i `dotnet test tests/JJDevHub.Api.Tests` kończą się kodem 0.
