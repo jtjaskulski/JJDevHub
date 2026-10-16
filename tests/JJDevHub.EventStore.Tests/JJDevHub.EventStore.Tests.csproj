@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\building-blocks\JJDevHub.EventStore\JJDevHub.EventStore.csproj" />
+    <ProjectReference Include="..\JJDevHub.EventStore.Fixtures\JJDevHub.EventStore.Fixtures.csproj" />
   </ItemGroup>
 
 </Project>
