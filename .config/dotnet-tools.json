@@ -9,7 +9,7 @@
       ]
     },
     "dotnet-ef": {
-      "version": "11.0.0-preview.6.26359.118",
+      "version": "11.0.0-rc.2.26504.105",
       "commands": [
         "dotnet-ef"
       ]
