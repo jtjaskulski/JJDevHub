@@ -8,7 +8,7 @@ Kompendium z setką haseł i kilkoma kursami bez wyszukiwania to spis treści. S
 
 Polski jest trudny dla wyszukiwania słów. Postgres nie ma polskiego stemmera Snowball, więc „kolejka”, „kolejki” i „kolejką” to dla indeksu trzy różne słowa. Wyszukiwanie semantyczne nie porównuje słów, tylko znaczenie: zdanie z „kolejką wiadomości” leży w przestrzeni wektorów blisko „brokera komunikatów”. Z kolei wektor gubi dokładne nazwy: `IAsyncEnumerable`, `SKIP LOCKED`, numer błędu. Te łapie indeks słów. Każda metoda pokrywa słabość drugiej, więc system używa obu.
 
-Wszystko zostaje w Postgresie, który już jest. Bez drugiego magazynu nie ma synchronizacji między bazą a indeksem, a filtr widoczności żyje w tym samym SQL-u co treść.
+Wszystko zostaje w Postgresie, w bazie odczytu Learning. Indeks jest projekcją strumienia, więc przez chwilę po zapisie może go nie być, tak jak widok artykułu po `POST`. Filtr widoczności żyje w tym samym SQL-u co tekst projekcji.
 
 ## Dlaczego ta technologia
 
@@ -17,7 +17,7 @@ Wszystko zostaje w Postgresie, który już jest. Bez drugiego magazynu nie ma sy
 - **OpenSearch / Elasticsearch** — pełny silnik z analizatorem polskim (Stempel) i wektorami. Proces na JVM z co najmniej 1–2 GB RAM, drugi magazyn danych i potok synchronizacji. README trzyma OpenSearch poza projektem.
 - **Meilisearch** (MIT) — lekki, z tolerancją literówek i wyszukiwaniem hybrydowym. Nadal drugi proces i drugi magazyn. Filtr widoczności trzeba by odtworzyć w jego składni i pilnować, żeby indeks nie wyprzedził bazy.
 - **ParadeDB / `pg_search`** (BM25 w Postgresie) — licencja AGPL, poza listą dozwolonych licencji.
-- **Postgres: `tsvector` + pgvector** — dokument wyszukiwania zapisuje się w tej samej transakcji co lekcja. Brak synchronizacji, jedna kopia zapasowa, jeden filtr.
+- **Postgres: `tsvector` + pgvector** — dokument wyszukiwania leży w `learning_read`, obok widoku treści. Jedna kopia zapasowa bazy odczytu, jeden filtr. Zapis komendy nie czeka na indeks.
 
 Koszt: ranking pełnotekstowy Postgresa (`ts_rank_cd`) jest prostszy niż BM25, a polskiej fleksji nie obsługuje. Przy setkach i tysiącach dokumentów różnica w jakości jest mała, a fleksję pokrywa część semantyczna.
 
@@ -78,7 +78,7 @@ Pełny tekst ma jeden `tsvector` na dokument, z tytułem o wadze `A` i treścią
 
 ### Indeks słów od razu, wektory w tle
 
-Dokument wyszukiwania zapisuje się w transakcji zmiany treści, a `tsvector` liczy Postgres w kolumnie generowanej. Wektory liczy `EmbeddingWorker` w tle, bo ONNX na lekcji z dwudziestoma fragmentami to sekunda pracy CPU, której nie powinien czekać zapis w intranecie. Nowa lekcja jest więc od razu wyszukiwalna po słowach, a po kilku sekundach także po znaczeniu.
+`ContentProjection` z [19-learning.md](19-learning.md) po zrenderowaniu widoku woła `ISearchIndex.UpsertAsync` w tej samej transakcji co wiersz widoku. `tsvector` liczy Postgres w kolumnie generowanej. Wektory liczy `EmbeddingWorker` w tle, bo ONNX na lekcji z dwudziestoma fragmentami to sekunda pracy CPU. Po dogonieniu projekcji lekcja jest wyszukiwalna po słowach, a po kilku sekundach także po znaczeniu. Zapis w intranecie nie czeka na żaden z tych kroków.
 
 ## Klasy i ścieżki
 
@@ -98,7 +98,7 @@ Dokument wyszukiwania zapisuje się w transakcji zmiany treści, a `tsvector` li
 | `src/services/Learning/Learning.Infrastructure/Search/EmbeddingWorker.cs` | wektory dla zmienionych dokumentów |
 | `src/services/Learning/Learning.Infrastructure/Embeddings/OnnxEmbeddingGenerator.cs` | `IEmbeddingGenerator<string, Embedding<float>>` na ONNX Runtime |
 | `src/services/Learning/Learning.Infrastructure/Embeddings/OnnxEmbeddingOptions.cs` | ścieżki modelu i tokenizera, wątki, nazwa modelu |
-| `src/services/Learning/Learning.Infrastructure/Data/Migrations/` | dochodzi `LearningSearch` |
+| `src/services/Learning/Learning.Infrastructure/Data/Migrations/` | dochodzi `LearningSearch` na `LearningReadContext` |
 | `src/services/Learning/Learning.API/Apis/SearchEndpoints.cs` | `GET /api/learning/search` |
 | `infra/models/models.json`, `infra/models/download.sh` | model, rewizja, pliki i sumy SHA-256 |
 | `tests/Learning.Infrastructure.Tests/Search/` | indeks na Postgresie z pgvector, worker, model |
@@ -133,13 +133,13 @@ Testy Learning dostają `new PostgreSqlBuilder("pgvector/pgvector:pg16")`. Pozos
 `AddNpgsqlDbContext` z Aspire nie przyjmuje opcji dostawcy Npgsql. Learning rejestruje kontekst sam i wzbogaca go potem o health check, ślady i metryki Aspire:
 
 ```csharp
-builder.Services.AddDbContextPool<LearningContext>(options => options.UseNpgsql(
-    builder.Configuration.GetConnectionString(ResourceNames.Learning),
+builder.Services.AddDbContextPool<LearningReadContext>(options => options.UseNpgsql(
+    builder.Configuration.GetConnectionString(ResourceNames.LearningRead),
     npgsql => npgsql.UseVector()));
-builder.EnrichNpgsqlDbContext<LearningContext>(settings => settings.DisableRetry = true);
+builder.EnrichNpgsqlDbContext<LearningReadContext>(settings => settings.DisableRetry = true);
 ```
 
-`LearningContext.OnModelCreating` dostaje `HasPostgresExtension("vector")` i `HasPostgresExtension("unaccent")`.
+`LearningReadContext.OnModelCreating` dostaje `HasPostgresExtension("vector")` i `HasPostgresExtension("unaccent")`. Rozszerzenie jest w bazie odczytu, bo tam leży indeks.
 
 ### 3. Tabele
 
@@ -185,17 +185,15 @@ Indeksy: GIN na `SearchVector`, HNSW na `Embedding` z `vector_cosine_ops` (`HasM
 
 ### 4. Zapis dokumentów
 
-`SearchDocuments.From(Track track)` zwraca dokument kursu i po jednym dokumencie na lekcję i język, w którym lekcja ma treść. Odpowiedniki są dla technologii, wykładu i hasła.
+`SearchDocuments.From(ContentView view)` zwraca dokument kursu i po jednym dokumencie na lekcję i język, w którym lekcja ma treść. Odpowiedniki są dla technologii, wykładu i hasła. Wejściem jest wiersz projekcji (czysty tekst już zrenderowany), nie agregat.
 
-`ContentChanges` z [19-learning.md](19-learning.md) dostaje `ISearchIndex` i po zdarzeniu do outboxa woła `UpsertAsync(SearchDocuments.From(...))` albo `RemoveAsync` przy usunięciu. Ta sama transakcja, bez zmian w handlerach.
+`ContentProjection` po zapisie widoku woła `UpsertAsync` albo `RemoveAsync` przy usunięciu. Ta sama transakcja bazy odczytu. Handler komendy tego nie widzi. Przebudowa widoku od pozycji 0 po zmianie `MarkdownRenderer.Version` woła ten sam upsert: zmieniony czysty tekst zmienia `ContentHash`, więc worker wektorów przeliczy fragmenty. Outboxa nie dotyka.
 
 `PostgresSearchIndex.UpsertAsync`:
 
 - `INSERT ... ON CONFLICT ("Kind", "SourceId", "Language") DO UPDATE` z nowym tytułem, tekstem, widocznością i `ContentHash`,
 - dokumenty elementu, których nie ma w nowym zestawie (usunięta lekcja, usunięta wersja angielska), są usuwane,
 - `UPDATE "SearchChunks" SET "Visibility" = ...` dla dokumentów, którym zmieniła się widoczność; wektory zostają, bo tekst się nie zmienił.
-
-`RerenderWorker` z [19-learning.md](19-learning.md) po ponownym renderze woła tylko `ISearchIndex.UpsertAsync`, bez outboxa. Zmieniony czysty tekst zmienia `ContentHash`, więc worker wektorów przeliczy fragmenty.
 
 ### 5. Generator wektorów
 
@@ -364,7 +362,7 @@ Testy z prawdziwym modelem mają `[Trait("Category", "Model")]`. Lokalnie bez po
 
 ## Testy
 
-Projekt `tests/Learning.Infrastructure.Tests`, folder `Search/`. Kontener `pgvector/pgvector:pg16`, migracje `LearningContext`. `FakeEmbeddingGenerator` zwraca deterministyczne wektory: znormalizowany wektor z haszu słów, więc teksty z tymi samymi słowami są blisko, a inne daleko. Testy bez modelu nie zależą od jego jakości.
+Projekt `tests/Learning.Infrastructure.Tests`, folder `Search/`. Kontener `pgvector/pgvector:pg16`, migracje `LearningReadContext`. `FakeEmbeddingGenerator` zwraca deterministyczne wektory: znormalizowany wektor z haszu słów, więc teksty z tymi samymi słowami są blisko, a inne daleko. Testy bez modelu nie zależą od jego jakości.
 
 Klasa `PostgresSearchIndexTests`.
 
@@ -419,13 +417,13 @@ Projekt `tests/Learning.API.Tests`, klasa `SearchEndpointTests`, z `FakeEmbeddin
 | `Owner_finds_private_term` | hasło `Private` | `GET` z tokenem ownera | hasło jest |
 | `One_letter_query_returns_400` | dowolnie | `GET ?q=a` | `400` |
 | `Full_queue_returns_429` | limiter 1 + kolejka 0, generator czekający na sygnał | dwa równoczesne `GET` | drugi `429` z `Retry-After` |
-| `New_lesson_is_found_by_text_before_embedding` | zapis lekcji, worker nie uruchomiony | `GET` po słowie z lekcji | lekcja na liście, `MatchedBy` `text` |
+| `New_lesson_is_found_by_text_before_embedding` | zapis lekcji i jeden przebieg projekcji, worker wektorów nie uruchomiony | `GET` po słowie z lekcji | lekcja na liście, `MatchedBy` `text` |
 
 `dotnet test tests/Learning.Infrastructure.Tests` i `dotnet test tests/Learning.API.Tests`. Bez pobranego modelu: `dotnet test tests/Learning.Infrastructure.Tests --filter Category!=Model`.
 
 ## Zasady
 
-- Dokument wyszukiwania zapisuje się w tej samej transakcji co treść. Indeks nie wyprzedza bazy i za nią nie zostaje.
+- Dokument wyszukiwania powstaje w transakcji projekcji, razem z widokiem. Nie wyprzedza widoku. Zapis komendy go nie obejmuje, więc tuż po `POST` zapytanie może go jeszcze nie widzieć.
 - Filtr widoczności jest w obu listach, przed `LIMIT`. Wynik nie zdradza istnienia treści niewidocznej.
 - Zapytanie od użytkownika idzie tylko przez `websearch_to_tsquery` i parametry. Bez sklejania SQL.
 - Fragment wyniku jest kodowany jako HTML przed wstawieniem `<mark>`.
@@ -461,7 +459,7 @@ Projekt `tests/Learning.API.Tests`, klasa `SearchEndpointTests`, z `FakeEmbeddin
 ## Gotowe gdy
 
 - `aspire run` stawia Postgresa z obrazu `pgvector/pgvector:pg16`, a migracja `LearningSearch` tworzy rozszerzenia, konfiguracje i indeksy.
-- Zapis lekcji tworzy dokument wyszukiwania w tej samej transakcji, a po kilku sekundach fragmenty z wektorami.
+- Po przebiegu projekcji zapis lekcji jest w dokumencie wyszukiwania, a po kilku sekundach dochodzą fragmenty z wektorami.
 - `GET /api/learning/search?q=zdarzen` znajduje dokument ze słowem „zdarzeń”, a zapytanie bez wspólnych słów znajduje hasło po znaczeniu.
 - Anonim i student nie dostają w wynikach treści, której nie widzą na stronie.
 - Obraz `learning-api` zawiera model z sumą zgodną z `models.json`.
