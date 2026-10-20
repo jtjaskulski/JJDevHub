@@ -304,7 +304,7 @@ Klasa `AppHostTests` z [14-aspire.md](14-aspire.md) dostaje:
 - Rate limiting i cache na gatewayu.
 - Publikacja, wycofanie i przypięcie artykułu do lekcji — [21-notatki.md](21-notatki.md).
 - Upload obrazów.
-- Users w gatewayu — [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md).
+- Notifications w AppHost — [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md).
 - OpenAPI usługi. `AddOpenApi` i Scalar według wzoru z obecnego `Identity.API`, gdy klient zacznie generować typy.
 
 ## Źródła
