@@ -307,7 +307,7 @@ Klasa `ArticleOutboxTests` w `tests/News.Infrastructure.Tests`.
 ## Poza zakresem
 
 - Kafka, tematy i DLQ — [13-kafka.md](13-kafka.md).
-- Konsumenci w Users i Notifications — [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md).
+- Konsument w Notifications — [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md).
 - Outbox w Identity — [15-identity.md](15-identity.md).
 - Sprzątanie starych wierszy outboxa i inboxa. Zadanie cykliczne usuwające wiersze starsze niż 7 dni dochodzi, gdy tabele urosną.
 

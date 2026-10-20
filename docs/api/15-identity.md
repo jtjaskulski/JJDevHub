@@ -1,12 +1,12 @@
 # Identity
 
-Obecne API z [src/api](../../src/api) staje się usługą `Identity.API`. Konto i zaproszenie są agregatami ze strumienia, tym samym magazynem co artykuł w [04-strumien.md](04-strumien.md). Token podpisuje klucz RSA, a klucz publiczny jest wystawiony jako JWKS, więc pozostałe usługi walidują token bez wspólnego sekretu. Rejestracja dopisuje fakty konta i `UserRegisteredIntegrationEvent` w jednej transakcji, przez outbox z [12-outbox-inbox.md](12-outbox-inbox.md). Konsumentem jest Users w [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md). Token niesie rolę: `owner` dla autora treści i `student` dla osoby, która przyszła z kodem zaproszenia. Polityki `Owner` i `Student` z ServiceDefaults czytają tę rolę w każdej usłudze. AppHost z [14-aspire.md](14-aspire.md) dostaje nowy projekt w miejsce `api`.
+Obecne API z [src/api](../../src/api) staje się usługą `Identity.API`. Konto i zaproszenie są agregatami ze strumienia, tym samym magazynem co artykuł w [04-strumien.md](04-strumien.md). Token podpisuje klucz RSA, a klucz publiczny jest wystawiony jako JWKS, więc pozostałe usługi walidują token bez wspólnego sekretu. Rejestracja dopisuje fakty konta i `UserRegisteredIntegrationEvent` w jednej transakcji, przez outbox z [12-outbox-inbox.md](12-outbox-inbox.md). Konsumentem powitania jest Notifications w [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md). Token niesie rolę: `owner` dla autora treści i `student` dla osoby, która przyszła z kodem zaproszenia. Polityki `Owner` i `Student` z ServiceDefaults czytają tę rolę w każdej usłudze. AppHost z [14-aspire.md](14-aspire.md) dostaje nowy projekt w miejsce `api`.
 
 ## Po co
 
-W eShop `Identity.API` jest osobną usługą, a reszta tylko sprawdza tokeny. Dziś klucz JWT jest symetryczny (`JWT_KEY`). Żeby News i Users mogły zwalidować token, musiałyby znać ten sam sekret, a wtedy mogłyby też tokeny wystawiać. Para kluczy RSA rozdziela role: Identity ma klucz prywatny i podpisuje, reszta pobiera publiczny z `/.well-known/jwks.json` i tylko sprawdza.
+W eShop `Identity.API` jest osobną usługą, a reszta tylko sprawdza tokeny. Dziś klucz JWT jest symetryczny (`JWT_KEY`). Żeby News i reszta usług mogły zwalidować token, musiałyby znać ten sam sekret, a wtedy mogłyby też tokeny wystawiać. Para kluczy RSA rozdziela role: Identity ma klucz prywatny i podpisuje, reszta pobiera publiczny z `/.well-known/jwks.json` i tylko sprawdza.
 
-Źródłem prawdy konta jest strumień, nie wiersz, który da się nadpisać bez śladu. Rejestracja, zła próba logowania, blokada, nadanie roli i wykorzystanie zaproszenia są faktami. Profil zbuduje Users ze zdarzenia integracyjnego, a jeśli Kafka akurat leży, dispatcher wyśle je później. Istniejące konta z tabel `AspNetUsers` przenosi jednorazowy importer, zanim te tabele znikną.
+Źródłem prawdy konta jest strumień, nie wiersz, który da się nadpisać bez śladu. Rejestracja, zła próba logowania, blokada, nadanie roli, zmiana nazwy wyświetlanej i wykorzystanie zaproszenia są faktami na tym strumieniu. Nazwa jest częścią konta, jak w [Identity.API eShopa](https://github.com/dotnet/eShop/tree/main/src/Identity.API): osobnej usługi profilu nie ma. `UserRegisteredIntegrationEvent` służy Notifications. Istniejące konta z tabel `AspNetUsers` przenosi jednorazowy importer, zanim te tabele znikną.
 
 Usługi treści z [19-learning.md](19-learning.md), [21-notatki.md](21-notatki.md) i [22-cv.md](22-cv.md) potrzebują trzech poziomów dostępu: gość czyta treść publiczną, student czyta też materiały dla studentów, a owner pisze wszystko i ma prywatną bazę wiedzy. Rola jest faktem o koncie, więc należy do Identity i jedzie w tokenie. Usługa treści nie pyta nikogo o uprawnienia, tylko czyta claim.
 
@@ -14,11 +14,11 @@ Usługi treści z [19-learning.md](19-learning.md), [21-notatki.md](21-notatki.m
 
 ### Skrót hasła ze strumienia, hasher z platformy
 
-Źródłem prawdy jest strumień `account-{id}`: `AccountRegistered`, `LoginFailed`, `LoginSucceeded`, `RoleGranted`, `RoleRevoked`. Stan konta (skrót, role, blokada) powstaje przez `Replay`, tak jak artykuł. Logowanie woła `LoadAsync` i nie czeka na projekcję, bo decyzja o haśle i blokadzie musi być aktualna w chwili żądania. Strumień konta jest krótki, więc odtworzenie przy każdym logowaniu jest tanie. Listy w intranecie (`GET /api/auth/users`, `GET /api/auth/invites`) czytają projekcję w `identity_read`.
+Źródłem prawdy jest strumień `account-{id}`: `AccountRegistered`, `LoginFailed`, `LoginSucceeded`, `RoleGranted`, `RoleRevoked`, `AccountRenamed`. Stan konta (skrót, role, blokada, nazwa wyświetlana) powstaje przez `Replay`, tak jak artykuł. Logowanie i `GET /api/auth/me` wołają `LoadAsync` i nie czekają na projekcję. Strumień konta jest krótki, więc odtworzenie przy każdym takim żądaniu jest tanie. Listy w intranecie (`GET /api/auth/users`, `GET /api/auth/invites`) czytają projekcję w `identity_read`.
 
 Skrót liczy `PasswordHasher<Account>` z ASP.NET Core Identity: PBKDF2 z solą, ta sama funkcja, która dziś leży w `AspNetUsers`. Własny algorytm hasła to proszenie się o błąd. `UserManager` i tabele `AspNet*` odpadają, bo obok strumienia byłyby drugim zapisem tej samej zmiany.
 
-Zdarzenie niesie skrót, nigdy hasło jawne. Stary skrót zostaje w strumieniu po każdej przyszłej zmianie hasła: magazyn jest tylko do dopisywania. Zrzut bazy `jjdevhub` jest więc zbiorem obecnych i historycznych skrótów. To ten sam sekret co dziś kolumna `PasswordHash`, plus skróty, których nadpisanie wiersza by usuwało.
+Zdarzenie niesie skrót, nigdy hasło jawne. Stary skrót zostaje w strumieniu po każdej przyszłej zmianie hasła: magazyn jest tylko do dopisywania. Zrzut bazy `identity_write` jest więc zbiorem obecnych i historycznych skrótów. To ten sam sekret co dziś kolumna `PasswordHash`, plus skróty, których nadpisanie wiersza by usuwało.
 
 Blokada jest regułą agregatu, nie kolumną licznika. Pięć `LoginFailed` z rzędu, bez `LoginSucceeded` pomiędzy, ustawia `LockedUntil` na pięć minut (domyślne progi Identity). Szósta próba w tym oknie nie sprawdza hasła. `LoginSucceeded` czyści serię. Oba fakty zapisują się też przy udanym wejściu i przy złym haśle, więc da się odtworzyć, kto i kiedy doszedł do blokady.
 
@@ -40,7 +40,7 @@ ES256 (krzywe eliptyczne) dałby krótsze podpisy. RS256 wygrywa kompatybilnośc
 
 ### Outbox w transakcji ze strumieniem
 
-`SaveAsync` dopisuje zdarzenia konta, a outbox z [12-outbox-inbox.md](12-outbox-inbox.md) używa tego samego `IdentityWriteContext`. Jedna transakcja obejmuje strumień, rezerwację e-maila i wiersz outboxa: albo jest konto i `UserRegisteredIntegrationEvent`, albo nic. Profil w Users powstaje z tego zdarzenia, nie z drugiego wywołania.
+`SaveAsync` dopisuje zdarzenia konta, a outbox z [12-outbox-inbox.md](12-outbox-inbox.md) używa tego samego `IdentityWriteContext`. Jedna transakcja obejmuje strumień, rezerwację e-maila i wiersz outboxa: albo jest konto z nazwą wyświetlaną i `UserRegisteredIntegrationEvent`, albo nic. Zdarzenie nie buduje profilu drugi raz.
 
 ### Role na agregacie, w tokenie
 
@@ -50,7 +50,7 @@ Alternatywy:
 
 - **Uprawnienia jako osobne claimy** (`content:write`, `notes:read-students`) — drobniejsze, ale przy dwóch rolach to lista, którą trzeba utrzymywać bez żadnej decyzji, którą by umożliwiała.
 - **Autoryzacja relacyjna** (OpenFGA, SpiceDB, model Zanzibar) — odpowiada na pytanie „czy ten student należy do tego wykładu”. To przyszła potrzeba zapisów na kursy, a nie dzisiejsza. Osobny serwer i osobny model danych.
-- **Role w usłudze Users** — Users nie wystawia tokenu, więc każda usługa treści musiałaby pytać Users przy każdym żądaniu albo trzymać kopię ról z szyny.
+- **Osobna usługa profilu** — każda usługa treści musiałaby pytać ją przy każdym żądaniu albo trzymać kopię ról z szyny. Nazwa wyświetlana i tak powstaje przy rejestracji, więc drugi proces nic nie rozstrzyga.
 
 Koszt: rola w tokenie żyje tyle, co token. Odebranie roli `student` działa od następnego logowania, najpóźniej po `Jwt:ExpiryMinutes`. Przy materiałach dydaktycznych to akceptowalne.
 
@@ -76,9 +76,9 @@ Alternatywy:
 | `src/services/Identity/Identity.API/Auth/JwksEndpoints.cs` | `/.well-known/openid-configuration`, `/.well-known/jwks.json` |
 | `src/services/Identity/Identity.API/Domain/Account.cs` | agregat: e-mail, skrót, role, blokada, `Apply` |
 | `src/services/Identity/Identity.API/Domain/StudentInvite.cs` | agregat: skrót kodu, etykieta, ważność, limit, wykorzystania |
-| `src/services/Identity/Identity.API/Domain/AccountRegisteredDomainEvent.cs` i pozostałe fakty | nazwy `identity.account-registered.v1`, `identity.login-failed.v1`, `identity.login-succeeded.v1`, `identity.role-granted.v1`, `identity.role-revoked.v1`, `identity.invite-created.v1`, `identity.invite-redeemed.v1`, `identity.invite-revoked.v1` |
+| `src/services/Identity/Identity.API/Domain/AccountRegisteredDomainEvent.cs` i pozostałe fakty | nazwy `identity.account-registered.v1`, `identity.account-renamed.v1`, `identity.login-failed.v1`, `identity.login-succeeded.v1`, `identity.role-granted.v1`, `identity.role-revoked.v1`, `identity.invite-created.v1`, `identity.invite-redeemed.v1`, `identity.invite-revoked.v1` |
 | `src/services/Identity/Identity.API/Auth/AuthEndpoints.cs` | rejestracja i logowanie na repozytorium |
-| `src/services/Identity/Identity.API/Data/IdentityWriteContext.cs` | baza `jjdevhub`: `ApplyEventStore`, rezerwacje, outbox |
+| `src/services/Identity/Identity.API/Data/IdentityWriteContext.cs` | baza `identity_write`: `ApplyEventStore`, rezerwacje, outbox |
 | `src/services/Identity/Identity.API/Data/IdentityReadContext.cs` | baza `identity_read`: listy kont i zaproszeń, checkpoint |
 | `src/services/Identity/Identity.API/Data/AccountEmailRow.cs`, `InviteCodeHashRow.cs` | unikalny e-mail i skrót kodu obok strumienia |
 | `src/services/Identity/Identity.API/Data/AccountImporter.cs` | jednorazowe przeniesienie `AspNetUsers` do faktów |
@@ -119,21 +119,21 @@ Wpisy w [JJDevHub.sln](../../JJDevHub.sln) idą za nowymi ścieżkami. `RootName
 
 ### 2. Baza
 
-Baza fizycznie zostaje `jjdevhub`, bo na VM leżą w niej konta. Zasób Aspire nazywa się `identity`:
+Do [14-aspire.md](14-aspire.md) istniejące API łączy się z bazą `jjdevhub`. Od tego numeru ta sama baza nazywa się `identity_write`. Zasób Aspire to `identity-write`:
 
 ```csharp
-var identityDb = postgres.AddDatabase(ResourceNames.Identity, "jjdevhub");
+var identityDb = postgres.AddDatabase(ResourceNames.IdentityWrite, "identity_write");
 ```
 
-`Program.cs` czyta `GetConnectionString("identity")` i `GetConnectionString("identity-read")` zamiast `DefaultConnection`. W `appsettings.json` klucz zmienia nazwę. Dochodzi druga baza:
+`Program.cs` czyta `GetConnectionString("identity-write")` i `GetConnectionString("identity-read")` zamiast `DefaultConnection`. W `appsettings.json` klucz zmienia nazwę. Dochodzi druga baza:
 
 ```csharp
 var identityRead = postgres.AddDatabase(ResourceNames.IdentityRead, "identity_read");
 ```
 
-`ResourceNames.IdentityRead = "identity-read"`. Migracja `IdentityEventStore` dodaje w `jjdevhub` tabele strumienia, `AccountEmails`, `InviteCodeHashes` i outbox, obok jeszcze istniejących `AspNet*`. `IdentityReadInitial` tworzy listy i checkpoint w `identity_read`.
+`ResourceNames.IdentityWrite = "identity-write"`. `ResourceNames.IdentityRead = "identity-read"`. Na VM, zanim migracje EF i przy braku sesji: `ALTER DATABASE jjdevhub RENAME TO identity_write`. Migracja `IdentityEventStore` dodaje w `identity_write` tabele strumienia, `AccountEmails`, `InviteCodeHashes` i outbox, obok jeszcze istniejących `AspNet*`. `IdentityReadInitial` tworzy listy i checkpoint w `identity_read`.
 
-`AccountImporter` startuje po migracji, raz. Gdy istnieje `AspNetUsers`, a `AccountEmails` jest pusta, w jednej transakcji: dla każdego wiersza dopisuje strumień (`AccountRegistered` z obecnym `PasswordHash`, `RoleGranted` dla każdej roli z `AspNetUserRoles`) i wiersz rezerwacji e-maila. Na końcu tej transakcji usuwa tabele `AspNetUserTokens`, `AspNetUserLogins`, `AspNetUserClaims`, `AspNetRoleClaims`, `AspNetUserRoles`, `AspNetRoles` i `AspNetUsers`. Porażka wycofuje wszystko, następny start próbuje od nowa. Drugi start nie widzi `AspNetUsers` i nic nie robi.
+`AccountImporter` startuje po migracji, raz. Gdy istnieje `AspNetUsers`, a `AccountEmails` jest pusta, w jednej transakcji: dla każdego wiersza dopisuje strumień (`AccountRegistered` z obecnym `PasswordHash`, `DisplayName` z e-maila, `RoleGranted` dla każdej roli z `AspNetUserRoles`) i wiersz rezerwacji e-maila. Na końcu tej transakcji usuwa tabele `AspNetUserTokens`, `AspNetUserLogins`, `AspNetUserClaims`, `AspNetRoleClaims`, `AspNetUserRoles`, `AspNetRoles` i `AspNetUsers`. Porażka wycofuje wszystko, następny start próbuje od nowa. Drugi start nie widzi `AspNetUsers` i nic nie robi.
 
 ### 3. Klucz podpisu
 
@@ -186,7 +186,7 @@ namespace JJDevHub.Identity.Contracts
 
 `IdentityWriteContext.OnModelCreating` woła `ApplyEventStore()` i `ApplyIntegrationEventLog()`. `Account` i `StudentInvite` idą przez `IRepository<T>` z [07-repozytorium.md](07-repozytorium.md). Strumienie: `account-{guid}`, `invite-{guid}`.
 
-`Account.Register(email, password, PasswordHasher, time)` liczy skrót i dopisuje `AccountRegistered`. Handler w transakcji `TransactionBehavior`:
+`Account.Register(email, password, PasswordHasher, time)` liczy skrót, ustawia `DisplayName.FromEmail` i dopisuje `AccountRegistered` ze skrótem i nazwą. `DisplayName` jest przycięte, od 2 do 50 znaków. Część e-maila przed `@` krótsza niż 2 znaki uzupełnia się do `user-` i pierwszych znaków id konta. `Rename(DisplayName)` dopisuje `AccountRenamed`. Handler rejestracji w transakcji `TransactionBehavior`:
 
 - wstawia `AccountEmails` (`Email` unikalny, `AccountId`); naruszenie klucza → `Conflict`, strumień nie powstaje,
 - `repository.SaveAsync`,
@@ -254,9 +254,11 @@ builder.Services.AddAuthorizationBuilder()
 
 Owner spełnia politykę `Student`, bo widzi wszystko, co student. Usługa treści pisze `RequireAuthorization(Policies.Owner)` na endpointach zapisu, a widoczność `Students` sprawdza przez `IAuthorizationService` w zapytaniu.
 
+`GET /api/auth/me` i `PUT /api/auth/me` wymagają zalogowanego użytkownika, nie polityki `Owner`. `GET` woła `LoadAsync` konta z `sub`: `IdentityGuid`, e-mail, `DisplayName`. Brak tokenu to `401`. `PUT` przyjmuje `{ "displayName": "…" }` i `If-Match` wersji konta, woła `Rename`. `Invalid` → `400`, zła wersja → `412`. Odpowiedź niesie nowy `ETag`.
+
 `UserAdminEndpoints` (wszystkie z polityką `Owner`):
 
-- `GET /api/auth/users?role=student` → `IdentityGuid`, e-mail, role, data utworzenia,
+- `GET /api/auth/users?role=student` → `IdentityGuid`, e-mail, `DisplayName`, role, data utworzenia,
 - `PUT /api/auth/users/{id}/roles/student` → `204`, dopisuje `RoleGranted`, jeśli roli jeszcze nie ma,
 - `DELETE /api/auth/users/{id}/roles/student` → `204`, dopisuje `RoleRevoked`.
 
@@ -266,7 +268,8 @@ Gateway nie potrzebuje nowej trasy, bo wszystko jest pod `/api/auth/`.
 
 ### Co jest do czego
 
-- `Identity.API` — jedyna usługa, która zna hasła i wystawia tokeny. Reszta zna tylko `IdentityGuid`.
+- `Identity.API` — jedyna usługa konta: hasło, role, nazwa wyświetlana i token. Reszta zna tylko `IdentityGuid` z tokenu.
+- `Account.DisplayName` — nazwa na tym samym strumieniu co skrót hasła. `GET /api/auth/me` czyta strumień, nie projekcję.
 - `SigningKeyProvider` — klucz prywatny z pliku poza repo i jego `kid`. Rotacja bez przestoju dzięki drugiemu kluczowi publicznemu.
 - `JwksEndpoints` — publiczna część klucza dla innych usług. Bez niej każda usługa musiałaby znać sekret.
 - `AddDefaultAuthentication` — trzy linie konfiguracji, które każda usługa HTTP dostaje z ServiceDefaults.
@@ -275,7 +278,7 @@ Gateway nie potrzebuje nowej trasy, bo wszystko jest pod `/api/auth/`.
 - `Account` i `StudentInvite` — każdy fakt bezpieczeństwa da się odtworzyć. Logowanie czyta strumień, lista w intranecie czyta projekcję.
 - `AccountEmails` i `InviteCodeHashes` — unikalność, której jeden strumień nie widzi u sąsiada.
 - `AccountImporter` — konta z VM wchodzą do strumienia ze starym skrótem, a tabele `AspNet*` znikają w tej samej transakcji.
-- `Identity.Contracts` — kontrakt, który referencjonuje Users. Nie niesie skrótu hasła.
+- `Identity.Contracts` — kontrakt dla Notifications. Nie niesie skrótu hasła.
 - claim `role` i polityki `Owner`/`Student` — jedno źródło uprawnień dla wszystkich usług. Usługa treści nie zna haseł, tylko czyta token.
 - `OwnerSeeder` — autor treści dostaje `RoleGranted` bez ręcznej zmiany w bazie produkcyjnej.
 - `StudentInvite` — grupa studentów dostaje dostęp jednym kodem z zajęć. W strumieniu leży skrót, a limit to liczba `InviteRedeemed`.
@@ -291,7 +294,10 @@ Klasa `RegistrationOutboxTests`.
 
 | Fakt | Arrange | Act | Assert |
 | --- | --- | --- | --- |
-| `Register_creates_account_stream` | host z fabryki | `POST /api/auth/register` | `AccountEmails` ma ten e-mail, strumień `account-{id}` ma `AccountRegistered` ze skrótem, bez hasła jawnego |
+| `Register_creates_account_stream` | host z fabryki | `POST /api/auth/register` | `AccountEmails` ma ten e-mail, strumień `account-{id}` ma `AccountRegistered` ze skrótem i `DisplayName`, bez hasła jawnego |
+| `Me_returns_name_from_stream` | rejestracja | `GET /api/auth/me` z tokenem, zanim projekcja dogoni | `200`, e-mail i nazwa |
+| `Rename_appends_fact` | konto, `If-Match` bieżącej wersji | `PUT /api/auth/me` z nową nazwą | `200`, strumień ma `AccountRenamed` |
+| `Rename_too_short_returns_400` | konto | `PUT` z `"x"` | `400` |
 | `Register_writes_outbox_row` | ten sam rejestr | odczyt `OutboxMessages` | jeden wiersz `identity.integration.user-registered.v1` |
 | `Outbox_payload_has_no_password` | ten sam rejestr | odczyt `Payload` | brak hasła i pola `passwordHash` |
 | `Duplicate_email_writes_no_outbox_row` | konto już istnieje | drugi `register` tym e-mailem | nadal jeden wiersz outboxa |

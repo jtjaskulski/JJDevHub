@@ -40,7 +40,7 @@ Darmowe biblioteki istnieją: Ardalis.Result (MIT), FluentResults (MIT), ErrorOr
 | `tests/JJDevHub.Domain.Tests/ValueObjectTests.cs` | równość na przykładowym `Money` |
 | `tests/News.Domain.Tests/ArticleTitleTests.cs` | reguły tytułu |
 
-`Email` pojawia się w Users w [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md) według tego samego wzoru.
+`Email` pojawia się w Identity w [15-identity.md](15-identity.md) według tego samego wzoru.
 
 ## Plan
 

@@ -13,21 +13,17 @@ flowchart LR
   web[ClientWeb_i_intranet] --> gateway[Gateway_YARP]
   gateway --> identity[Identity_API]
   gateway --> news[News_API]
-  gateway --> users[Users_API]
   gateway --> learning[Learning_API]
   gateway --> cv[Cv_API]
   identity -->|"outbox"| kafka[Kafka]
   news -->|"outbox"| kafka
   learning -->|"outbox"| kafka
-  kafka -->|"identity.integration"| users
   kafka -->|"identity.integration, news.integration"| notifications[Notifications_Worker]
   kafka -->|"learning.integration, news.integration"| cv
-  github[GitHub_API] -.->|"import lekcji"| learning
   news --> newsWrite[(news_write)]
   news --> newsRead[(news_read)]
-  identity --> identityDb[(jjdevhub)]
+  identity --> identityDb[(identity_write)]
   identity --> identityRead[(identity_read)]
-  users --> usersDb[(users)]
   notifications --> notificationsDb[(notifications)]
   learning --> learningWrite[(learning_write)]
   learning --> learningRead[(learning_read)]
@@ -41,13 +37,12 @@ flowchart LR
 | --- | --- | --- | --- | --- |
 | Identity | event sourcing konta i zaproszenia, JWT | `identity.integration`: `UserRegisteredIntegrationEvent` | — | `15` |
 | News | DDD, event sourcing, CQRS | `news.integration`: utworzenie, publikacja, wycofanie | — | `01`–`11`, `16`, `21` |
-| Users | EF, CRUD | — | `identity.integration` | `17` |
 | Notifications | worker, HTTP tylko `/health` i `/metrics` | — | `identity.integration`, `news.integration` | `17`, `21` |
-| Learning | DDD, event sourcing treści, postęp w tabeli, CQRS, wyszukiwanie w Postgresie | `learning.integration`: pełny stan technologii, kursu, wykładu, hasła | — | `19`, `20` |
+| Learning | DDD, event sourcing treści, postęp w tabeli, CQRS, wyszukiwanie w Postgresie | `learning.integration`: pełny stan technologii, kursu, lekcji, wykładu, hasła | — | `19`, `20` |
 | Cv | event sourcing dokumentu, kopia dowodów | — | `learning.integration`, `news.integration` | `22` |
 | Gateway | YARP, bez logiki | — | — | `16` |
 
-Event sourcing mają cztery miejsca. Artykuł w News: powstanie, rewizje, publikacja, wycofanie, a widok historii w [21-notatki.md](21-notatki.md) powstaje z tych samych zdarzeń. Treść właściciela w Learning: technologia, kurs z lekcjami, wykład i hasło. Konto i zaproszenie w Identity: każda zmiana zostaje faktem. Dokument CV: każdy zapis to nowa wersja całości. Users i Notifications zostają przy EF, jak `Catalog` obok `Ordering` w eShop. Postęp studenta to tabela w `learning_write`, nie strumień kursu. Kopia dowodów w Cv też jest tabelą: to stan cudzy, złożony ze zdarzeń na szynie.
+Event sourcing mają cztery miejsca. Artykuł w News: powstanie, rewizje, publikacja, wycofanie, a widok historii w [21-notatki.md](21-notatki.md) powstaje z tych samych zdarzeń. Treść właściciela w Learning: technologia, kurs, lekcja, wykład i hasło. Lekcja ma własny strumień; kurs trzyma kolejność id. Konto i zaproszenie w Identity: każda zmiana zostaje faktem, łącznie z nazwą wyświetlaną. CV: profil, stanowisko, projekt, edukacja, aktywność, umiejętność i język, każdy ze swoim strumieniem, a strona jest widokiem. Notifications zostaje przy EF. Postęp studenta to tabela w `learning_write`, nie strumień kursu. Kopia dowodów w Cv też jest tabelą: to stan cudzy, złożony ze zdarzeń na szynie.
 
 Klient web jest jeden. Strona publiczna, strefa studenta i intranet właściciela to trasy tego samego klienta, rozróżniane rolą z tokenu ([docs/frontend/intranet/01-dostep-i-trasy.md](../frontend/intranet/01-dostep-i-trasy.md)).
 
@@ -55,7 +50,7 @@ Klient web jest jeden. Strona publiczna, strefa studenta i intranet właściciel
 
 | Temat | Właściciel | Partycje | Polityka | Konsumenci | Numer |
 | --- | --- | --- | --- | --- | --- |
-| `identity.integration` | Identity | 3 | retencja 7 dni | `users`, `notifications` | `13`, `15` |
+| `identity.integration` | Identity | 3 | retencja 7 dni | `notifications` | `13`, `15` |
 | `news.integration` | News | 3 | retencja 7 dni | `notifications`, `cv` | `13`, `21`, `22` |
 | `learning.integration` | Learning | 3 | `cleanup.policy=compact` | `cv` | `19`, `22` |
 | `*.dlq` | konsument | 1 | retencja 7 dni | człowiek, przez Kafka UI | `13` |
@@ -64,7 +59,7 @@ Kluczem wiadomości jest id agregatu, więc zdarzenia jednego artykułu albo kur
 
 ## Dwa rodzaje zdarzeń integracyjnych
 
-Zdarzenie powiadamiające mówi, co się stało, i niesie tylko to, czego konsument potrzebuje do reakcji. `UserRegisteredIntegrationEvent` mówi „ktoś się zarejestrował”, a Users i Notifications reagują. Konsument nie odtwarza z niego stanu.
+Zdarzenie powiadamiające mówi, co się stało, i niesie tylko to, czego konsument potrzebuje do reakcji. `UserRegisteredIntegrationEvent` mówi „ktoś się zarejestrował”, a Notifications reaguje. Konsument nie odtwarza z niego stanu.
 
 Zdarzenie ze stanem (event-carried state transfer) niesie cały bieżący stan agregatu z numerem wersji. `track-changed` w Learning i `article-published` w News niosą tytuł, slug, widoczność i powiązania. Cv trzyma ich kopię i nie musi pytać właściciela o nic. Zasady:
 
@@ -99,7 +94,7 @@ flowchart TB
 - `News.API`: endpointy i skład. Jedyny projekt z `Program.cs`.
 - `News.Contracts`: rekordy zdarzeń integracyjnych. Referencjonują go konsumenci, nic więcej.
 
-Learning ma te same pięć projektów i ten sam magazyn zdarzeń. W Infrastructure obok strumienia są projekcje, wyszukiwanie i klient GitHuba, a `LessonProgress` zostaje zwykłą tabelą. Cv ma jeden projekt. Strumienie mają agregaty sekcji dokumentu (`Profile`, `Position`, `Project`, `Education`, `Activity`, `Skill`, `Language`); strona, PDF i JSON Resume są widokiem złożonym z projekcji. Users zostaje jednym projektem na EF, bo domena jest mała.
+Learning ma te same pięć projektów i ten sam magazyn zdarzeń. W Infrastructure obok strumienia są projekcje i wyszukiwanie, a `LessonProgress` zostaje zwykłą tabelą. Cv ma jeden projekt. Strumienie mają agregaty sekcji dokumentu (`Profile`, `Position`, `Project`, `Education`, `Activity`, `Skill`, `Language`); strona, PDF i JSON Resume są widokiem złożonym z projekcji. Notifications zostaje jednym projektem na EF, bo domena jest mała.
 
 To jest cebula z GeekLemon i układ `Ordering.*` z eShop: strzałki idą do środka, domena nie wie o bazie.
 
@@ -159,7 +154,6 @@ Strona CV po tej sekwencji ma nowy `ETag` i nowy kurs przy umiejętności. Learn
 - `IdentityGuid` jest jedynym wspólnym identyfikatorem użytkownika. Hasło, jako skrót, zostaje w strumieniu Identity.
 - Token wydaje Identity (klucz RSA) z rolami `owner` i `student`. Reszta usług tylko go waliduje kluczem publicznym z JWKS i sprawdza politykę z `ServiceDefaults`.
 - Treść łączy się między usługami slugiem. Notatka w News wskazuje lekcję w Learning slugiem kursu i lekcji, a News tego nie sprawdza.
-- Jedyne wyjście do internetu z usług to Learning do `api.github.com` przy imporcie lekcji, ze stałym adresem bazowym i bez przekierowań.
 
 ## Środowiska
 

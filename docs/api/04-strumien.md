@@ -17,11 +17,11 @@ Zwykła tabela stanu trzyma tylko „teraz”. Kto zmienił tytuł, kiedy, jak b
 Koszt jest realny: dwa modele (zapis i odczyt), ostateczna spójność odczytu, wersjonowanie zdarzeń, więcej kodu. Strumień dostają miejsca, w których ten koszt się zwraca:
 
 - News — rewizje, publikacja i wycofanie artykułu ([21-notatki.md](21-notatki.md)),
-- Learning — technologia, kurs z lekcjami, wykład i hasło, które pisze właściciel ([19-learning.md](19-learning.md)); import z GitHuba dopisuje fakt, a historia pliku zostaje w gicie,
+- Learning — technologia, kurs, lekcja, wykład i hasło. Lekcja ma własny strumień: wyjaśnienie i przykłady kodu. Kurs trzyma kolejność id lekcji ([19-learning.md](19-learning.md)),
 - Identity — każda zmiana konta i zaproszenia ([15-identity.md](15-identity.md)),
 - Cv — historia profilu, stanowiska, projektu, edukacji, aktywności, umiejętności i języka; każdy agregat ma własny strumień, a dokument CV jest widokiem ([22-cv.md](22-cv.md)).
 
-Users i Notifications zostają przy EF, tak jak `Catalog` w eShop. Postęp studenta też: to tabela w bazie zapisu Learning, nie strumień kursu.
+Notifications zostaje przy EF, tak jak ślad wysyłki nie potrzebuje strumienia. Postęp studenta też: to tabela w bazie zapisu Learning, nie strumień kursu.
 
 ### Wersja w strumieniu i globalna pozycja
 
