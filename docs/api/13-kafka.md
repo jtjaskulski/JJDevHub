@@ -16,7 +16,7 @@ Kafka to rozproszony log: wiadomości są dopisywane do partycji tematu i zostaj
 
 - **odtworzenie** — nowa usługa albo naprawiony konsument może przeczytać zdarzenia od początku retencji, przesuwając offset,
 - **kolejność per klucz** — wiadomości z tym samym kluczem (id artykułu, id użytkownika) trafiają do jednej partycji i są czytane w kolejności zapisu,
-- **niezależni konsumenci** — Users i Notifications czytają ten sam temat w osobnych grupach i nie przeszkadzają sobie.
+- **niezależni konsumenci** — Notifications czyta temat w swojej grupie i nie przeszkadza nadawcy.
 
 Alternatywy:
 
@@ -88,7 +88,7 @@ Wersje `Confluent.Kafka` i `Testcontainers.Kafka` dochodzą do [Directory.Packag
 | Temat | Właściciel | Partycje | Konsumenci |
 | --- | --- | --- | --- |
 | `news.integration` | News | 3 | `notifications` |
-| `identity.integration` | Identity | 3 | `users` |
+| `identity.integration` | Identity | 3 | `notifications` |
 | `*.dlq` | konsument | 1 | człowiek, przez Kafka UI |
 
 Tabela pokazuje stan po tym numerze. [19-learning.md](19-learning.md) dodaje kompaktowany `learning.integration`, a [22-cv.md](22-cv.md) grupę `cv` przy `learning.integration` i `news.integration`. Pełna lista jest w [architektura.md](architektura.md).
@@ -128,7 +128,7 @@ Konfiguracja producenta:
 
 `KafkaConsumerWorker : BackgroundService` dostaje `IOptions<KafkaOptions>`, `IServiceScopeFactory`, `ILogger` i fabrykę konsumenta. Konfiguracja:
 
-- `GroupId = ConsumerGroup` (nazwa usługi: `users`, `notifications`),
+- `GroupId = ConsumerGroup` (nazwa usługi: `notifications`),
 - `EnableAutoCommit = false`, `AutoOffsetReset = Earliest`,
 - `Subscribe(SubscribedTopics)`.
 

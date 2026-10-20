@@ -295,10 +295,10 @@ Klasy treści (`prose` dla nagłówków, list, tabel, `pre`) są w `src/styles.c
 W [nginx.conf](../../../src/Clients/web/nginx.conf), w `server`:
 
 ```nginx
-add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://raw.githubusercontent.com; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; require-trusted-types-for 'script'; trusted-types server-html dompurify" always;
+add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; require-trusted-types-for 'script'; trusted-types server-html dompurify" always;
 ```
 
-- `img-src` dopuszcza `raw.githubusercontent.com`, bo import z GitHuba w [19](../../api/19-learning.md) przepisuje obrazy względne na ten host.
+- `img-src` dopuszcza `https:`, bo obraz w wyjaśnieniu lekcji ma absolutny adres `https`. Skryptów z obcych hostów nie ma.
 - `style-src 'unsafe-inline'` zostaje, bo Radix (pod shadcn) i CodeMirror w intranecie wstawiają elementy `<style>`. Skrypty inline są zabronione, a to one niosą XSS.
 - `trusted-types` wymienia dwie polityki: `server-html` z tego pliku i `dompurify`, którą DOMPurify tworzy sam na swój wewnętrzny `innerHTML`.
 
