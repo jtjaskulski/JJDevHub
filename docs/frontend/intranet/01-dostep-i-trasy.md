@@ -27,7 +27,7 @@ pnpm dlx shadcn@latest add table badge select tabs textarea dropdown-menu alert-
 | Komponent | Gdzie |
 | --- | --- |
 | `table` | listy w każdej sekcji |
-| `badge` | widoczność (`Publiczne`, `Studenci`, `Prywatne`), status notatki, źródło GitHub |
+| `badge` | widoczność (`Publiczne`, `Studenci`, `Prywatne`), status notatki |
 | `select`, `tabs`, `textarea` | formularze, zakładki `PL`/`EN` |
 | `dropdown-menu` | akcje wiersza (edytuj, zmień widoczność, usuń) |
 | `alert-dialog` | potwierdzenie usunięcia i odebrania roli |
@@ -47,7 +47,7 @@ Względem `src/Clients/web`:
 | `src/app/pages/intranet/IntranetLayout.tsx` | boczna nawigacja i `Outlet` |
 | `src/app/pages/intranet/DashboardPage.tsx` | `/intranet` |
 | `src/app/pages/intranet/technologies/` | lista, edycja technologii z listą jej kursów |
-| `src/app/pages/intranet/tracks/` | edycja kursu, lekcje, kolejność, import z GitHuba |
+| `src/app/pages/intranet/tracks/` | edycja kursu, lekcje, kolejność |
 | `src/app/pages/intranet/lectures/`, `terms/`, `notes/`, `cv/` | pozostałe sekcje treści |
 | `src/app/pages/intranet/students/`, `invites/` | role i zaproszenia |
 | `src/app/pages/intranet/maintenance/` | jednorazowe importy i `republish` |
@@ -114,7 +114,7 @@ Gdy `GET /api/auth/me` zwróci `401`, middleware z [react/05-tresc-z-api.md](../
   technologies/new                     TechnologyEditPage
   technologies/:id                     TechnologyEditPage, pod formularzem kursy tej technologii
   tracks/new?technology=:id            TrackEditPage
-  tracks/:id                           TrackEditPage, lekcje, kolejność, import
+  tracks/:id                           TrackEditPage, lekcje, kolejność
   tracks/:id/lessons/new               LessonEditPage
   tracks/:id/lessons/:lessonId         LessonEditPage
   lectures, lectures/new, lectures/:id
@@ -133,7 +133,7 @@ Kursy nie mają osobnej listy: kurs należy do technologii, więc spis kursów j
 
 ### 4. Listy
 
-Każda lista to `ContentTable`: kolumny tytuł (po polsku), slug, widoczność, data zmiany i ikona GitHuba dla treści z importu. Nad tabelą filtr tekstu (po stronie klienta) i `select` widoczności. Wiersz prowadzi do edycji, a `dropdown-menu` w wierszu ma „Zmień widoczność” i „Usuń”.
+Każda lista to `ContentTable`: kolumny tytuł (po polsku), slug, widoczność i data zmiany. Nad tabelą filtr tekstu (po stronie klienta) i `select` widoczności. Wiersz prowadzi do edycji, a `dropdown-menu` w wierszu ma „Zmień widoczność” i „Usuń”.
 
 | Sekcja | Odczyt | Zapis z listy |
 | --- | --- | --- |

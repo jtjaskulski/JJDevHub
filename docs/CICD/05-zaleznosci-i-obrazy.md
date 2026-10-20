@@ -185,8 +185,8 @@ Skan API nie ma pliku wyjątków. HIGH i CRITICAL z poprawką w upstreamie końc
 Lokalnie (opcjonalnie):
 
 ```bash
-# Trivy: ta sama wersja co w workflow (v0.74.0), nie skrypt z gałęzi main.
-# https://github.com/aquasecurity/trivy/releases/tag/v0.74.0
+# Trivy: ta sama wersja co w workflow (v0.76.0), nie skrypt z gałęzi main.
+# https://github.com/aquasecurity/trivy/releases/tag/v0.76.0
 ./infra/ci/nuget-audit.sh
 ./infra/ci/pnpm-audit.sh
 ./infra/ci/trivy-api.sh
@@ -280,8 +280,8 @@ jobs:
 
       - name: Install Trivy
         env:
-          TRIVY_VERSION: "0.74.0"
-          TRIVY_SHA256: "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a"
+          TRIVY_VERSION: "0.76.0"
+          TRIVY_SHA256: "e24b1c51293c1b15e4ba8d45bbc7891ba053f90278ec2698f3562c993e145fe7"
         run: |
           set -euo pipefail
           tarball="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
@@ -359,8 +359,8 @@ jobs:
       - name: Install Trivy
         working-directory: .
         env:
-          TRIVY_VERSION: "0.74.0"
-          TRIVY_SHA256: "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a"
+          TRIVY_VERSION: "0.76.0"
+          TRIVY_SHA256: "e24b1c51293c1b15e4ba8d45bbc7891ba053f90278ec2698f3562c993e145fe7"
         run: |
           set -euo pipefail
           tarball="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
@@ -380,7 +380,7 @@ Uwagi:
 - Stary krok samego `docker build` w `api` / `web` zastępuje skrypt Trivy (on i tak buduje obraz).
 - `pnpm-audit.sh` sam robi `pnpm install` w `src/Clients/web` — podwójny install jest OK; jeśli chcesz przyspieszyć, wydziel w skrypcie sam `pnpm audit` i polegaj na kroku Install (wtedy skrypt nie wolaj `install` drugi raz — wybierz jedną konwencję i trzymaj ją).
 - `deploy.yml` **nie** dostaje Trivy ani `permissions` poza tym, co już ma; nie ruszaj self-hosted joba w tym numerze.
-- Instalacja Trivy to wydanie `v0.74.0` i SHA256 wpisany w YAML. Nie wracaj do `curl | sh` ze skryptu na gałęzi `main`. Przy bumpie wersji podmień oba pola i hash z `trivy_<wersja>_checksums.txt` dla `Linux-64bit.tar.gz`.
+- Instalacja Trivy to wydanie `v0.76.0` i SHA256 wpisany w YAML. Nie wracaj do `curl | sh` ze skryptu na gałęzi `main`. Przy bumpie wersji podmień oba pola i hash z `trivy_<wersja>_checksums.txt` dla `Linux-64bit.tar.gz`.
 
 ### 5. Branch protection (po pierwszym zielonym runie)
 
