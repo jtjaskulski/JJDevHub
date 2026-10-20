@@ -1,20 +1,26 @@
 # Identity
 
-Obecne API z [src/api](../../src/api) staje się usługą `Identity.API`. Logowanie zostaje na ASP.NET Identity. Token podpisuje klucz RSA, a klucz publiczny jest wystawiony jako JWKS, więc pozostałe usługi walidują token bez wspólnego sekretu. Rejestracja zapisuje użytkownika i `UserRegisteredIntegrationEvent` w jednej transakcji, przez outbox z [12-outbox-inbox.md](12-outbox-inbox.md). Konsumentem jest Users w [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md). Token niesie rolę: `owner` dla autora treści i `student` dla osoby, która przyszła z kodem zaproszenia. Polityki `Owner` i `Student` z ServiceDefaults czytają tę rolę w każdej usłudze. AppHost z [14-aspire.md](14-aspire.md) dostaje nowy projekt w miejsce `api`.
+Obecne API z [src/api](../../src/api) staje się usługą `Identity.API`. Konto i zaproszenie są agregatami ze strumienia, tym samym magazynem co artykuł w [04-strumien.md](04-strumien.md). Token podpisuje klucz RSA, a klucz publiczny jest wystawiony jako JWKS, więc pozostałe usługi walidują token bez wspólnego sekretu. Rejestracja dopisuje fakty konta i `UserRegisteredIntegrationEvent` w jednej transakcji, przez outbox z [12-outbox-inbox.md](12-outbox-inbox.md). Konsumentem jest Users w [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md). Token niesie rolę: `owner` dla autora treści i `student` dla osoby, która przyszła z kodem zaproszenia. Polityki `Owner` i `Student` z ServiceDefaults czytają tę rolę w każdej usłudze. AppHost z [14-aspire.md](14-aspire.md) dostaje nowy projekt w miejsce `api`.
 
 ## Po co
 
 W eShop `Identity.API` jest osobną usługą, a reszta tylko sprawdza tokeny. Dziś klucz JWT jest symetryczny (`JWT_KEY`). Żeby News i Users mogły zwalidować token, musiałyby znać ten sam sekret, a wtedy mogłyby też tokeny wystawiać. Para kluczy RSA rozdziela role: Identity ma klucz prywatny i podpisuje, reszta pobiera publiczny z `/.well-known/jwks.json` i tylko sprawdza.
 
-Wcześniejsza wersja tej specyfikacji tworzyła agregat użytkownika drugim wywołaniem po `UserManager.CreateAsync`. Gdy drugie wywołanie padało, konto istniało bez profilu. Teraz `CreateAsync` i wiersz outboxa wchodzą jedną transakcją. Profil zbuduje Users ze zdarzenia, a jeśli Kafka akurat leży, dispatcher wyśle zdarzenie później.
+Źródłem prawdy konta jest strumień, nie wiersz, który da się nadpisać bez śladu. Rejestracja, zła próba logowania, blokada, nadanie roli i wykorzystanie zaproszenia są faktami. Profil zbuduje Users ze zdarzenia integracyjnego, a jeśli Kafka akurat leży, dispatcher wyśle je później. Istniejące konta z tabel `AspNetUsers` przenosi jednorazowy importer, zanim te tabele znikną.
 
 Usługi treści z [19-learning.md](19-learning.md), [21-notatki.md](21-notatki.md) i [22-cv.md](22-cv.md) potrzebują trzech poziomów dostępu: gość czyta treść publiczną, student czyta też materiały dla studentów, a owner pisze wszystko i ma prywatną bazę wiedzy. Rola jest faktem o koncie, więc należy do Identity i jedzie w tokenie. Usługa treści nie pyta nikogo o uprawnienia, tylko czyta claim.
 
 ## Dlaczego ta technologia
 
-### ASP.NET Core Identity zostaje
+### Skrót hasła ze strumienia, hasher z platformy
 
-Identity już działa w projekcie: hashowanie haseł (PBKDF2 z solą), blokada po nieudanych próbach, tabele `AspNetUsers`, migracja. Przepisanie tego na własne to proszenie się o błąd bezpieczeństwa. Identity jest częścią platformy, darmowe i utrzymywane przez Microsoft.
+Źródłem prawdy jest strumień `account-{id}`: `AccountRegistered`, `LoginFailed`, `LoginSucceeded`, `RoleGranted`, `RoleRevoked`. Stan konta (skrót, role, blokada) powstaje przez `Replay`, tak jak artykuł. Logowanie woła `LoadAsync` i nie czeka na projekcję, bo decyzja o haśle i blokadzie musi być aktualna w chwili żądania. Strumień konta jest krótki, więc odtworzenie przy każdym logowaniu jest tanie. Listy w intranecie (`GET /api/auth/users`, `GET /api/auth/invites`) czytają projekcję w `identity_read`.
+
+Skrót liczy `PasswordHasher<Account>` z ASP.NET Core Identity: PBKDF2 z solą, ta sama funkcja, która dziś leży w `AspNetUsers`. Własny algorytm hasła to proszenie się o błąd. `UserManager` i tabele `AspNet*` odpadają, bo obok strumienia byłyby drugim zapisem tej samej zmiany.
+
+Zdarzenie niesie skrót, nigdy hasło jawne. Stary skrót zostaje w strumieniu po każdej przyszłej zmianie hasła: magazyn jest tylko do dopisywania. Zrzut bazy `jjdevhub` jest więc zbiorem obecnych i historycznych skrótów. To ten sam sekret co dziś kolumna `PasswordHash`, plus skróty, których nadpisanie wiersza by usuwało.
+
+Blokada jest regułą agregatu, nie kolumną licznika. Pięć `LoginFailed` z rzędu, bez `LoginSucceeded` pomiędzy, ustawia `LockedUntil` na pięć minut (domyślne progi Identity). Szósta próba w tym oknie nie sprawdza hasła. `LoginSucceeded` czyści serię. Oba fakty zapisują się też przy udanym wejściu i przy złym haśle, więc da się odtworzyć, kto i kiedy doszedł do blokady.
 
 ### Własne tokeny JWT zamiast serwera OIDC
 
@@ -32,13 +38,13 @@ Przy HS256 ten sam klucz podpisuje i weryfikuje. Każda usługa, która sprawdza
 
 ES256 (krzywe eliptyczne) dałby krótsze podpisy. RS256 wygrywa kompatybilnością: obsługuje go każda biblioteka JWT i każdy gateway.
 
-### Outbox w transakcji z `UserManager`
+### Outbox w transakcji ze strumieniem
 
-`UserManager.CreateAsync` zapisuje przez `AppDbContext`. Outbox z [12-outbox-inbox.md](12-outbox-inbox.md) używa tego samego kontekstu. Jedna transakcja obejmuje oba zapisy: albo jest konto i zdarzenie, albo nic. To naprawia stary błąd, gdzie profil tworzył się drugim, niezależnym wywołaniem.
+`SaveAsync` dopisuje zdarzenia konta, a outbox z [12-outbox-inbox.md](12-outbox-inbox.md) używa tego samego `IdentityWriteContext`. Jedna transakcja obejmuje strumień, rezerwację e-maila i wiersz outboxa: albo jest konto i `UserRegisteredIntegrationEvent`, albo nic. Profil w Users powstaje z tego zdarzenia, nie z drugiego wywołania.
 
-### Role ASP.NET Identity w tokenie
+### Role na agregacie, w tokenie
 
-`IdentityDbContext` ma tabele `AspNetRoles` i `AspNetUserRoles` od pierwszej migracji. Wystarczy `AddRoles<IdentityRole>()` przy `AddIdentityCore`, a `UserManager.GetRolesAsync` daje listę ról do tokenu. Claim `role` jest standardowy w JWT i `JwtBearer` mapuje go na `ClaimsPrincipal.IsInRole` przez `RoleClaimType`.
+Rola jest faktem `RoleGranted` albo `RoleRevoked` na strumieniu konta. Token dostaje listę ról z agregatu po `LoadAsync`, nie z tabeli łączącej. Claim `role` jest standardowy w JWT i `JwtBearer` mapuje go na `ClaimsPrincipal.IsInRole` przez `RoleClaimType`.
 
 Alternatywy:
 
@@ -52,7 +58,7 @@ Koszt: rola w tokenie żyje tyle, co token. Odebranie roli `student` działa od 
 
 Prowadzący ma grupę na zajęciach. Nadawanie roli trzydziestu osobom po kolei w intranecie to trzydzieści kliknięć i trzydzieści adresów do przepisania. Kod zaproszenia z datą ważności i limitem użyć prowadzący pokazuje na slajdzie, a student wpisuje go przy rejestracji albo w profilu.
 
-Kod to 10 znaków z alfabetu Crockford Base32 (bez `I`, `L`, `O`, `U`), losowany przez `RandomNumberGenerator`. W bazie leży jego SHA-256, a nie sam kod. Wyciek bazy nie daje aktywnych kodów. Kod widać raz, w odpowiedzi na utworzenie. Limit użyć pilnuje jedno `UPDATE ... SET "UsedCount" = "UsedCount" + 1 WHERE "UsedCount" < "MaxUses"` przez `ExecuteUpdateAsync` w transakcji rejestracji, więc dwie równoczesne rejestracje nie przekroczą limitu.
+Kod to 10 znaków z alfabetu Crockford Base32 (bez `I`, `L`, `O`, `U`), losowany przez `RandomNumberGenerator`. W zdarzeniu `InviteCreated` leży jego SHA-256, a nie sam kod. Wyciek bazy nie daje aktywnych kodów. Kod widać raz, w odpowiedzi na utworzenie. Limit użyć jest liczbą zdarzeń `InviteRedeemed` na strumieniu zaproszenia. Dwie równoczesne rejestracje dopisują do tej samej wersji: druga dostaje `Conflict` i nie zostawia konta. Tabela `InviteCodeHashes` tylko tłumaczy skrót na id strumienia, tak jak `ArticleSlugs` tłumaczy slug na artykuł.
 
 Alternatywy:
 
@@ -68,19 +74,23 @@ Alternatywy:
 | `src/services/Identity/Identity.API/Auth/SigningKeyProvider.cs` | ładuje klucz RSA z PEM, `kid` |
 | `src/services/Identity/Identity.API/Auth/TokenService.cs` | podpis `RS256` zamiast `HS256` |
 | `src/services/Identity/Identity.API/Auth/JwksEndpoints.cs` | `/.well-known/openid-configuration`, `/.well-known/jwks.json` |
-| `src/services/Identity/Identity.API/Auth/AuthEndpoints.cs` | rejestracja w transakcji z outboxem |
-| `src/services/Identity/Identity.API/Data/AppDbContext.cs` | `ApplyIntegrationEventLog` |
-| `src/services/Identity/Identity.API/Data/Migrations/` | dochodzi `IdentityOutbox` |
+| `src/services/Identity/Identity.API/Domain/Account.cs` | agregat: e-mail, skrót, role, blokada, `Apply` |
+| `src/services/Identity/Identity.API/Domain/StudentInvite.cs` | agregat: skrót kodu, etykieta, ważność, limit, wykorzystania |
+| `src/services/Identity/Identity.API/Domain/AccountRegisteredDomainEvent.cs` i pozostałe fakty | nazwy `identity.account-registered.v1`, `identity.login-failed.v1`, `identity.login-succeeded.v1`, `identity.role-granted.v1`, `identity.role-revoked.v1`, `identity.invite-created.v1`, `identity.invite-redeemed.v1`, `identity.invite-revoked.v1` |
+| `src/services/Identity/Identity.API/Auth/AuthEndpoints.cs` | rejestracja i logowanie na repozytorium |
+| `src/services/Identity/Identity.API/Data/IdentityWriteContext.cs` | baza `jjdevhub`: `ApplyEventStore`, rezerwacje, outbox |
+| `src/services/Identity/Identity.API/Data/IdentityReadContext.cs` | baza `identity_read`: listy kont i zaproszeń, checkpoint |
+| `src/services/Identity/Identity.API/Data/AccountEmailRow.cs`, `InviteCodeHashRow.cs` | unikalny e-mail i skrót kodu obok strumienia |
+| `src/services/Identity/Identity.API/Data/AccountImporter.cs` | jednorazowe przeniesienie `AspNetUsers` do faktów |
+| `src/services/Identity/Identity.API/Projections/AccountListProjection.cs`, `InviteListProjection.cs` | widoki intranetu |
 | `src/services/Identity/Identity.Contracts/UserRegisteredIntegrationEvent.cs` | kontrakt na `identity.integration` |
 | `src/aspire/JJDevHub.ServiceDefaults/AuthenticationExtensions.cs` | `AddDefaultAuthentication()` dla usług-konsumentów tokenu |
 | `src/aspire/JJDevHub.ServiceDefaults/Roles.cs` | stałe `owner`, `student` |
 | `src/aspire/JJDevHub.ServiceDefaults/Policies.cs` | nazwy polityk `Owner`, `Student` |
-| `src/services/Identity/Identity.API/Auth/OwnerSeeder.cs` | role w bazie, `owner` dla `Identity:OwnerEmail` przy starcie |
-| `src/services/Identity/Identity.API/Invites/StudentInvite.cs` | encja: skrót kodu, etykieta, ważność, limit, licznik |
+| `src/services/Identity/Identity.API/Auth/OwnerSeeder.cs` | `RoleGranted` `owner` dla `Identity:OwnerEmail` przy starcie |
 | `src/services/Identity/Identity.API/Invites/InviteCode.cs` | losowanie kodu i SHA-256 |
 | `src/services/Identity/Identity.API/Invites/InviteEndpoints.cs` | tworzenie, lista, unieważnienie, wykorzystanie przez zalogowanego |
 | `src/services/Identity/Identity.API/Admin/UserAdminEndpoints.cs` | lista studentów, nadanie i odebranie roli |
-| `src/services/Identity/Identity.API/Data/Migrations/` | dochodzi `IdentityRolesAndInvites` |
 | `src/aspire/JJDevHub.AppHost/AppHost.cs` | zasób `identity-api` w miejsce `api` |
 | `tests/Identity.API.Tests/` | przeniesiony `tests/JJDevHub.Api.Tests` |
 
@@ -96,7 +106,7 @@ git mv tests/Identity.API.Tests/JJDevHub.Api.Tests.csproj tests/Identity.API.Tes
 dotnet new classlib -n Identity.Contracts -o src/services/Identity/Identity.Contracts -f net11.0
 dotnet sln add src/services/Identity/Identity.Contracts
 dotnet add src/services/Identity/Identity.Contracts reference src/building-blocks/JJDevHub.EventBus
-dotnet add src/services/Identity/Identity.API reference src/services/Identity/Identity.Contracts src/building-blocks/JJDevHub.IntegrationEventLog src/building-blocks/JJDevHub.EventBus.Kafka
+dotnet add src/services/Identity/Identity.API reference src/services/Identity/Identity.Contracts src/building-blocks/JJDevHub.Domain src/building-blocks/JJDevHub.EventStore src/building-blocks/JJDevHub.EventStore.Postgres src/building-blocks/JJDevHub.Projections src/building-blocks/JJDevHub.Cqrs src/building-blocks/JJDevHub.IntegrationEventLog src/building-blocks/JJDevHub.EventBus.Kafka
 ```
 
 Wpisy w [JJDevHub.sln](../../JJDevHub.sln) idą za nowymi ścieżkami. `RootNamespace` zostaje `JJDevHub.Api`, żeby nie przepisywać namespace'ów w tym numerze. Zmiana na `JJDevHub.Identity.Api` to osobny, mechaniczny commit.
@@ -115,7 +125,15 @@ Baza fizycznie zostaje `jjdevhub`, bo na VM leżą w niej konta. Zasób Aspire n
 var identityDb = postgres.AddDatabase(ResourceNames.Identity, "jjdevhub");
 ```
 
-`Program.cs` czyta `GetConnectionString("identity")` zamiast `DefaultConnection`. W `appsettings.json` klucz zmienia nazwę. Migracja danych nie jest potrzebna.
+`Program.cs` czyta `GetConnectionString("identity")` i `GetConnectionString("identity-read")` zamiast `DefaultConnection`. W `appsettings.json` klucz zmienia nazwę. Dochodzi druga baza:
+
+```csharp
+var identityRead = postgres.AddDatabase(ResourceNames.IdentityRead, "identity_read");
+```
+
+`ResourceNames.IdentityRead = "identity-read"`. Migracja `IdentityEventStore` dodaje w `jjdevhub` tabele strumienia, `AccountEmails`, `InviteCodeHashes` i outbox, obok jeszcze istniejących `AspNet*`. `IdentityReadInitial` tworzy listy i checkpoint w `identity_read`.
+
+`AccountImporter` startuje po migracji, raz. Gdy istnieje `AspNetUsers`, a `AccountEmails` jest pusta, w jednej transakcji: dla każdego wiersza dopisuje strumień (`AccountRegistered` z obecnym `PasswordHash`, `RoleGranted` dla każdej roli z `AspNetUserRoles`) i wiersz rezerwacji e-maila. Na końcu tej transakcji usuwa tabele `AspNetUserTokens`, `AspNetUserLogins`, `AspNetUserClaims`, `AspNetRoleClaims`, `AspNetUserRoles`, `AspNetRoles` i `AspNetUsers`. Porażka wycofuje wszystko, następny start próbuje od nowa. Drugi start nie widzi `AspNetUsers` i nic nie robi.
 
 ### 3. Klucz podpisu
 
@@ -151,7 +169,7 @@ To minimalny dokument discovery. `JwtBearer` w innych usługach czyta z niego `j
 
 AppHost przekazuje adres jako `Identity__Url` z `identityApi.GetEndpoint("http")`. ServiceDefaults dostaje pakiet `Microsoft.AspNetCore.Authentication.JwtBearer` (jest już w repo).
 
-### 6. Rejestracja z outboxem
+### 6. Rejestracja ze strumienia
 
 ```csharp
 namespace JJDevHub.Identity.Contracts
@@ -166,23 +184,24 @@ namespace JJDevHub.Identity.Contracts
 }
 ```
 
-`AppDbContext.OnModelCreating` woła `base.OnModelCreating` i `ApplyIntegrationEventLog()`. Migracja `IdentityOutbox` dodaje `OutboxMessages` i `InboxMessages`.
+`IdentityWriteContext.OnModelCreating` woła `ApplyEventStore()` i `ApplyIntegrationEventLog()`. `Account` i `StudentInvite` idą przez `IRepository<T>` z [07-repozytorium.md](07-repozytorium.md). Strumienie: `account-{guid}`, `invite-{guid}`.
 
-Endpoint `register` w [AuthEndpoints.cs](../../src/api/Auth/AuthEndpoints.cs):
+`Account.Register(email, password, PasswordHasher, time)` liczy skrót i dopisuje `AccountRegistered`. Handler w transakcji `TransactionBehavior`:
 
-- `await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken)`,
-- `userManager.CreateAsync(user, password)`; porażka → `ValidationProblem`, transakcja wycofuje się przy `Dispose`,
-- `outbox.AddAsync(new UserRegisteredIntegrationEvent(Guid.NewGuid(), time.GetUtcNow(), user.Id, user.Email), cancellationToken)`,
-- `transaction.CommitAsync(cancellationToken)`, potem token jak dziś.
+- wstawia `AccountEmails` (`Email` unikalny, `AccountId`); naruszenie klucza → `Conflict`, strumień nie powstaje,
+- `repository.SaveAsync`,
+- `outbox.AddAsync(new UserRegisteredIntegrationEvent(...))` z `IdentityGuid` równym id konta i bez skrótu hasła.
 
-`UserManager` i outbox używają tego samego scoped `AppDbContext`, więc tego samego połączenia i tej samej transakcji.
+Logowanie szuka id w `AccountEmails`, woła `GetAsync` i porównuje hasło hasherem. Zły skrót albo blokada dopisuje `LoginFailed` i zwraca ten sam `401` co złe hasło. Dobry skrót dopisuje `LoginSucceeded`, gdy była otwarta seria porażek, i wydaje token z ról agregatu.
 
 Skład w `Program.cs`:
 
 ```csharp
-builder.Services.AddIntegrationEventLog<AppDbContext>(typeof(UserRegisteredIntegrationEvent).Assembly);
+builder.Services.AddIntegrationEventLog<IdentityWriteContext>(typeof(UserRegisteredIntegrationEvent).Assembly);
 builder.Services.AddKafkaEventBus(builder.Configuration, options => options.PublishedTopics = ["identity.integration"]);
 ```
+
+Projekcja `AccountListProjection` i `InviteListProjection` czyta `ReadAllAsync` do `identity_read`, jak [10-projekcja.md](10-projekcja.md). Endpointy listy nie otwierają strumienia.
 
 ### 7. AppHost
 
@@ -191,6 +210,7 @@ Zasób `api` znika. Dochodzi:
 ```csharp
 var identityApi = builder.AddProject<Projects.Identity_API>(ResourceNames.IdentityApi)
     .WithReference(identityDb).WaitFor(identityDb)
+    .WithReference(identityRead).WaitFor(identityRead)
     .WithReference(kafka).WaitFor(kafka)
     .WithEnvironment("Jwt__SigningKeyPath", signingKeyPath);
 ```
@@ -199,20 +219,17 @@ var identityApi = builder.AddProject<Projects.Identity_API>(ResourceNames.Identi
 
 ### 8. Role i owner
 
-`AddIdentityCore<IdentityUser>(...).AddRoles<IdentityRole>().AddEntityFrameworkStores<AppDbContext>()`. `Roles.Owner = "owner"` i `Roles.Student = "student"` leżą w ServiceDefaults, bo czytają je wszystkie usługi.
+`Roles.Owner = "owner"` i `Roles.Student = "student"` leżą w ServiceDefaults, bo czytają je wszystkie usługi. Tabel ról nie ma.
 
-`OwnerSeeder : IHostedService` w `StartAsync`:
+`OwnerSeeder : IHostedService` w `StartAsync`, po importerze: gdy `Identity:OwnerEmail` jest ustawione i `AccountEmails` ma ten adres, a agregat nie ma roli `owner`, dopisuje `RoleGranted`.
 
-- tworzy role `owner` i `student`, jeśli ich nie ma,
-- gdy `Identity:OwnerEmail` jest ustawione i konto z tym adresem istnieje, dodaje mu rolę `owner`.
+Na VM konto autora już istnieje, więc importer przenosi je ze skrótem, a seeder dopisuje rolę przy pierwszym starcie, bez ręcznego SQL. Rejestracja na adres z `Identity:OwnerEmail` dopisuje `RoleGranted` w tej samej transakcji co `AccountRegistered`. `OwnerEmail` jest jeden. Drugiego ownera nadaje endpoint administracyjny.
 
-Na VM konto autora już istnieje, więc rolę dostaje przy pierwszym starcie po wdrożeniu, bez ręcznego SQL. Rejestracja na adres z `Identity:OwnerEmail` dostaje rolę `owner` w tej samej transakcji co konto. `OwnerEmail` jest jeden. Drugiego ownera nadaje się w bazie, świadomie.
-
-`TokenService.CreateToken(IdentityUser user, IReadOnlyList<string> roles)` dopisuje po jednym claimie `role` na rolę. Endpointy `register` i `login` biorą role z `UserManager.GetRolesAsync`. `MeResponse` dostaje `Roles`, żeby klient web wiedział, czy pokazać wejście do intranetu.
+`TokenService.CreateToken(Guid accountId, string email, IReadOnlyList<string> roles)` dopisuje po jednym claimie `role` na rolę. `sub` to id konta. `MeResponse` dostaje `Roles`, żeby klient web wiedział, czy pokazać wejście do intranetu.
 
 ### 9. Zaproszenia
 
-`StudentInvite` (`sealed`, EF): `Id`, `CodeHash` (unikalny indeks), `Label` (np. „PMAB zaoczni 2026”), `ExpiresOn`, `MaxUses`, `UsedCount`, `RevokedOn`, `CreatedOn`. Migracja `IdentityRolesAndInvites` dodaje tabelę `StudentInvites`.
+`StudentInvite.Create` dopisuje `InviteCreated` ze skrótem, etykietą, `ExpiresOn` i `MaxUses`. `Redeem` dopisuje `InviteRedeemed` z id konta, gdy kod jest ważny, niewyczerpany i nieunieważniony. `Revoke` dopisuje `InviteRevoked`. Handler tworzenia wstawia `InviteCodeHashes` w tej samej transakcji co strumień.
 
 | Metoda i ścieżka | Polityka | Wynik |
 | --- | --- | --- |
@@ -221,7 +238,7 @@ Na VM konto autora już istnieje, więc rolę dostaje przy pierwszym starcie po 
 | `DELETE /api/auth/invites/{id}` | `Owner` | `204`, ustawia `RevokedOn` |
 | `POST /api/auth/invites/redeem` | zalogowany | body `{ code }` → `200` z nowym tokenem z rolą `student`, `400` przy złym kodzie |
 
-`RegisterRequest` dostaje opcjonalne `InviteCode`. Rejestracja z kodem w jednej transakcji: konto, `UPDATE` licznika z warunkiem, rola `student`, wiersz outboxa. Kod nieznany, wygasły, unieważniony albo wyczerpany daje `400` z błędem pola `inviteCode` i nie zostawia konta. Odpowiedź nie mówi, który z czterech powodów zaszedł.
+`RegisterRequest` dostaje opcjonalne `InviteCode`. Rejestracja z kodem w jednej transakcji: strumień konta, `RoleGranted` `student`, `InviteRedeemed`, obie rezerwacje, wiersz outboxa. Kod nieznany, wygasły, unieważniony albo wyczerpany daje `400` z błędem pola `inviteCode` i nie zostawia konta. Odpowiedź nie mówi, który z czterech powodów zaszedł. `POST /api/auth/invites/redeem` dla już zalogowanego dopisuje `InviteRedeemed` i `RoleGranted`, potem wydaje nowy token.
 
 `InviteCode.Hash(string code)` normalizuje kod (wielkie litery, bez myślników i spacji) przed SHA-256, więc `abcd-efgh-jk` i `ABCDEFGHJK` to ten sam kod.
 
@@ -240,8 +257,10 @@ Owner spełnia politykę `Student`, bo widzi wszystko, co student. Usługa treś
 `UserAdminEndpoints` (wszystkie z polityką `Owner`):
 
 - `GET /api/auth/users?role=student` → `IdentityGuid`, e-mail, role, data utworzenia,
-- `PUT /api/auth/users/{id}/roles/student` → `204`, idempotentnie,
-- `DELETE /api/auth/users/{id}/roles/student` → `204`.
+- `PUT /api/auth/users/{id}/roles/student` → `204`, dopisuje `RoleGranted`, jeśli roli jeszcze nie ma,
+- `DELETE /api/auth/users/{id}/roles/student` → `204`, dopisuje `RoleRevoked`.
+
+Lista czyta projekcję. Nadanie i odebranie roli ładują agregat ze strumienia.
 
 Gateway nie potrzebuje nowej trasy, bo wszystko jest pod `/api/auth/`.
 
@@ -252,11 +271,14 @@ Gateway nie potrzebuje nowej trasy, bo wszystko jest pod `/api/auth/`.
 - `JwksEndpoints` — publiczna część klucza dla innych usług. Bez niej każda usługa musiałaby znać sekret.
 - `AddDefaultAuthentication` — trzy linie konfiguracji, które każda usługa HTTP dostaje z ServiceDefaults.
 - `UserRegisteredIntegrationEvent` — fakt „powstało konto” dla reszty systemu. Bez hasła i bez skrótu hasła.
-- transakcja w `register` — konto i zdarzenie powstają razem albo wcale.
-- `Identity.Contracts` — kontrakt, który referencjonuje Users. Nie ciągnie ASP.NET Identity.
-- claim `role` i polityki `Owner`/`Student` — jedno źródło uprawnień dla wszystkich usług. Usługa treści nie zna haseł ani tabel ról, tylko czyta token.
-- `OwnerSeeder` — autor treści dostaje rolę bez ręcznej zmiany w bazie produkcyjnej.
-- `StudentInvite` — grupa studentów dostaje dostęp jednym kodem z zajęć. Skrót w bazie zamiast kodu, limit pilnowany w SQL.
+- transakcja w `register` — strumień, rezerwacja e-maila i outbox powstają razem albo wcale.
+- `Account` i `StudentInvite` — każdy fakt bezpieczeństwa da się odtworzyć. Logowanie czyta strumień, lista w intranecie czyta projekcję.
+- `AccountEmails` i `InviteCodeHashes` — unikalność, której jeden strumień nie widzi u sąsiada.
+- `AccountImporter` — konta z VM wchodzą do strumienia ze starym skrótem, a tabele `AspNet*` znikają w tej samej transakcji.
+- `Identity.Contracts` — kontrakt, który referencjonuje Users. Nie niesie skrótu hasła.
+- claim `role` i polityki `Owner`/`Student` — jedno źródło uprawnień dla wszystkich usług. Usługa treści nie zna haseł, tylko czyta token.
+- `OwnerSeeder` — autor treści dostaje `RoleGranted` bez ręcznej zmiany w bazie produkcyjnej.
+- `StudentInvite` — grupa studentów dostaje dostęp jednym kodem z zajęć. W strumieniu leży skrót, a limit to liczba `InviteRedeemed`.
 - `UserAdminEndpoints` — lista i korekta ról z intranetu ([docs/frontend/intranet/01-dostep-i-trasy.md](../frontend/intranet/01-dostep-i-trasy.md)).
 
 ## Testy
@@ -269,11 +291,13 @@ Klasa `RegistrationOutboxTests`.
 
 | Fakt | Arrange | Act | Assert |
 | --- | --- | --- | --- |
-| `Register_creates_identity_user` | host z fabryki | `POST /api/auth/register` | `AspNetUsers` ma ten e-mail |
+| `Register_creates_account_stream` | host z fabryki | `POST /api/auth/register` | `AccountEmails` ma ten e-mail, strumień `account-{id}` ma `AccountRegistered` ze skrótem, bez hasła jawnego |
 | `Register_writes_outbox_row` | ten sam rejestr | odczyt `OutboxMessages` | jeden wiersz `identity.integration.user-registered.v1` |
 | `Outbox_payload_has_no_password` | ten sam rejestr | odczyt `Payload` | brak hasła i pola `passwordHash` |
 | `Duplicate_email_writes_no_outbox_row` | konto już istnieje | drugi `register` tym e-mailem | nadal jeden wiersz outboxa |
-| `Processor_publishes_registration` | rejestracja | `OutboxProcessor.RunOnceAsync` | `RecordingEventBus` ma kopertę z kluczem równym `IdentityUser.Id` |
+| `Processor_publishes_registration` | rejestracja | `OutboxProcessor.RunOnceAsync` | `RecordingEventBus` ma kopertę z kluczem równym id konta |
+| `Failed_login_appends_event` | konto | `login` ze złym hasłem | strumień ma `LoginFailed`, odpowiedź `401` |
+| `Fifth_failure_locks_account` | cztery `LoginFailed` | piąte złe hasło, potem dobre | drugie też `401`, w zdarzeniu jest `LockedUntil` |
 
 Klasa `JwksTests`.
 
@@ -289,13 +313,14 @@ Klasa `RolesAndInvitesTests`. Fabryka ustawia `Identity:OwnerEmail` na `owner@te
 | Fakt | Arrange | Act | Assert |
 | --- | --- | --- | --- |
 | `Owner_email_gets_owner_role` | host | `register` z `owner@test.local` | token ma `role` `owner` |
-| `Seeder_grants_owner_to_existing_account` | konto `owner@test.local` bez roli | `OwnerSeeder.StartAsync` | `GetRolesAsync` zawiera `owner` |
+| `Seeder_grants_owner_to_existing_account` | konto `owner@test.local` bez roli | `OwnerSeeder.StartAsync` | strumień ma `RoleGranted` `owner` |
 | `Plain_registration_has_no_role` | host | `register` bez kodu | token bez claimu `role` |
-| `Invite_registration_gets_student_role` | zaproszenie z limitem 2 | `register` z kodem | token ma `role` `student`, `UsedCount` 1 |
+| `Invite_registration_gets_student_role` | zaproszenie z limitem 2 | `register` z kodem | token ma `role` `student`, strumień zaproszenia ma jedno `InviteRedeemed` |
 | `Invite_code_is_case_and_dash_insensitive` | kod `ABCDEFGHJK` | `register` z `abcd-efgh-jk` | `201` |
-| `Expired_invite_returns_400_without_account` | zaproszenie z `ExpiresOn` w przeszłości (`FakeTimeProvider`) | `register` z kodem | `400` z polem `inviteCode`, brak wiersza w `AspNetUsers` |
+| `Expired_invite_returns_400_without_account` | zaproszenie z `ExpiresOn` w przeszłości (`FakeTimeProvider`) | `register` z kodem | `400` z polem `inviteCode`, brak wiersza w `AccountEmails` |
 | `Exhausted_invite_returns_400` | zaproszenie z limitem 1, już użyte | `register` z kodem | `400` |
-| `Invite_is_stored_as_hash` | `POST /api/auth/invites` | odczyt `StudentInvites` | `CodeHash` różny od kodu z odpowiedzi, kodu nie ma w tabeli |
+| `Invite_is_stored_as_hash` | `POST /api/auth/invites` | odczyt zdarzenia `InviteCreated` | skrót różny od kodu z odpowiedzi, kodu nie ma w strumieniu |
+| `Importer_moves_aspnet_user_and_drops_table` | wiersz `AspNetUsers` ze skrótem i rolą `student` | `AccountImporter` | strumień z tym samym skrótem i `RoleGranted`, tabeli `AspNetUsers` nie ma |
 | `Student_cannot_create_invite` | token z rolą `student` | `POST /api/auth/invites` | `403` |
 | `Owner_grants_student_role` | konto `b` bez roli | `PUT /api/auth/users/{b}/roles/student`, potem `login` jako `b` | token `b` ma `role` `student` |
 
@@ -312,11 +337,12 @@ Klasa `PolicyTests` w `tests/JJDevHub.AppHost.Tests` sprawdza ServiceDefaults be
 
 - Klucz prywatny nie trafia do repozytorium, obrazu ani zmiennych workflowu. Leży w pliku na hoście.
 - Tylko Identity podpisuje tokeny. Inne usługi mają wyłącznie klucz publiczny z JWKS.
-- Rejestracja zapisuje konto i outbox w jednej transakcji.
-- Zdarzenie integracyjne nie niesie hasła ani jego skrótu.
-- `IdentityGuid` to `IdentityUser.Id`, napis w kształcie `Guid`.
+- Rejestracja dopisuje strumień, rezerwację e-maila i outbox w jednej transakcji.
+- Zdarzenie domenowe konta może nieść skrót hasła. Zdarzenie integracyjne nie niesie hasła ani jego skrótu.
+- `IdentityGuid` to id agregatu `Account`.
 - Rola jedzie w tokenie jako claim `role`. Usługi sprawdzają ją politykami z ServiceDefaults, a nazw ról nie przepisują w kodzie.
-- Kod zaproszenia jest widoczny raz. W bazie leży jego SHA-256.
+- Kod zaproszenia jest widoczny raz. W strumieniu leży jego SHA-256.
+- Logowanie i blokada czytają strumień. Lista kont i zaproszeń czyta projekcję.
 - Nieudane użycie kodu nie mówi, czy kod wygasł, został wyczerpany, unieważniony, czy nie istnieje.
 
 ## Poza zakresem
@@ -335,9 +361,10 @@ Klasa `PolicyTests` w `tests/JJDevHub.AppHost.Tests` sprawdza ServiceDefaults be
 - [RFC 7517: JSON Web Key](https://www.rfc-editor.org/rfc/rfc7517) — format JWKS.
 - [OpenID Connect Discovery](https://openid.net/specs/openid-connect-discovery-1_0.html) — `issuer` i `jwks_uri`.
 - [Configure JWT bearer authentication](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/configure-jwt-bearer-authentication) — `Authority`, `Audience`, metadane.
-- [Introduction to Identity](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/identity) — `UserManager` i `IdentityDbContext`.
+- [PasswordHasher<TUser>](https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.identity.passwordhasher-1) — PBKDF2 ze solą, bez `UserManager` i bez tabel Identity.
+- [Event Sourcing pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing) — strumień konta jako źródło stanu.
 - [Transactional outbox pattern](https://learn.microsoft.com/en-us/azure/architecture/databases/guide/transactional-outbox-cosmos) — konto i zdarzenie w jednej transakcji.
-- [Role-based authorization](https://learn.microsoft.com/en-us/aspnet/core/security/authorization/roles) — `AddRoles`, `RequireRole`, `RoleClaimType`.
+- [Role-based authorization](https://learn.microsoft.com/en-us/aspnet/core/security/authorization/roles) — `RequireRole`, `RoleClaimType`.
 - [Policy-based authorization](https://learn.microsoft.com/en-us/aspnet/core/security/authorization/policies) — `AddAuthorizationBuilder` i polityki nazwane.
 - [Crockford Base32](https://www.crockford.com/base32.html) — alfabet bez znaków mylonych przy przepisywaniu ze slajdu.
 
@@ -345,7 +372,7 @@ Klasa `PolicyTests` w `tests/JJDevHub.AppHost.Tests` sprawdza ServiceDefaults be
 
 - `src/api` nie istnieje, a `Identity.API` buduje się i startuje z AppHost jako `identity-api`.
 - Token ma `alg` `RS256` i `kid`, a klucz z `/.well-known/jwks.json` go waliduje.
-- Rejestracja zostawia `AspNetUsers` i `OutboxMessages` z tego samego commitu. Nieudana rejestracja nie zostawia żadnego.
+- Rejestracja zostawia strumień `account-{id}`, wiersz `AccountEmails` i `OutboxMessages` z tego samego commitu. Nieudana rejestracja nie zostawia żadnego. Importer przenosi istniejące `AspNetUsers` i usuwa te tabele.
 - `JWT_KEY` zniknął z `.env.example`, a klucz prywatny jest tylko w pliku na hoście.
 - Konto z `Identity:OwnerEmail` ma w tokenie `role` `owner`, a rejestracja z ważnym kodem daje `student`.
 - Wygasły albo wyczerpany kod kończy się `400` bez konta w bazie.

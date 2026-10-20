@@ -10,11 +10,18 @@ Drugi licznik, `Position`, jest globalny dla całego magazynu. `Version` mówi �
 
 ## Dlaczego ta technologia
 
-### Event sourcing w News
+### Gdzie leży strumień
 
-Zwykła tabela `Articles` trzyma tylko stan teraz. Kto zmienił tytuł, kiedy, jak brzmiał wczoraj, nie wiadomo bez osobnej tabeli audytu, którą trzeba pamiętać uzupełniać. W event sourcingu źródłem prawdy jest lista faktów (`ArticleCreated`, `ArticleRevised`), a stan jest liczony. Historia rewizji, audyt i „jak artykuł wyglądał w wersji 3” są za darmo. Nowy widok (np. lista artykułów autora) da się zbudować wstecz, przechodząc wszystkie zdarzenia od początku.
+Zwykła tabela stanu trzyma tylko „teraz”. Kto zmienił tytuł, kiedy, jak brzmiał wczoraj, nie wiadomo bez osobnej tabeli audytu, którą trzeba pamiętać uzupełniać. W event sourcingu źródłem prawdy jest lista faktów, a stan jest liczony. Historia, audyt i nowy widok są przejściem po zdarzeniach od początku.
 
-Koszt jest realny: dwa modele (zapis i odczyt), ostateczna spójność odczytu, wersjonowanie zdarzeń, więcej kodu. Dlatego event sourcing jest tylko w News, gdzie artykuł ma naturalną historię. Users i Notifications to zwykłe EF, tak jak `Catalog` w eShop.
+Koszt jest realny: dwa modele (zapis i odczyt), ostateczna spójność odczytu, wersjonowanie zdarzeń, więcej kodu. Strumień dostają miejsca, w których ten koszt się zwraca:
+
+- News — rewizje, publikacja i wycofanie artykułu ([21-notatki.md](21-notatki.md)),
+- Learning — technologia, kurs z lekcjami, wykład i hasło, które pisze właściciel ([19-learning.md](19-learning.md)); import z GitHuba dopisuje fakt, a historia pliku zostaje w gicie,
+- Identity — każda zmiana konta i zaproszenia ([15-identity.md](15-identity.md)),
+- Cv — historia profilu, stanowiska, projektu, edukacji, aktywności, umiejętności i języka; każdy agregat ma własny strumień, a dokument CV jest widokiem ([22-cv.md](22-cv.md)).
+
+Users i Notifications zostają przy EF, tak jak `Catalog` w eShop. Postęp studenta też: to tabela w bazie zapisu Learning, nie strumień kursu.
 
 ### Wersja w strumieniu i globalna pozycja
 

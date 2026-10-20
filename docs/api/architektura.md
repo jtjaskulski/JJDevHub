@@ -26,25 +26,28 @@ flowchart LR
   news --> newsWrite[(news_write)]
   news --> newsRead[(news_read)]
   identity --> identityDb[(jjdevhub)]
+  identity --> identityRead[(identity_read)]
   users --> usersDb[(users)]
   notifications --> notificationsDb[(notifications)]
-  learning --> learningDb[(learning_z_pgvector)]
-  cv --> cvDb[(cv)]
+  learning --> learningWrite[(learning_write)]
+  learning --> learningRead[(learning_read)]
+  cv --> cvWrite[(cv_write)]
+  cv --> cvRead[(cv_read)]
   appHost[Aspire_AppHost] -.-> gateway
   appHost -.-> kafka
 ```
 
 | Usługa | Styl | Publikuje | Konsumuje | Numer |
 | --- | --- | --- | --- | --- |
-| Identity | EF + ASP.NET Identity, role, zaproszenia | `identity.integration`: `UserRegisteredIntegrationEvent` | — | `15` |
+| Identity | event sourcing konta i zaproszenia, JWT | `identity.integration`: `UserRegisteredIntegrationEvent` | — | `15` |
 | News | DDD, event sourcing, CQRS | `news.integration`: utworzenie, publikacja, wycofanie | — | `01`–`11`, `16`, `21` |
 | Users | EF, CRUD | — | `identity.integration` | `17` |
 | Notifications | worker, HTTP tylko `/health` i `/metrics` | — | `identity.integration`, `news.integration` | `17`, `21` |
-| Learning | DDD na EF, CQRS, wyszukiwanie w Postgresie | `learning.integration`: pełny stan technologii, kursu, wykładu, hasła | — | `19`, `20` |
-| Cv | EF w jednym projekcie, kopia dowodów | — | `learning.integration`, `news.integration` | `22` |
+| Learning | DDD, event sourcing treści, postęp w tabeli, CQRS, wyszukiwanie w Postgresie | `learning.integration`: pełny stan technologii, kursu, wykładu, hasła | — | `19`, `20` |
+| Cv | event sourcing dokumentu, kopia dowodów | — | `learning.integration`, `news.integration` | `22` |
 | Gateway | YARP, bez logiki | — | — | `16` |
 
-Event sourcing jest tylko w News. To świadomy wybór, jak w eShop, gdzie DDD dostaje `Ordering`, a `Catalog` jest zwykłym CRUD-em. Artykuł ma historię wartą odtwarzania: powstanie, rewizje, publikację, wycofanie, a widok historii w [21-notatki.md](21-notatki.md) powstaje z tych samych zdarzeń. Kurs w Learning ma reguły (kolejność lekcji, widoczność, import), ale jego historia nikogo nie interesuje, więc to agregat na EF. CV to jeden dokument z regułami i kopią cudzych faktów.
+Event sourcing mają cztery miejsca. Artykuł w News: powstanie, rewizje, publikacja, wycofanie, a widok historii w [21-notatki.md](21-notatki.md) powstaje z tych samych zdarzeń. Treść właściciela w Learning: technologia, kurs z lekcjami, wykład i hasło. Konto i zaproszenie w Identity: każda zmiana zostaje faktem. Dokument CV: każdy zapis to nowa wersja całości. Users i Notifications zostają przy EF, jak `Catalog` obok `Ordering` w eShop. Postęp studenta to tabela w `learning_write`, nie strumień kursu. Kopia dowodów w Cv też jest tabelą: to stan cudzy, złożony ze zdarzeń na szynie.
 
 Klient web jest jeden. Strona publiczna, strefa studenta i intranet właściciela to trasy tego samego klienta, rozróżniane rolą z tokenu ([docs/frontend/intranet/01-dostep-i-trasy.md](../frontend/intranet/01-dostep-i-trasy.md)).
 
@@ -66,7 +69,7 @@ Zdarzenie powiadamiające mówi, co się stało, i niesie tylko to, czego konsum
 Zdarzenie ze stanem (event-carried state transfer) niesie cały bieżący stan agregatu z numerem wersji. `track-changed` w Learning i `article-published` w News niosą tytuł, slug, widoczność i powiązania. Cv trzyma ich kopię i nie musi pytać właściciela o nic. Zasady:
 
 - jedno zdarzenie na każdy zapis agregatu, z pełnym stanem, a nie z różnicą,
-- wersja (`Revision` w Learning, `Version` strumienia w News) rośnie z każdym zapisem; konsument pomija wiadomość z wersją nie wyższą od zapisanej,
+- wersja strumienia rośnie z każdym zapisem (`Version` w News, Learning, Identity i Cv); konsument pomija wiadomość z wersją nie wyższą od zapisanej,
 - usunięcie to wiadomość z `IsDeleted` albo wycofaniem, nie brak wiadomości,
 - widoczność jedzie w zdarzeniu, a filtr robi konsument przy odczycie, bo musi zobaczyć także przejście z publicznego na prywatne,
 - powiązania między usługami idą po slugu, który się nie zmienia, a nie po id z cudzej bazy,
@@ -96,7 +99,7 @@ flowchart TB
 - `News.API`: endpointy i skład. Jedyny projekt z `Program.cs`.
 - `News.Contracts`: rekordy zdarzeń integracyjnych. Referencjonują go konsumenci, nic więcej.
 
-Learning ma te same pięć projektów. Różnica jest w Infrastructure: `LearningContext` na EF zamiast magazynu zdarzeń, a obok wyszukiwanie i klient GitHuba. Cv i Users mają jeden projekt, bo domena jest mała.
+Learning ma te same pięć projektów i ten sam magazyn zdarzeń. W Infrastructure obok strumienia są projekcje, wyszukiwanie i klient GitHuba, a `LessonProgress` zostaje zwykłą tabelą. Cv ma jeden projekt. Strumienie mają agregaty sekcji dokumentu (`Profile`, `Position`, `Project`, `Education`, `Activity`, `Skill`, `Language`); strona, PDF i JSON Resume są widokiem złożonym z projekcji. Users zostaje jednym projektem na EF, bo domena jest mała.
 
 To jest cebula z GeekLemon i układ `Ordering.*` z eShop: strzałki idą do środka, domena nie wie o bazie.
 
@@ -132,14 +135,14 @@ Odczyt jest ostatecznie spójny. `POST` zwraca id i wersję, a `GET` może przez
 sequenceDiagram
   participant owner as Intranet
   participant learning as Learning_API
-  participant ldb as learning
+  participant ldb as learning_write
   participant kafka as Kafka
   participant cv as Cv_API
   participant cvdb as cv
   participant worker as ResumeRenderWorker
   owner->>learning: zmiana widoczności kursu na Public
-  learning->>ldb: Tracks i OutboxMessages, jeden commit
-  learning->>kafka: learning.integration track-changed z Revision
+  learning->>ldb: EventRecords i OutboxMessages, jeden commit
+  learning->>kafka: learning.integration track-changed z Version
   kafka->>cv: koperta
   cv->>cvdb: EvidenceItems, EvidenceRevision + 1, InboxMessages, jeden commit
   worker->>cvdb: nowa para wersji
@@ -153,7 +156,7 @@ Strona CV po tej sekwencji ma nowy `ETag` i nowy kurs przy umiejętności. Learn
 - Usługa ma swoje bazy i swój temat Kafki. Cudza baza jest niewidoczna, cudzy temat tylko do czytania.
 - Między usługami idzie zdarzenie integracyjne, nie wywołanie HTTP cudzej komendy. Zapytanie HTTP do sąsiada jest dopuszczalne tylko przez gateway i tylko z klienta.
 - Zdarzenie domenowe nie opuszcza usługi. Na szynę wychodzi osobny rekord z `*.Contracts`, mapowany w Application.
-- `IdentityGuid` jest jedynym wspólnym identyfikatorem użytkownika. Hasło i tabele `AspNetUsers` zostają w Identity.
+- `IdentityGuid` jest jedynym wspólnym identyfikatorem użytkownika. Hasło, jako skrót, zostaje w strumieniu Identity.
 - Token wydaje Identity (klucz RSA) z rolami `owner` i `student`. Reszta usług tylko go waliduje kluczem publicznym z JWKS i sprawdza politykę z `ServiceDefaults`.
 - Treść łączy się między usługami slugiem. Notatka w News wskazuje lekcję w Learning slugiem kursu i lekcji, a News tego nie sprawdza.
 - Jedyne wyjście do internetu z usług to Learning do `api.github.com` przy imporcie lekcji, ze stałym adresem bazowym i bez przekierowań.

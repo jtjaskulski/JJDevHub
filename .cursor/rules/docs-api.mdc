@@ -17,5 +17,5 @@ Specyfikacja: [docs/api/README.md](../../docs/api/README.md). Obraz całości: [
 - Nowy pakiet wpisz do tabeli pakietów w README z licencją i numerem, w którym dochodzi, a wersję do `Directory.Packages.props`. Mediator, rejestr zdarzeń, magazyn zdarzeń i outbox są nasze, bo są tematem nauki, nie z braku biblioteki.
 - Każda usługa ma własną bazę albo parę baz (tabela w README). Usługa nie czyta cudzej bazy. Między usługami idzie zdarzenie integracyjne przez Kafkę.
 - Typ zdarzenia w bazie i na szynie to stabilna nazwa z `[EventName]` (`news.article-created.v1`), nigdy nazwa CLR.
-- Event sourcing tylko w usłudze News (agregat `Article`). Pozostałe usługi to zwykłe EF.
+- Event sourcing mają News (`Article`), Learning (technologia, kurs, wykład, hasło), Identity (`Account`, `StudentInvite`) i Cv (`Profile`, `Position`, `Project`, `Education`, `Activity`, `Skill`, `Language`). Users, Notifications i postęp studenta to zwykłe EF.
 - Agregat nie nazywa się jak segment namespace'u (`News` w `JJDevHub.News.*` daje CS0118).

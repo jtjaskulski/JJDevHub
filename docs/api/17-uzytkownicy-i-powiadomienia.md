@@ -14,7 +14,7 @@ Kontrakt integracyjny to API między zespołami, nawet jeśli zespół jest jede
 
 ### Users jako CRUD na EF bez event sourcingu
 
-Profil ma nazwę wyświetlaną i e-mail. Nikt nie zapyta „jak brzmiała nazwa użytkownika trzy zmiany temu”. Event sourcing dałby tu dwa modele, projekcję i ostateczną spójność bez żadnej korzyści. Encja `User` z value objectami `Email` i `DisplayName`, zapisywana przez EF, to DDD bez event sourcingu: reguły są w domenie, stan w tabeli. Jeden projekt zamiast czterech warstw, bo logiki jest mało. eShop robi tak z `Catalog.API`. Ten numer pokazuje, że wybór stylu jest per usługa, a nie per system.
+Profil ma nazwę wyświetlaną i e-mail. Nikt nie zapyta „jak brzmiała nazwa użytkownika trzy zmiany temu”. Event sourcing dałby tu dwa modele, projekcję i ostateczną spójność bez żadnej korzyści. Encja `User` z value objectami `Email` i `DisplayName`, zapisywana przez EF, to DDD bez event sourcingu: reguły są w domenie, stan w tabeli. Jeden projekt zamiast czterech warstw, bo logiki jest mało. eShop robi tak z `Catalog.API`. Users i Notifications zostają przy tabelach świadomie, obok News, Learning, Identity i Cv, które trzymają stan w strumieniu.
 
 ### Users jako osobna usługa od Identity
 

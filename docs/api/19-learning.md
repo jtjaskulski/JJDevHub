@@ -8,15 +8,19 @@ Dziś Wykłady i Kompendium to pliki [pl.json](../../src/Clients/web/src/content
 
 Strona ma uczyć w dwóch trybach. Kompendium to technologia, a pod nią krótki kurs od pierwszej lekcji do ostatniej i słownik haseł. Służy studentom i autorowi jako osobista baza wiedzy, więc część treści jest prywatna. Wykłady to sylabusy uczelniane: opis, lekcje, rozdziały i plan na kolejne zajęcia. Oba tryby dzielą technologie, Markdown, widoczność i import, więc żyją w jednej usłudze.
 
-Learning jest drugim stylem DDD w systemie. News trzyma historię w strumieniu zdarzeń, Users to jedna warstwa CRUD. Learning ma bogatszą domenę niż Users (kolejność lekcji, unikalne slugi, widoczność efektywna, lekcje tylko do odczytu po imporcie), ale bez historii, którą warto odtwarzać. Dostaje cztery warstwy i EF bez event sourcingu.
+Learning jest treścią właściciela obok notatek. News trzyma artykuł w strumieniu, Users to jedna warstwa CRUD. Learning ma bogatszą domenę (kolejność lekcji, unikalne slugi, widoczność efektywna, lekcje tylko do odczytu po imporcie) i tę samą historię: każda zmiana technologii, kursu, wykładu i hasła zostaje faktem. Postęp studenta zostaje tabelą.
 
 ## Dlaczego ta technologia
 
-### DDD na EF bez event sourcingu
+### Event sourcing treści właściciela
 
-Event sourcing w News ma uzasadnienie: historia rewizji artykułu jest funkcją produktu ([21-notatki.md](21-notatki.md)). Lekcja zaimportowana z GitHuba ma historię w gicie. Lekcja pisana w intranecie ma wersję w `Revision` i kontrolę współbieżności, ale nikt nie zapyta o jej stan sprzed trzech zmian. Strumień dałby tu projekcje i ostateczną spójność bez korzyści, a reguła z [README.md](README.md) trzyma event sourcing tylko w News.
+Technologia, kurs z lekcjami, wykład i hasło są agregatami na `AggregateRoot` z [03-agregat.md](03-agregat.md). Każda metoda dopisuje zdarzenie, a `Apply` jest jedynym miejscem zmiany pól. Zapis idzie przez `IRepository<T>` z [07-repozytorium.md](07-repozytorium.md) do `learning_write`. Odczyt strony i intranetu idzie z projekcji w `learning_read`, jak artykuł w [10-projekcja.md](10-projekcja.md). `ETag` i pole `Version` na szynie to wersja strumienia.
 
-Agregaty dziedziczą `Entity` i `IAggregateRoot` z [03-agregat.md](03-agregat.md), jak `User` w [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md). Metody zwracają `Result<T>`, reguły są klasami `IBusinessRule`. Warstwy są cztery, bo komend jest kilkanaście, a import z GitHuba i potok Markdown to infrastruktura, której domena nie powinna znać.
+Lekcja zaimportowana z GitHuba ma historię pliku w gicie. Strumień kursu i tak dostaje fakt importu: co weszło do huba, z jakim `sha` i jaką treścią. Drugi import z tym samym `sha` nie dopisuje zdarzenia. Lekcja pisana w intranecie nie ma gita, więc strumień jest jej jedyną historią.
+
+Postęp studenta nie jest tym agregatem. Tabela `LessonProgress` w bazie zapisu trzyma „kto odhaczył lekcję”. Nie da się jej złożyć ze strumienia kursu i nie wychodzi na szynę.
+
+Agregaty wskazują się id, nie nawigacją. Metody zwracają `Result<T>`, reguły są klasami `IBusinessRule`. Warstwy są cztery, bo komend jest kilkanaście, a import z GitHuba i potok Markdown to infrastruktura, której domena nie powinna znać.
 
 ### Jedna usługa na kompendium i wykłady
 
@@ -84,12 +88,12 @@ Lista dozwolonych hostów ma więc jeden wpis i jest w kodzie, nie w konfiguracj
 
 CV z [22-cv.md](22-cv.md) pokaże przy umiejętności „kurs React Native: 12 lekcji, wykład na uczelni”. Musi wiedzieć, jakie kursy, lekcje i wykłady są publiczne. Reguła z [README.md](README.md) zabrania czytania cudzej bazy. Opcje:
 
-- **Event-carried state transfer** — zdarzenie `track-changed.v1` niesie pełny bieżący stan agregatu: slug, tytuł, widoczność, listę lekcji z ich widocznością, `Revision`. Konsument robi upsert i ma kopię potrzebnych danych.
+- **Event-carried state transfer** — zdarzenie `track-changed.v1` niesie pełny bieżący stan agregatu: slug, tytuł, widoczność, listę lekcji z ich widocznością, `Version`. Konsument robi upsert i ma kopię potrzebnych danych.
 - **Zdarzenie-powiadomienie i wywołanie zwrotne** — `track-changed` z samym id, konsument woła `GET /api/learning/tracks/{id}`. Konsument zależy wtedy od dostępności Learning w chwili odbioru.
 - **Zdarzenia drobne** (`lesson-added`, `lesson-renamed`, `lesson-reordered`) — konsument składa stan z kilkunastu kontraktów i musi znać reguły domeny, np. widoczność efektywną.
 - **Change data capture** (Debezium) — Kafka Connect na VM i schemat tabel jako kontrakt publiczny.
 
-Stan pełny jest większy (kurs z dwunastoma lekcjami to kilka kilobajtów), ale konsument jest najprostszy i odporny na kolejność: wiadomość z `Revision` mniejszym niż zapisane jest pomijana. Usunięcie to ostatni stan z `IsDeleted = true`.
+Stan pełny jest większy (kurs z dwunastoma lekcjami to kilka kilobajtów), ale konsument jest najprostszy i odporny na kolejność: wiadomość z `Version` mniejszym niż zapisane jest pomijana. Usunięcie to ostatni stan z `IsDeleted = true`. `Version` na szynie jest wersją strumienia.
 
 Zdarzenia płyną dla każdej widoczności, także `Private`. Gdyby treść prywatna nie była publikowana, przejście `Public` → `Private` nie dotarłoby do konsumenta, a CV dalej pokazywałoby ukryty kurs. Filtr widoczności robi konsument. CV bierze tylko `Public`.
 
@@ -109,24 +113,27 @@ Student zaznacza lekcję jako przerobioną. Postęp wskazuje id lekcji i zależy
 | `src/services/Learning/Learning.Domain/Shared/LocalizedMarkdown.cs` | `RenderedMarkdown` dla `pl` i opcjonalnie `en` |
 | `src/services/Learning/Learning.Domain/Shared/ExternalUrl.cs` | tylko `https` |
 | `src/services/Learning/Learning.Domain/Shared/Visibility.cs`, `Audience.cs`, `VisibilityExtensions.cs` | `Private`, `Students`, `Public`; `IsVisibleTo`, `Stricter` |
-| `src/services/Learning/Learning.Domain/Technologies/Technology.cs` | slug, nazwa, opis, widoczność, `Revision` |
+| `src/services/Learning/Learning.Domain/Technologies/Technology.cs` | slug, nazwa, opis, widoczność; wersja ze strumienia |
 | `src/services/Learning/Learning.Domain/Tracks/Track.cs` | kurs pod technologią, lekcje, import, kolejność |
 | `src/services/Learning/Learning.Domain/Tracks/Lesson.cs` | encja w `Track`: slug, pozycja, tytuł, treść, minuty, widoczność, źródła |
 | `src/services/Learning/Learning.Domain/Tracks/LessonSource.cs` | `Language`, `Repo`, `Ref`, `Path`, `BlobSha` |
 | `src/services/Learning/Learning.Domain/Tracks/*Rule.cs` | unikalny slug lekcji, pełna permutacja kolejności, lekcja ze źródłem tylko do odczytu |
 | `src/services/Learning/Learning.Domain/Lectures/Lecture.cs` | sylabus: opis, repozytorium, laboratorium, linki lekcji, rozdziały, plan, technologie |
 | `src/services/Learning/Learning.Domain/Terms/Term.cs` | hasło: tytuł, definicja, technologie |
-| `src/services/Learning/Learning.Application/Abstractions/` | `IAggregateStore<T>`, `ILearningReader`, `IMarkdownRenderer`, `IGitHubContentSource` |
+| `src/services/Learning/Learning.Application/Abstractions/` | `ILearningReader`, `IMarkdownRenderer`, `IGitHubContentSource`, rejestry sluga i użyć technologii |
 | `src/services/Learning/Learning.Application/Technologies/`, `Tracks/`, `Lectures/`, `Terms/` | komendy, walidatory, handlery, zapytania |
 | `src/services/Learning/Learning.Application/Import/` | `ImportTrackFromGitHubCommand`, `ImportLegacyContentCommand`, raporty |
 | `src/services/Learning/Learning.Application/Progress/` | `MarkLessonProgressCommand`, `GetTrackProgressQuery` |
 | `src/services/Learning/Learning.Application/StateTransfer/StateEvents.cs` | agregat → zdarzenie `*-changed.v1` |
-| `src/services/Learning/Learning.Application/StateTransfer/IContentChanges.cs`, `ContentChanges.cs` | jedno wywołanie po zapisie: zdarzenie do outboxa (od `20` także indeks) |
-| `src/services/Learning/Learning.Infrastructure/Data/LearningContext.cs` | baza `learning`, mapowania, `ApplyIntegrationEventLog` |
-| `src/services/Learning/Learning.Infrastructure/Data/TermLink.cs`, `LessonProgress.cs` | tabele poza agregatami |
+| `src/services/Learning/Learning.Application/StateTransfer/IContentChanges.cs`, `ContentChanges.cs` | po `SaveAsync` samo zdarzenie do outboxa |
+| `src/services/Learning/Learning.Infrastructure/Data/LearningWriteContext.cs` | baza `learning_write`: strumienie, rezerwacje, postęp, outbox |
+| `src/services/Learning/Learning.Infrastructure/Data/LearningReadContext.cs` | baza `learning_read`: projekcje treści, `TermLinks`, checkpoint |
+| `src/services/Learning/Learning.Infrastructure/Data/ContentSlugRow.cs`, `TechnologyUseRow.cs` | unikalny slug i „technologia jest użyta” |
+| `src/services/Learning/Learning.Infrastructure/Data/LessonProgress.cs` | tabela postępu, nie strumień |
+| `src/services/Learning/Learning.Infrastructure/Projections/ContentProjection.cs` | HTML, widoki i `TermLinks` ze strumienia |
 | `src/services/Learning/Learning.Infrastructure/Markdown/MarkdownRenderer.cs` | potok Markdig, sanitizer, czysty tekst |
 | `src/services/Learning/Learning.Infrastructure/Markdown/WikiLinkParser.cs`, `WikiLinkRenderer.cs`, `WikiLinkExtension.cs` | `[[slug]]` |
-| `src/services/Learning/Learning.Infrastructure/Markdown/RerenderWorker.cs` | ponowny render po zmianie `MarkdownRenderer.Version` |
+| `src/services/Learning/Learning.Infrastructure/Data/TermLink.cs` | odnośnik zwrotny, wiersz projekcji |
 | `src/services/Learning/Learning.Infrastructure/GitHub/GitHubContentClient.cs` | typowany klient contents API |
 | `src/services/Learning/Learning.Infrastructure/GitHub/GitHubUnavailableException.cs` | limit albo awaria GitHuba, z `RetryAfter` |
 | `src/services/Learning/Learning.Contracts/` | `TechnologyChanged…`, `TrackChanged…`, `LectureChanged…`, `TermChangedIntegrationEvent` |
@@ -151,7 +158,7 @@ dotnet sln add src/services/Learning/* tests/Learning.*.Tests
 dotnet add src/services/Learning/Learning.Domain reference src/building-blocks/JJDevHub.Domain
 dotnet add src/services/Learning/Learning.Contracts reference src/building-blocks/JJDevHub.EventBus
 dotnet add src/services/Learning/Learning.Application reference src/services/Learning/Learning.Domain src/services/Learning/Learning.Contracts src/building-blocks/JJDevHub.Cqrs
-dotnet add src/services/Learning/Learning.Infrastructure reference src/services/Learning/Learning.Application src/building-blocks/JJDevHub.IntegrationEventLog
+dotnet add src/services/Learning/Learning.Infrastructure reference src/services/Learning/Learning.Application src/building-blocks/JJDevHub.EventStore src/building-blocks/JJDevHub.EventStore.Postgres src/building-blocks/JJDevHub.Projections src/building-blocks/JJDevHub.IntegrationEventLog
 dotnet add src/services/Learning/Learning.Infrastructure package Markdig
 dotnet add src/services/Learning/Learning.Infrastructure package HtmlSanitizer
 dotnet add src/services/Learning/Learning.API reference src/services/Learning/Learning.Infrastructure src/aspire/JJDevHub.ServiceDefaults src/building-blocks/JJDevHub.EventBus.Kafka
@@ -187,7 +194,7 @@ namespace JJDevHub.Learning.Domain.Shared
 
 ### 3. Agregaty
 
-Każdy agregat ma `Slug`, `Visibility`, `Revision` (`int`, od 1) i `UpdatedOn`. Każda metoda zmieniająca stan kończy się prywatnym `Touch(TimeProvider time)`, które podbija `Revision`. `Revision` jest tokenem współbieżności w EF, `ETag` w HTTP i polem w zdarzeniu na szynie.
+Każdy agregat ma `Slug`, `Visibility` i `UpdatedOn`. `Version` pochodzi z `AggregateRoot`: to numer ostatniego faktu w strumieniu, `ETag` w HTTP i pole `Version` na szynie. Zdarzenie niesie źródło Markdown, nie HTML. Nazwa faktu to `learning.{czynność}.v1`, na przykład `learning.lesson-added.v1`.
 
 `Technology`: `Name` (nazwa własna, bez tłumaczenia, np. „React Native”), `Summary : LocalizedText`. Metody `Create`, `Revise`, `ChangeVisibility`.
 
@@ -201,15 +208,15 @@ Każdy agregat ma `Slug`, `Visibility`, `Revision` (`int`, od 1) i `UpdatedOn`. 
 | `ReorderLessons(IReadOnlyList<Guid> order)` | `ReorderMustListEveryLessonRule`: lista to permutacja wszystkich id |
 | `RemoveLesson(Guid lessonId)` | pozycje za nią przesuwają się o jeden |
 | `DetachSource(Guid lessonId)` | usuwa źródła, lekcja staje się edytowalna |
-| `ImportLesson(LessonSource, Slug, LocalizedText title, RenderedMarkdown body, int? minutes)` | zwraca `Added`, `Updated`, `Unchanged` albo `Skipped` |
+| `ImportLesson(LessonSource, Slug, LocalizedText title, string body, int? minutes)` | zwraca `Added`, `Updated`, `Unchanged` albo `Skipped` |
 
-`ImportLesson` szuka lekcji po slugu. Brak → nowa lekcja `Private` na końcu, żeby świeży import nie pojawił się studentom, zanim owner go przejrzy. Jest i źródło dla tego języka ma ten sam `BlobSha` → `Unchanged` bez `Touch`. Inny `sha` → podmiana treści dla tego języka. Lekcja bez źródła w tym języku, ale z ręczną treścią → `Skipped`: import nie nadpisuje treści pisanej w intranecie, a reszta plików importuje się dalej.
+`ImportLesson` szuka lekcji po slugu. Brak → nowa lekcja `Private` na końcu, żeby świeży import nie pojawił się studentom, zanim owner go przejrzy. Jest i źródło dla tego języka ma ten sam `BlobSha` → `Unchanged` i zero nowych zdarzeń. Inny `sha` → zdarzenie z nowym źródłem Markdown dla tego języka. Lekcja bez źródła w tym języku, ale z ręczną treścią → `Skipped`: import nie nadpisuje treści pisanej w intranecie, a reszta plików importuje się dalej.
 
 `Lecture` odwzorowuje dzisiejszy `CourseContent` z [content.model.ts](../../src/Clients/web/src/app/content/content.model.ts): `Title`, `Subtitle : LocalizedText`, `Summary : LocalizedMarkdown`, `Repository` i `Lab` jako `ExternalLink(ExternalUrl Url, LocalizedText Label)`, `Links` (dzisiejsze `lessons`: slug, tytuł, opis, URL), `Chapters`, `Planned` (slug, tytuł, opis), `Institution` i `Period` (np. „2025/2026, semestr letni”), `TechnologyIds`. Nagłówki sekcji (`lessonsTitle`, `plannedLead`) to tekst interfejsu i zostają w bundlu.
 
 `Term`: `Title : LocalizedText`, `Definition : LocalizedMarkdown`, `TechnologyIds` (zero albo więcej: CQRS dotyczy i .NET, i React Native).
 
-Agregaty wskazują się nawzajem po id (`TechnologyId`), nie przez nawigację EF. Usunięcie technologii, która ma kursy, kończy się `Invalid` z handlera.
+Agregaty wskazują się nawzajem po id (`TechnologyId`). Usunięcie technologii, która ma kurs, wykład albo hasło, kończy się `Invalid`: handler sprawdza tabelę `TechnologyUses` w bazie zapisu, uzupełnianą w tej samej transakcji co dopisanie strumienia.
 
 ### 4. Potok Markdown
 
@@ -257,32 +264,33 @@ Kolorowanie kodu zostaje po stronie klienta. Markdig pisze `class="language-csha
 
 Front matter w imporcie: blok `---` na początku pliku z liniami `klucz: wartość`. Czytane są `title`, `summary` i `minutes`. Bez YamlDotNet, bo trzy klucze to podział linii po pierwszym `:`.
 
-`MarkdownRenderer.Version = 1`. `RerenderWorker : BackgroundService` po starcie wybiera paczkami po 50 lekcje, wykłady i hasła z `RendererVersion < Version` i renderuje je ponownie. HTML to pochodna źródła, więc ponowny render nie podbija `Revision` i nie wysyła zdarzenia.
+`MarkdownRenderer.Version = 1`. HTML powstaje w `ContentProjection`, nie w agregacie. Projekcja trzyma przy checkpointcie wersję renderera. Gdy `MarkdownRenderer.Version` jest wyższa, worker czyta strumień od pozycji 0 i buduje widok od nowa. Nowy HTML nie dopisuje faktu domenowego i nie wysyła zdarzenia na szynę.
 
 ### 5. Baza
 
-`LearningContext : DbContext` z `DbSet` dla `Technologies`, `Tracks`, `Lessons`, `Lectures`, `Terms`, `TermLinks`, `LessonProgress`. `OnModelCreating` woła `ApplyIntegrationEventLog()`.
+Dwa konteksty. `LearningWriteContext` woła `ApplyEventStore()` i `ApplyIntegrationEventLog()`. Obok strumieni:
+
+- `ContentSlugs`: klucz (`Kind`, `Slug`) → id agregatu. Jeden strumień nie widzi sluga sąsiada. Naruszenie klucza w transakcji dopisania kończy się `Conflict`, zanim strumień powstanie. Slug lekcji jest unikalny wewnątrz kursu i pilnuje go reguła agregatu, nie ta tabela,
+- `TechnologyUses`: klucz (`TechnologyId`, `SourceKind`, `SourceId`). Handler kursu, wykładu i hasła wstawia albo usuwa wiersze w tej samej transakcji co strumień,
+- `LessonProgress`: klucz (`IdentityGuid`, `LessonId`), `CompletedOn`.
+
+`LearningReadContext` trzyma projekcję: wiersz technologii, kursu, lekcji, wykładu i hasła ze źródłem Markdown, HTML-em, czystym tekstem, widocznością i `Version`. Lekcja jest osobnym wierszem z `TrackId`, bo postęp i wyszukiwanie adresują ją id. `TermLinks`: (`SourceKind`, `SourceId`, `TermSlug`), indeks na `TermSlug`. `Checkpoints` jak w [10-projekcja.md](10-projekcja.md).
+
+Kształt kolumn widoku:
 
 - `LocalizedText` jako `ComplexProperty` (kolumny `Title_Pl`, `Title_En`),
-- `LocalizedMarkdown` jako `ComplexProperty(...).ToJson()` (kolumna jsonb ze źródłem, HTML-em i czystym tekstem dla obu języków),
-- `Lecture.Links`, `Chapters`, `Planned` i `Lesson.Sources` jako kolekcje jsonb przez `ToJson()`,
+- treść jako jsonb ze źródłem, HTML-em i czystym tekstem dla obu języków,
+- `Lecture.Links`, `Chapters`, `Planned` i `Lesson.Sources` jako kolekcje jsonb,
 - `TechnologyIds` jako `uuid[]` z indeksem GIN; filtr `?technology=` to `= ANY`,
-- `Visibility` jako tekst (`HasConversion<string>()`), czytelny w `psql`,
-- `Revision` z `IsConcurrencyToken()`,
-- `Lessons` jako osobna tabela z kluczem obcym do `Tracks` i `Navigation(t => t.Lessons).AutoInclude()`, bo postęp i wyszukiwanie potrzebują id lekcji,
-- unikalne indeksy: `Slug` na każdym agregacie, (`TrackId`, `Slug`) na lekcjach,
-- `TermLinks`: (`SourceKind`, `SourceId`, `TermSlug`), klucz z trzech kolumn, indeks na `TermSlug`,
-- `LessonProgress`: (`IdentityGuid`, `LessonId`) jako klucz, `CompletedOn`.
+- `Visibility` jako tekst (`HasConversion<string>()`).
 
-Migracja `LearningInitial`. Baza fizyczna `learning`, zasób Aspire `learning`.
+Migracje `LearningWriteInitial` i `LearningReadInitial`. Bazy `learning_write` i `learning_read`, zasoby Aspire `learning-write` i `learning-read`.
 
 ### 6. Komendy i zapytania
 
-Mediator z [08-mediator.md](08-mediator.md), `AddCqrs(typeof(CreateTrackCommand).Assembly)`. `LearningUnitOfWork : IUnitOfWork` na `LearningContext`, jak `NewsUnitOfWork` z [09-komenda.md](09-komenda.md).
+Mediator z [08-mediator.md](08-mediator.md), `AddCqrs(typeof(CreateTrackCommand).Assembly)`. `LearningUnitOfWork : IUnitOfWork` na `LearningWriteContext`, jak `NewsUnitOfWork` z [09-komenda.md](09-komenda.md).
 
-`IAggregateStore<T>` (gdzie `T : Entity, IAggregateRoot`) ma `FindAsync(Guid id)`, `SlugTakenAsync(Slug slug)`, `Add`, `Remove` i `SaveChangesAsync`, które zamienia `DbUpdateConcurrencyException` na `ResultError.Conflict`. `EfAggregateStore<T>` to jedna implementacja dla czterech agregatów.
-
-Komendy zapisu przyjmują `ExpectedRevision` z `If-Match`. Handler porównuje ją z `Revision` przed zmianą, a token współbieżności łapie wyścig dwóch żądań. To ten sam układ dwóch sprawdzeń co `ExpectedVersion` w [09-komenda.md](09-komenda.md).
+Cztery agregaty idą przez `IRepository<T>`. Komendy zapisu przyjmują `ExpectedVersion` z `If-Match`. `SaveAsync` zwraca `Conflict`, gdy strumień ma już inną wersję. To ten sam układ co `ExpectedVersion` w [09-komenda.md](09-komenda.md).
 
 | Folder | Komendy |
 | --- | --- |
@@ -290,9 +298,9 @@ Komendy zapisu przyjmują `ExpectedRevision` z `If-Match`. Handler porównuje j�
 | `Tracks/` | `CreateTrackCommand`, `ReviseTrackCommand`, `DeleteTrackCommand`, `AddLessonCommand`, `ReviseLessonCommand`, `ReorderLessonsCommand`, `RemoveLessonCommand`, `DetachLessonSourceCommand` |
 | `Lectures/` | `CreateLectureCommand`, `ReviseLectureCommand`, `DeleteLectureCommand` |
 | `Terms/` | `CreateTermCommand`, `ReviseTermCommand`, `DeleteTermCommand` |
-| `Visibility/` | `ChangeVisibilityCommand(ContentKind Kind, Guid Id, int ExpectedRevision, Visibility Visibility)`, także dla lekcji |
+| `Visibility/` | `ChangeVisibilityCommand(ContentKind Kind, Guid Id, int ExpectedVersion, Visibility Visibility)`, także dla lekcji |
 
-Handler z treścią woła `IMarkdownRenderer`, przekazuje `RenderedMarkdown` do agregatu i zastępuje wiersze `TermLinks` dla tego źródła. Odpowiedź zapisu to `ContentWritten(Guid Id, string Slug, int Revision)`.
+Handler przekazuje do agregatu źródło Markdown. HTML i `TermLinks` powstają w projekcji. Odpowiedź zapisu to `ContentWritten(Guid Id, string Slug, int Version)`. `GET` tuż po `POST` może przez chwilę oddać `404`, jak przy artykule: klient ponawia odczyt.
 
 Zapytania czytają przez `ILearningReader` (Infrastructure, `AsNoTracking`, `Select` do DTO). Każde dostaje `Audience` i `Language`:
 
@@ -314,7 +322,7 @@ namespace JJDevHub.Learning.Contracts
         Guid EventId,
         DateTimeOffset OccurredOn,
         Guid TrackId,
-        int Revision,
+        int Version,
         string Slug,
         string TechnologySlug,
         LocalizedTextContract Title,
@@ -340,7 +348,7 @@ Pozostałe zdarzenia w tym samym kształcie:
 
 Zdarzenia niosą slugi technologii, a nie id. Slug się nie zmienia, więc konsument nie musi łączyć dwóch tematów, żeby wiedzieć, której umiejętności dotyczy kurs.
 
-`StateEvents.For(Track track, string technologySlug, TimeProvider time)` i odpowiedniki dla reszty agregatów składają zdarzenie z agregatu. Handler komendy zapisu nie woła outboxa wprost. Po `SaveChangesAsync` woła port `IContentChanges` (`TechnologyChangedAsync`, `TrackChangedAsync`, `LectureChangedAsync`, `TermChangedAsync`, każda z flagą `deleted`). Implementacja `ContentChanges` w tym numerze składa zdarzenie przez `StateEvents` i woła `outbox.AddAsync`. Indeks wyszukiwania z [20-wyszukiwanie.md](20-wyszukiwanie.md) dopisuje się do tej samej klasy, bez zmiany handlerów. Wszystko dzieje się w transakcji `TransactionBehavior`. Komenda usunięcia woła port z `deleted: true` przed `Remove`.
+`StateEvents.For(Track track, string technologySlug, TimeProvider time)` i odpowiedniki dla reszty agregatów składają zdarzenie z agregatu. `Version` w kontrakcie to `track.Version` po zapisie. Handler komendy nie woła outboxa wprost. Po `SaveAsync` woła port `IContentChanges` (`TechnologyChangedAsync`, `TrackChangedAsync`, `LectureChangedAsync`, `TermChangedAsync`, każda z flagą `deleted`). Implementacja `ContentChanges` składa zdarzenie przez `StateEvents` i woła `outbox.AddAsync`. Indeks wyszukiwania z [20-wyszukiwanie.md](20-wyszukiwanie.md) buduje projekcja, nie ta klasa. Strumień, rezerwacje i outbox wchodzą w transakcję `TransactionBehavior`. Komenda usunięcia dopisuje fakt usunięcia i woła port z `deleted: true`. Wiersz strumienia zostaje.
 
 Skład w `Program.cs`:
 
@@ -354,7 +362,7 @@ builder.Services.AddKafkaEventBus(builder.Configuration, options =>
 
 `KafkaOptions.TopicConfigs` (`Dictionary<string, Dictionary<string, string>>`) dochodzi do [13-kafka.md](13-kafka.md) w tym numerze. `KafkaTopicInitializer` przekazuje go do `TopicSpecification.Configs`. Tabela tematów w 13 dostaje wiersz `learning.integration` | Learning | 3 | `cv` (od [22-cv.md](22-cv.md)).
 
-`RepublishStateCommand` czyta agregaty paczkami po 100 i dla każdego zapisuje zdarzenie stanu do outboxa, paczka na transakcję. Zwraca liczbę zdarzeń.
+`RepublishStateCommand` ładuje agregaty ze strumieni paczkami po 100 i dla każdego zapisuje zdarzenie stanu do outboxa, paczka na transakcję. Zwraca liczbę zdarzeń. Usunięte agregaty jadą z `IsDeleted`.
 
 ### 8. Import z GitHuba
 
@@ -393,7 +401,7 @@ Handler:
 - plik większy niż 1 MB albo lekcja z ręczną treścią w tym języku → `Skipped`,
 - reszta: pobranie, front matter, tytuł z `title` albo pierwszego nagłówka `#` (usuwanego z treści), render z `MarkdownContext` importu, `Track.ImportLesson`,
 - lekcje ze źródłem w tym języku, których plików nie ma na liście → `Orphaned`,
-- jeden `SaveChangesAsync`, jedno zdarzenie `track-changed.v1`, gdy cokolwiek się zmieniło.
+- jeden `SaveAsync`, jedno zdarzenie `track-changed.v1`, gdy cokolwiek się zmieniło.
 
 Odpowiedź: `ImportReport(IReadOnlyList<string> Added, Updated, Unchanged, Skipped, Orphaned)`.
 
@@ -427,13 +435,13 @@ Usunięcie sekcji `courses` i `compendium` z plików klienta jest w [docs/fronte
 
 ### 10. Postęp studenta
 
-`MarkLessonProgressCommand(Guid LessonId, string IdentityGuid, bool Completed, Audience Audience)`. Lekcja niewidoczna dla `Audience` → `NotFound`. `Completed = true` dodaje wiersz, jeśli go nie ma, `false` go usuwa. Komenda nie wysyła zdarzenia.
+`MarkLessonProgressCommand(Guid LessonId, string IdentityGuid, bool Completed, Audience Audience)`. Handler ładuje kurs ze strumienia. Lekcja niewidoczna dla `Audience` → `NotFound`. `Completed = true` dodaje wiersz `LessonProgress`, jeśli go nie ma, `false` go usuwa. Komenda nie dopisuje faktu do kursu i nie wysyła zdarzenia na szynę. `GetTrackProgressQuery` czyta tę tabelę w bazie zapisu, bo postęp nie jest projekcją.
 
 `GetTrackProgressQuery(Guid TrackId)` → `TrackProgress(int StudentsStarted, IReadOnlyList<LessonProgressCount> Lessons)`, gdzie `LessonProgressCount(Guid LessonId, int Completed)`. Bez `IdentityGuid` w odpowiedzi.
 
 ### 11. Endpointy
 
-Grupa `/api/learning` z `WithApiVersionSet` jak w [16-usluga-news.md](16-usluga-news.md). Odczyty przyjmują `?lang=pl|en` (domyślnie `pl`, inna wartość → `400`) i ustawiają `Content-Language`. Odczyt anonimowy dostaje `Cache-Control: public, max-age=60`, zalogowany `private, no-cache`, oba `Vary: Authorization`. Szczegół ma `ETag` z `Revision` i odpowiada `304` na `If-None-Match`.
+Grupa `/api/learning` z `WithApiVersionSet` jak w [16-usluga-news.md](16-usluga-news.md). Odczyty przyjmują `?lang=pl|en` (domyślnie `pl`, inna wartość → `400`) i ustawiają `Content-Language`. Odczyt anonimowy dostaje `Cache-Control: public, max-age=60`, zalogowany `private, no-cache`, oba `Vary: Authorization`. Szczegół ma `ETag` z `Version` projekcji i odpowiada `304` na `If-None-Match`.
 
 | Metoda i ścieżka | Polityka | Wynik |
 | --- | --- | --- |
@@ -442,7 +450,7 @@ Grupa `/api/learning` z `WithApiVersionSet` jak w [16-usluga-news.md](16-usluga-
 | `GET /api/learning/tracks/{slug}/lessons/{lessonSlug}` | anonimowo | lekcja z HTML, poprzednia i następna |
 | `GET /api/learning/lectures`, `GET …/lectures/{slug}` | anonimowo | sylabusy |
 | `GET /api/learning/terms?technology=`, `GET …/terms/{slug}` | anonimowo | hasła, szczegół z odnośnikami zwrotnymi |
-| `GET /api/learning/{kind}/{id:guid}` | `Owner` | dokument do edycji: źródła Markdown obu języków, widoczność, `ETag` z `Revision`; kurs z lekcjami, ich źródłami (`LessonSource`) i pozycjami |
+| `GET /api/learning/{kind}/{id:guid}` | `Owner` | dokument do edycji: źródła Markdown obu języków, widoczność, `ETag` z `Version`; kurs z lekcjami, ich źródłami (`LessonSource`) i pozycjami |
 | `POST`, `PUT /{id}`, `DELETE /{id}` na `technologies`, `tracks`, `lectures`, `terms` | `Owner` | `201`/`200` z `ETag`, `400`, `404`, `412`, `428` |
 | `PUT /api/learning/{kind}/{id}/visibility` | `Owner` | body `{ visibility }` + `If-Match` → `200` z `ETag` |
 | `POST /api/learning/tracks/{id}/lessons`, `PUT …/lessons/{lessonId}`, `DELETE …/lessons/{lessonId}` | `Owner` | lekcje |
@@ -459,20 +467,22 @@ Grupa `/api/learning` z `WithApiVersionSet` jak w [16-usluga-news.md](16-usluga-
 
 ### 12. Skład, AppHost, gateway, CI
 
-`Program.cs` jak w News: `AddServiceDefaults`, `AddDefaultAuthentication`, `AddNpgsqlDbContext<LearningContext>(ResourceNames.Learning, s => s.DisableRetry = true)`, `AddLearningApplication`, `AddLearningInfrastructure`, `AddIntegrationEventLog<LearningContext>(typeof(TrackChangedIntegrationEvent).Assembly)`, `AddKafkaEventBus` z kroku 7, `AddDefaultApiVersioning`, `AddExceptionHandler<GitHubUnavailableHandler>()`, `DevelopmentMigrator` w dev. Learning niczego nie konsumuje, więc nie ma `AddKafkaConsumer`.
+`Program.cs` jak w News: `AddServiceDefaults`, `AddDefaultAuthentication`, `AddNpgsqlDbContext<LearningWriteContext>(ResourceNames.LearningWrite, s => s.DisableRetry = true)`, osobno `LearningReadContext` na `learning-read`, `AddLearningApplication`, `AddLearningInfrastructure`, `AddIntegrationEventLog<LearningWriteContext>(typeof(TrackChangedIntegrationEvent).Assembly)`, `AddKafkaEventBus` z kroku 7, `AddDefaultApiVersioning`, `AddExceptionHandler<GitHubUnavailableHandler>()`, `DevelopmentMigrator` w dev. Learning niczego nie konsumuje, więc nie ma `AddKafkaConsumer`. `ProjectionWorker` startuje razem z API.
 
 ```csharp
-var learningDb = postgres.AddDatabase(ResourceNames.Learning, "learning");
+var learningWrite = postgres.AddDatabase(ResourceNames.LearningWrite, "learning_write");
+var learningRead = postgres.AddDatabase(ResourceNames.LearningRead, "learning_read");
 
 var learningApi = builder.AddProject<Projects.Learning_API>(ResourceNames.LearningApi)
-    .WithReference(learningDb).WaitFor(learningDb)
+    .WithReference(learningWrite).WaitFor(learningWrite)
+    .WithReference(learningRead).WaitFor(learningRead)
     .WithReference(kafka).WaitFor(kafka)
     .WithEnvironment("Identity__Url", identityApi.GetEndpoint("http"));
 ```
 
-`ResourceNames` dostaje `Learning = "learning"` i `LearningApi = "learning-api"`. Gateway dostaje `WithReference(learningApi)` i trasę `/api/learning/{**catch-all}` → klaster `learning` (`http://learning-api`).
+`ResourceNames` dostaje `LearningWrite = "learning-write"`, `LearningRead = "learning-read"` i `LearningApi = "learning-api"`. Gateway dostaje `WithReference(learningApi)` i trasę `/api/learning/{**catch-all}` → klaster `learning` (`http://learning-api`).
 
-Wpis w `infra/ci/services.json` z [18-ci-uslug.md](18-ci-uslug.md): klucz `learning`, `paths` `src/services/Learning/**` i `tests/Learning.*/**`, trzy projekty testowe, obraz `jjdevhub/learning-api`, migracja `LearningContext` z `Learning.Infrastructure`, `sonarKey` `jjdevhub-learning`. Job `learning-api` w `infra/prometheus/prometheus.yml`. `JJDevHub.Contracts.Tests` dostaje `Learning.Contracts` w katalogu i próbki czterech zdarzeń.
+Wpis w `infra/ci/services.json` z [18-ci-uslug.md](18-ci-uslug.md): klucz `learning`, `paths` `src/services/Learning/**` i `tests/Learning.*/**`, trzy projekty testowe, obraz `jjdevhub/learning-api`, migracje `LearningWriteContext` i `LearningReadContext` z `Learning.Infrastructure`, `sonarKey` `jjdevhub-learning`. Job `learning-api` w `infra/prometheus/prometheus.yml`. `JJDevHub.Contracts.Tests` dostaje `Learning.Contracts` w katalogu i próbki czterech zdarzeń.
 
 ### Co jest do czego
 
@@ -481,15 +491,17 @@ Wpis w `infra/ci/services.json` z [18-ci-uslug.md](18-ci-uslug.md): klucz `learn
 - `Lecture` — sylabus z uczelni. Dzisiejszy `CourseContent`, tylko w bazie zamiast w bundlu.
 - `Term` — hasło słownika. Sieć haseł powstaje z `[[slug]]`, bez ręcznego utrzymywania listy „zobacz też”.
 - `Visibility` i `Audience` — jedno pytanie „czy ten człowiek to zobaczy”, zadawane w SQL. Prywatna baza wiedzy ownera i materiały dla studentów żyją obok treści publicznej.
-- `Revision` — wersja dla `If-Match`, dla tokenu współbieżności i dla konsumenta na szynie.
-- `MarkdownRenderer` — jedyne miejsce, które zamienia Markdown na HTML. Podgląd, zapis, import i ponowny render przechodzą przez nie.
+- `Version` — numer faktu w strumieniu. `If-Match`, konflikt zapisu i konsument na szynie patrzą na tę samą liczbę.
+- `MarkdownRenderer` — jedyne miejsce, które zamienia Markdown na HTML. Podgląd woła je wprost, a zapis i import zostawiają źródło w zdarzeniu. Projekcja renderuje widok.
 - `WikiLinkParser` i `TermLinks` — linki między hasłami i odnośniki zwrotne.
 - `GitHubContentClient` — kursy piszą się w repo, a hub je pokazuje. Rozmawia tylko z `api.github.com`.
 - `ImportReport` — owner widzi, co się zmieniło i co zostało osierocone, zanim cokolwiek zniknie.
 - `ImportLegacyContentCommand` — jednorazowe przeniesienie treści z bundla do bazy.
 - `LessonProgress` — postęp studenta. Nie wychodzi z usługi i nie pokazuje nazwisk.
 - `StateEvents` i `learning.integration` — kopia stanu dla innych usług. Kompaktowany temat zastępuje endpoint do zasilenia nowego konsumenta.
-- `IContentChanges` — jedno miejsce, które wie, co jeszcze musi się stać po zapisie treści. Handler nie zna outboxa ani indeksu.
+- `ContentProjection` — widok strony, HTML i `TermLinks` ze strumienia. Nowa wersja renderera przebudowuje widok od pozycji 0.
+- `ContentSlugs` i `TechnologyUses` — unikalność i zakaz usunięcia technologii, których strumień jednego agregatu nie sprawdzi.
+- `IContentChanges` — po zapisie tylko outbox. Handler nie zna Kafki, a indeksu nie dotyka.
 - `GitHubUnavailableHandler` — limit GitHuba jako `503` z czasem ponowienia, a nie `500`.
 
 ## Testy
@@ -502,11 +514,11 @@ Projekt `tests/Learning.Domain.Tests`, bez bazy.
 | `Slug_rejects_uppercase` | `"Cqrs"` | `Slug.Create` | `Invalid` |
 | `Localized_text_falls_back_to_polish` | `En` puste | `For(Language.En)` | tekst polski, język `Pl` |
 | `External_url_rejects_javascript_scheme` | `javascript:alert(1)` | `ExternalUrl.Create` | `Invalid` |
-| `Every_change_increments_revision` | kurs w `Revision` 1 | `AddLesson` | `Revision` 2 |
+| `Every_change_appends_event` | nowy kurs | `AddLesson` | na liście zdarzeń `LessonAdded`, `Version` nadal 0 do zapisu |
 | `Duplicate_lesson_slug_is_invalid` | kurs z lekcją `intro` | `AddLesson` z `intro` | `Invalid` |
 | `Reorder_must_list_every_lesson` | trzy lekcje | `ReorderLessons` z dwoma id | `Invalid` |
 | `Imported_lesson_is_read_only` | lekcja ze źródłem | `ReviseLesson` | `Invalid` |
-| `Import_with_same_sha_is_unchanged` | lekcja z `sha` `a1` | `ImportLesson` z `a1` | `Unchanged`, `Revision` bez zmian |
+| `Import_with_same_sha_is_unchanged` | lekcja z `sha` `a1` | `ImportLesson` z `a1` | `Unchanged`, lista zdarzeń bez nowego faktu |
 | `New_imported_lesson_is_private` | pusty kurs | `ImportLesson` | lekcja `Private` |
 | `Effective_visibility_is_stricter` | `Public` i `Private` | `Stricter` | `Private` |
 | `Student_does_not_see_private` | `Private` | `IsVisibleTo(Audience.Student)` | `false` |
@@ -533,7 +545,7 @@ Klasa `GitHubContentClientTests`. `FakeGitHubHandler : HttpMessageHandler` z odp
 | `Redirect_is_invalid` | `301` | `ListMarkdownAsync` | `Invalid` |
 | `Rate_limit_throws_with_retry_after` | `403` z `x-ratelimit-remaining: 0` | `ListMarkdownAsync` | `GitHubUnavailableException`, `RetryAfter` z `x-ratelimit-reset` |
 
-Projekt `tests/Learning.API.Tests`. `LearningApiFactory` z kontenerem Postgresa (baza `learning`), `RecordingEventBus`, wyłączonymi workerami, testowymi tokenami z rolą (`TestTokens.Owner()`, `Student()`, `For(identityGuid)`) i `FakeGitHubHandler` w miejsce głównego handlera klienta. Fixture `Fixtures/pl.json` i `en.json` to kopie plików klienta z dnia napisania testu.
+Projekt `tests/Learning.API.Tests`. `LearningApiFactory` z kontenerem Postgresa (bazy `learning_write` i `learning_read`), `RecordingEventBus`, wyłączonym workerem projekcji (test woła `RunOnceAsync`), testowymi tokenami z rolą (`TestTokens.Owner()`, `Student()`, `For(identityGuid)`) i `FakeGitHubHandler` w miejsce głównego handlera klienta. Fixture `Fixtures/pl.json` i `en.json` to kopie plików klienta z dnia napisania testu. Odczyt w teście idzie po przebiegu projekcji.
 
 Klasa `VisibilityTests`.
 
@@ -551,12 +563,12 @@ Klasa `AuthoringTests`.
 | Fakt | Arrange | Act | Assert |
 | --- | --- | --- | --- |
 | `Student_cannot_write` | token studenta | `POST /api/learning/terms` | `403` |
-| `Put_with_stale_if_match_returns_412` | hasło w `Revision` 2 | `PUT` z `If-Match: "1"` | `412` |
+| `Put_with_stale_if_match_returns_412` | hasło w wersji 2 | `PUT` z `If-Match: "1"` | `412` |
 | `Preview_matches_saved_html` | Markdown z tabelą i `[[cqrs]]` | `POST /preview`, potem zapis lekcji i `GET` | HTML identyczny |
 | `Preview_reports_missing_terms` | brak hasła `outbox` | `POST /preview` z `[[outbox]]` | `MissingTermSlugs` zawiera `outbox` |
-| `Every_write_publishes_state` | `[Theory]` po komendach zapisu | komenda | jeden wiersz outboxa `learning.integration.*-changed.v1` z nowym `Revision` |
-| `Delete_publishes_tombstone` | hasło `cqrs` | `DELETE` | zdarzenie z `IsDeleted` `true` |
-| `Rerender_does_not_publish` | lekcja z `RendererVersion` 0 | `RerenderWorker` jeden przebieg | HTML odświeżony, zero nowych wierszy outboxa |
+| `Every_write_publishes_state` | `[Theory]` po komendach zapisu | komenda | jeden wiersz outboxa `learning.integration.*-changed.v1` z nową `Version` |
+| `Delete_publishes_tombstone` | hasło `cqrs` | `DELETE` | zdarzenie z `IsDeleted` `true`, strumień nadal jest |
+| `Renderer_bump_rebuilds_without_outbox` | lekcja w widoku ze starszym `RendererVersion` | projekcja od pozycji 0 | HTML odświeżony, zero nowych wierszy outboxa |
 | `Republish_writes_event_per_aggregate` | 2 technologie, 1 kurs, 3 hasła | `POST /republish` | 6 wierszy outboxa |
 
 Klasa `GitHubImportTests`.
@@ -595,14 +607,14 @@ Klasa `ProgressTests`.
 ## Zasady
 
 - Każde zapytanie filtruje widoczność w SQL. Treść niewidoczna dla wywołującego to `404`.
-- HTML powstaje tylko w `MarkdownRenderer`. Podgląd, zapis, import i ponowny render używają tej samej instancji.
+- HTML powstaje tylko w `MarkdownRenderer`. Podgląd woła go w komendzie, widok strony w projekcji. Zapis trzyma w strumieniu źródło.
 - Import rozmawia tylko z `api.github.com`. Żądanie niesie `owner/repo`, nie URL. Klient nie podąża za przekierowaniem ani za `download_url`.
 - Lekcja ze źródłem jest tylko do odczytu, dopóki owner nie odłączy źródła.
-- Każda zmiana agregatu podbija `Revision` i zapisuje jedno zdarzenie `*-changed.v1` w tej samej transakcji.
+- Każda zmiana agregatu dopisuje fakty do strumienia i jedno zdarzenie `*-changed.v1` w tej samej transakcji. `Version` na szynie jest wersją strumienia.
 - Zdarzenie niesie pełny stan z widocznością. Filtr widoczności robi konsument.
 - Postęp studenta nie wychodzi z usługi. Statystyki dla ownera nie mają `IdentityGuid`.
 - Slug nie zmienia się po utworzeniu.
-- Bez event sourcingu w tej usłudze.
+- Strumień jest źródłem prawdy technologii, kursu, wykładu i hasła. Postęp studenta jest tabelą w bazie zapisu.
 
 ## Poza zakresem
 
@@ -627,9 +639,9 @@ Klasa `ProgressTests`.
 - [What do you mean by “Event-Driven”?](https://martinfowler.com/articles/201701-event-driven.html) — Martin Fowler: powiadomienie kontra event-carried state transfer.
 - [Apache Kafka: log compaction](https://kafka.apache.org/documentation/#compaction) — ostatnia wiadomość na klucz.
 - [EF Core: complex types and JSON columns](https://learn.microsoft.com/en-us/ef/core/what-is-new/ef-core-10.0/whatsnew#complex-types) — `ComplexProperty` i `ToJson()`.
-- [EF Core: handling concurrency conflicts](https://learn.microsoft.com/en-us/ef/core/saving/concurrency) — token współbieżności.
-- [Npgsql: arrays](https://www.npgsql.org/efcore/mapping/array.html) — `uuid[]` i `= ANY`.
-- [dotnet/eShop — Catalog.API](https://github.com/dotnet/eShop/tree/main/src/Catalog.API) — usługa treści obok usługi z bogatszą domeną.
+- [Event Sourcing pattern](https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing) — strumień treści i widok złożony wstecz.
+- [Npgsql: arrays](https://www.npgsql.org/efcore/mapping/array.html) — `uuid[]` i `= ANY` w projekcji.
+- [dotnet/eShop — Ordering](https://github.com/dotnet/eShop/tree/main/src/Ordering.API) — usługa z domeną obok prostszego CRUD-u.
 
 ## Gotowe gdy
 
@@ -637,6 +649,6 @@ Klasa `ProgressTests`.
 - Import treści strony przenosi 2 wykłady i 12 haseł. Drugi import niczego nie dubluje.
 - Import kursu z repozytorium tworzy lekcje w kolejności plików, a drugi import bez zmian kończy się samym `Unchanged`.
 - Anonim i student nie widzą treści `Private`, a anonim nie widzi `Students`.
-- Każdy zapis zostawia jeden wiersz outboxa `learning.integration.*-changed.v1`, a temat `learning.integration` ma `cleanup.policy=compact`.
+- Każdy zapis zostawia fakty w `learning_write` i jeden wiersz outboxa `learning.integration.*-changed.v1`. Temat `learning.integration` ma `cleanup.policy=compact`. Widok w `learning_read` dogania strumień.
 - `services.json` i `prometheus.yml` mają wpis `learning`.
 - `dotnet test` dla sześciu projektów z sekcji Testy kończy się kodem 0.
