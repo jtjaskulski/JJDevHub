@@ -73,17 +73,17 @@ Zasady C# są w [.cursor/rules/csharp.mdc](../../.cursor/rules/csharp.mdc): jede
 | [14-aspire.md](14-aspire.md) | `JJDevHub.AppHost`, `JJDevHub.ServiceDefaults`, publikacja do Compose |
 | [15-identity.md](15-identity.md) | `Identity.API`, klucz RSA, JWKS, `UserRegisteredIntegrationEvent`, role `owner` i `student`, kody zaproszeń |
 | [16-usluga-news.md](16-usluga-news.md) | `News.API`, endpointy, autor z tokenu, `JJDevHub.Gateway` (YARP) |
-| [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md) | `Users.API`, `Notifications.Worker`, testy kontraktów |
+| [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md) | `Notifications.Worker`, testy kontraktów |
 | [18-ci-uslug.md](18-ci-uslug.md) | `ci.yml` z wykrywaniem zmian, reużywalny workflow, obraz przy wydaniu, deploy z wydania, przejście VM (nginx → gateway, Prometheus na usługę, RAM) |
 
 ### Część F — treść
 
 | Plik | Zakres |
 | --- | --- |
-| [19-learning.md](19-learning.md) | `Learning.*`: technologie, kursy z lekcjami, wykłady, hasła, widoczność, Markdown, import z GitHuba, postęp studenta, `learning.integration` ze stanem |
+| [19-learning.md](19-learning.md) | `Learning.*`: technologie, kurs (kolejność lekcji), lekcja z przykładami kodu, wykłady, hasła, widoczność, Markdown, postęp studenta, `learning.integration` ze stanem |
 | [20-wyszukiwanie.md](20-wyszukiwanie.md) | wyszukiwanie w Learning: pełny tekst Postgresa i pgvector, RRF, model ONNX w procesie, `EmbeddingWorker` |
 | [21-notatki.md](21-notatki.md) | `Article` jako notatka: publikacja, wycofanie, lekcja, slug, historia z projekcji od zera, `JJDevHub.Markdown` |
-| [22-cv.md](22-cv.md) | `Cv.API`: żywe CV z dowodami z Learning i News, `HybridCache`, `If-Match` na `xmin`, JSON Resume, PDF z Typst |
+| [22-cv.md](22-cv.md) | `Cv.API`: CV ze strumieni profilu, stanowisk, projektu, edukacji, aktywności, umiejętności i języków; widok strony, PDF i JSON Resume; dowody z Learning i News, `HybridCache`, Typst |
 
 Numery `01`–`13` nie dotykają [src/api](../../src/api). Do `14` istniejące API działa jak dziś. Kolejność części F wynika z zależności: notatki przypinają się do lekcji z `19`, a CV liczy dowody z `19` i `21`.
 
@@ -119,47 +119,49 @@ Numery `01`–`13` nie dotykają [src/api](../../src/api). Do `14` istniejące A
 | `PublishOutbox` | opcja `AddIntegrationEventLog` | usługa tylko konsumująca nie uruchamia dispatchera |
 | `KafkaEventBus`, `KafkaConsumerWorker`, `KafkaOptions` | `JJDevHub.EventBus.Kafka` | adapter jak `EventBusRabbitMQ` w eShop |
 | `JJDevHub.AppHost`, `JJDevHub.ServiceDefaults`, `AddServiceDefaults` | `src/aspire` | eShop: `eShop.AppHost`, `eShop.ServiceDefaults` |
-| `ResourceNames` (`news-write`, `kafka`, `identity-api`, `news-api`, `users-api`, `notifications-worker`, `gateway`, `learning`, `learning-api`, `cv`, `cv-api`…) | `JJDevHub.AppHost` | nazwy zasobów i connection stringów |
+| `ResourceNames` (`news-write`, `kafka`, `identity-api`, `identity-write`, `identity-read`, `news-api`, `notifications-worker`, `gateway`, `learning-write`, `learning-read`, `learning-api`, `cv-write`, `cv-read`, `cv-api`…) | `JJDevHub.AppHost` | nazwy zasobów i connection stringów |
 | `IdentityGuid` | wszędzie | eShop: id użytkownika Identity na agregacie `Buyer` |
 | `UserRegisteredIntegrationEvent`, `ArticleCreatedIntegrationEvent` | `*.Contracts` | kontrakty publikowane na szynę |
-| `Roles` (`owner`, `student`), `Policies` (`Owner`, `Student`) | `JJDevHub.ServiceDefaults` | role ASP.NET Identity w tokenie |
-| `StudentInvite`, `InviteCode` | `Identity.API` | kod zaproszenia, w bazie tylko skrót |
+| `Account`, `StudentInvite`, `InviteCode` | `Identity.API` | konto i zaproszenie ze strumienia; w zdarzeniu skrót hasła albo kodu, nigdy tekst jawny |
+| `Roles` (`owner`, `student`), `Policies` (`Owner`, `Student`) | `JJDevHub.ServiceDefaults` | role konta w tokenie |
 | `ResultHttpExtensions`, `EntityTag`, `CurrentUser` | `JJDevHub.ServiceDefaults/Http` | `Result<T>` → HTTP, `ETag` i `If-Match`, użytkownik z tokenu |
-| `Technology`, `Track`, `Lesson`, `Lecture`, `Term` | `Learning.Domain` | kompendium: technologia, kurs z lekcjami, wykład, hasło |
+| `Technology`, `Track`, `Lesson`, `CodeExample`, `Lecture`, `Term` | `Learning.Domain` | technologia, kurs (kolejność), lekcja z przykładami, wykład, hasło |
 | `Slug`, `LocalizedText`, `LocalizedMarkdown`, `Visibility` (`Private`, `Students`, `Public`), `Audience` | `Learning.Domain` | adres, dwa języki, kto widzi treść |
-| `Revision`, `*ChangedIntegrationEvent`, `IsDeleted` | `Learning.Contracts` | pełny stan agregatu na szynie, wersja do porównania |
-| `IContentChanges` | `Learning.Application` | jedno miejsce po zapisie: outbox, a od `20` indeks wyszukiwania |
+| `Version`, `*ChangedIntegrationEvent`, `IsDeleted` | `Learning.Contracts` | pełny stan agregatu na szynie; `Version` to wersja strumienia |
+| `IContentChanges` | `Learning.Application` | po zapisie samo zdarzenie do outboxa; indeks z `20` buduje projekcja |
 | `MarkdownRenderer`, `WikiLinkExtension`, `MarkdownRenderResult` | `JJDevHub.Markdown` | Markdown → bezpieczny HTML, linki `[[slug]]` do haseł |
 | `ISearchIndex`, `SearchDocument`, `SearchChunk`, `EmbeddingWorker`, `OnnxEmbeddingGenerator` | Learning | wyszukiwanie hybrydowe i wektory w procesie |
 | `ArticleStatus`, `ArticleVisibility`, `LessonReference`, `ArticleSlug` | `News.Domain` | notatka: szkic, publikacja, wycofanie, lekcja |
 | `ArticlePublishedIntegrationEvent`, `ArticleWithdrawnIntegrationEvent`, `FirstPublication` | `News.Contracts` | stan opublikowanej notatki na szynie |
-| `Resume`, `Skill`, `Period`, `EvidenceItem`, `ResumeView` | `Cv.API` | żywe CV i dowody z innych usług |
+| `Profile`, `Position`, `Project`, `Education`, `Activity`, `Skill`, `Language`, `Period`, `EvidenceItem`, `ResumeView` | `Cv.API` | agregaty CV, każdy ze swoim strumieniem; widok złożony, dowody z innych usług |
 
 ### Dlaczego `Article`, a nie `News`
 
-Usługa nazywa się News, a jej namespace to `JJDevHub.News.*`. Klasa `News` w takim drzewie trafia na błąd CS0118: kompilator widzi `News` jako namespace, nie typ. eShop omija to tak samo: usługa `Ordering`, agregat `Order`. U nas usługa News, agregat `Article`. Strumień: `article-{guid}`. Tak samo w [22-cv.md](22-cv.md): usługa Cv, agregat `Resume`.
+Usługa nazywa się News, a jej namespace to `JJDevHub.News.*`. Klasa `News` w takim drzewie trafia na błąd CS0118: kompilator widzi `News` jako namespace, nie typ. eShop omija to tak samo: usługa `Ordering`, agregat `Order`. U nas usługa News, agregat `Article`. Strumień: `article-{guid}`. Tak samo w [22-cv.md](22-cv.md): usługa Cv nie ma klasy `Cv`. Agregaty to `Profile`, `Position`, `Project`, `Education`, `Activity`, `Skill` i `Language`.
 
 ## Bazy
 
-Jeden serwer Postgres 16 (Compose dziś, Aspire od `14`), osobna baza na usługę. Usługa nie otwiera cudzej bazy.
+Jeden serwer Postgres 16 (Compose dziś, Aspire od `14`), osobna baza na usługę. Usługa nie otwiera cudzej bazy. Kolumny i klucze są w [bazy.md](bazy.md).
 
 | Baza | Usługa | Co w niej leży | Od numeru |
 | --- | --- | --- | --- |
 | `news_write` | News | `EventStreams`, `EventRecords`, `OutboxMessages` (od `12`), `ArticleSlugs` (od `21`) | `06` |
 | `news_read` | News | `ArticleSummaries`, `Checkpoints`, `ArticleRevisions` (od `21`) | `10` |
-| `jjdevhub` (zasób `identity`) | Identity | tabele `AspNetUsers`…, `AspNetRoles`, `StudentInvites`, `OutboxMessages` | `15` |
-| `users` | Users | `Users`, `InboxMessages` | `17` |
+| `identity_write` (zasób `identity-write`) | Identity | `EventStreams`, `EventRecords`, `AccountEmails`, `InviteCodeHashes`, `OutboxMessages` | `15` |
+| `identity_read` | Identity | `AccountSummaries`, `InviteSummaries`, `Checkpoints` | `15` |
 | `notifications` | Notifications | `SentNotifications`, `InboxMessages` | `17` |
-| `learning` | Learning | `Technologies`, `Tracks`, `Lessons`, `Lectures`, `Terms`, `TermLinks`, `LessonProgress`, `OutboxMessages`; od `20` `SearchDocuments`, `SearchChunks` | `19` |
-| `cv` | Cv | `Resumes`, `EvidenceItems`, `CvState`, `ResumeDocuments`, `InboxMessages` | `22` |
+| `learning_write` | Learning | `EventStreams`, `EventRecords`, `ContentSlugs`, `LessonSlugs`, `TechnologyUses`, `LessonProgress`, `OutboxMessages` | `19` |
+| `learning_read` | Learning | projekcje treści, `TermLinks`, `Checkpoints`; od `20` `SearchDocuments`, `SearchChunks` | `19` |
+| `cv_write` | Cv | `EventStreams`, `EventRecords` strumieni agregatów CV, `SkillSlugs` | `22` |
+| `cv_read` | Cv | bieżący skład (profil, stanowiska, projekty, edukacja, aktywność, umiejętności, języki), tabele historii, `EvidenceItems`, `CvState`, `ResumeDocuments`, `InboxMessages`, `Checkpoints` | `22` |
 
-Do numeru `14` testy dostają bazy z Testcontainers. Istniejąca baza `jjdevhub` zostaje bazą obecnego API. W `15` dostaje nazwę zasobu `identity`, a fizyczna nazwa zostaje, więc dane nie wymagają migracji.
+Do numeru `14` testy dostają bazy z Testcontainers, a istniejące API łączy się z `jjdevhub`. Od [15-identity.md](15-identity.md) ta baza nazywa się `identity_write` i przenosi wiersze `AspNetUsers` do strumieni.
 
 Od [20-wyszukiwanie.md](20-wyszukiwanie.md) serwer działa na obrazie `pgvector/pgvector:pg16` (Postgres 16 z rozszerzeniem `vector`, Debian). Przejście z `postgres:16-alpine` na VM idzie przez zrzut i odtworzenie, bo zmiana biblioteki C zmienia porządek sortowania tekstu.
 
 Każda baza ma jeden kontekst i domyślną tabelę `__EFMigrationsHistory`. Biblioteki budulcowe nie mają własnych migracji: dają mapowanie (`ApplyEventStore`, `ApplyIntegrationEventLog`), a kontekst i migracje są w usłudze.
 
-Connection stringi nazywają się jak zasoby Aspire: `ConnectionStrings:news-write`, `news-read`, `identity`, `users`, `notifications`, `learning`, `cv`, `kafka`.
+Connection stringi nazywają się jak zasoby Aspire: `ConnectionStrings:news-write`, `news-read`, `identity-write`, `identity-read`, `notifications`, `learning-write`, `learning-read`, `cv-write`, `cv-read`, `kafka`.
 
 ## Pakiety
 
@@ -234,9 +236,8 @@ Mediator, rejestr zdarzeń, magazyn zdarzeń i outbox piszemy sami nie z powodu 
 | `src/services/News/News.Infrastructure` | `NewsWriteContext`, `NewsReadContext`, projekcja, czytnik | `06` |
 | `src/services/News/News.Contracts` | `ArticleCreatedIntegrationEvent` | `12` |
 | `src/services/News/News.API` | endpointy | `16` |
-| `src/services/Identity/Identity.API`, `Identity.Contracts` | konto, JWT, JWKS | `15` |
-| `src/services/Users/Users.API` | profil użytkownika | `17` |
-| `src/services/Notifications/Notifications.Worker` | konsument zdarzeń | `17` |
+| `src/services/Identity/Identity.API`, `Identity.Contracts` | konto, JWT, JWKS, nazwa wyświetlana | `15` |
+| `src/services/Notifications/Notifications.Worker` | powiadomienia | `17` |
 | `src/gateway/JJDevHub.Gateway` | YARP przed klientem web | `16` |
 | `src/services/Learning/Learning.Domain`, `.Application`, `.Infrastructure`, `.Contracts`, `.API` | kompendium, kursy, wykłady, hasła; od `20` wyszukiwanie | `19` |
 | `src/building-blocks/JJDevHub.Markdown` | `MarkdownRenderer` wspólny dla Learning i News | `21` |
@@ -266,7 +267,7 @@ Runner to xUnit (`[Fact]`), jak w [tests/JJDevHub.Api.Tests](../../tests/JJDevHu
 | `tests/JJDevHub.AppHost.Tests` | `14`–`16`, `19`, `22` | zasoby, health checki, polityki, trasy gatewaya |
 | `tests/Identity.API.Tests` | `15` | rejestracja, outbox, JWKS, role, zaproszenia (przemianowany `JJDevHub.Api.Tests`) |
 | `tests/News.API.Tests` | `16`, `21`, `22` | endpointy, 401, 409, trasa przez gateway, notatki, ponowna publikacja stanu |
-| `tests/Users.API.Tests`, `tests/Notifications.Worker.Tests`, `tests/JJDevHub.Contracts.Tests` | `17`, `19`, `21` | konsumpcja, idempotencja, snapshot kontraktów |
+| `tests/Notifications.Worker.Tests`, `tests/JJDevHub.Contracts.Tests` | `17`, `19`, `21` | konsumpcja, idempotencja, snapshot kontraktów |
 | `tests/Learning.Domain.Tests`, `tests/Learning.Infrastructure.Tests`, `tests/Learning.API.Tests` | `19`, `20` | reguły treści, widoczność, Markdown, import, wyszukiwanie |
 | `tests/JJDevHub.Markdown.Tests` | `21` | render i sanitacja po przeniesieniu z Learning |
 | `tests/Cv.API.Tests` | `22` | import, dowody, cache, JSON Resume, PDF |
@@ -284,7 +285,7 @@ Testy, które potrzebują pliku spoza repozytorium, mają cechę i filtr: `[Trai
 - Handler komendy nie otwiera bazy odczytu. Handler zapytania nie woła `IEventStore`.
 - Oczekiwany błąd (pusty tytuł, brak wiersza, konflikt wersji, brak uprawnień) to `Result<T>`. Wyjątek zostaje dla awarii IO i błędu składu aplikacji.
 - Między usługami idzie zdarzenie integracyjne przez outbox i Kafkę. Usługa nie woła cudzej komendy i nie czyta cudzej bazy.
-- Event sourcing tylko w News. Users, Notifications, Learning i Cv to EF bez strumieni.
+- Event sourcing mają News (`Article`), Learning (`Technology`, `Track`, `Lesson`, `Lecture`, `Term`), Identity (`Account`, `StudentInvite`) i Cv (`Profile`, `Position`, `Project`, `Education`, `Activity`, `Skill`, `Language`). Notifications i postęp studenta to EF bez strumieni. `CodeExample` jest encją wewnątrz `Lesson`, bez strumienia. Nazwa wyświetlana jest polem `Account`.
 - Usługa, której stan jest potrzebny innym (Learning, notatki News), publikuje pełny stan z wersją. Konsument trzyma kopię i pomija wiadomość ze starszą wersją.
 - Treść niewidoczna dla czytelnika to `404`, nie `403`. Odpowiedź nie zdradza, że coś istnieje.
 - Zapis z `ETag` wymaga `If-Match`: brak to `428`, nieaktualny to `412`.
@@ -293,7 +294,7 @@ Testy, które potrzebują pliku spoza repozytorium, mają cechę i filtr: `[Trai
 
 - Keycloak, Vault, Jenkins, EventStoreDB, MongoDB, OpenSearch, RabbitMQ.
 - Kubernetes i Helm. Docelowo jest Compose wygenerowany przez Aspire na jednej VM.
-- Snapshoty strumieni. Agregat `Article` ma kilka zdarzeń, replay jest tani.
+- Snapshoty strumieni. Artykuł, konto i dokument CV mają krótkie strumienie, replay jest tani.
 - Saga i proces wieloetapowy między usługami.
 - Publikacja paczek na nuget.org.
 - Kilka instancji jednej usługi: cache drugiego poziomu, rozproszone blokady, kolejka zadań poza procesem.

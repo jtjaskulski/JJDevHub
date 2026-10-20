@@ -1,6 +1,6 @@
 # Aspire
 
-.NET Aspire składa system w jednym miejscu. `JJDevHub.AppHost` opisuje zasoby: serwer Postgresa z bazami usług, broker Kafka z Kafka UI i projekty usług. `JJDevHub.ServiceDefaults` daje każdej usłudze jednym wywołaniem telemetrię, health checki, service discovery i odporność klienta HTTP. Ten numer podpina istniejące API z [src/api](../../src/api) i zasoby dla News. Kolejne numery dopisują swoje projekty do AppHost: Identity w [15-identity.md](15-identity.md), News i gateway w [16-usluga-news.md](16-usluga-news.md), Users i Notifications w [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md).
+.NET Aspire składa system w jednym miejscu. `JJDevHub.AppHost` opisuje zasoby: serwer Postgresa z bazami usług, broker Kafka z Kafka UI i projekty usług. `JJDevHub.ServiceDefaults` daje każdej usłudze jednym wywołaniem telemetrię, health checki, service discovery i odporność klienta HTTP. Ten numer podpina istniejące API z [src/api](../../src/api) i zasoby dla News. Kolejne numery dopisują swoje projekty do AppHost: Identity w [15-identity.md](15-identity.md), News i gateway w [16-usluga-news.md](16-usluga-news.md), Notifications w [17-uzytkownicy-i-powiadomienia.md](17-uzytkownicy-i-powiadomienia.md).
 
 ## Po co
 
@@ -100,7 +100,7 @@ Wersje `Aspire.*` idą do [Directory.Packages.props](../../Directory.Packages.pr
 
 ### 2. Zasoby
 
-`ResourceNames` trzyma stałe: `postgres`, `news-write`, `news-read`, `identity`, `users`, `notifications`, `kafka`, `api`. Te same nazwy czytają usługi jako `ConnectionStrings:<nazwa>`.
+`ResourceNames` trzyma stałe: `postgres`, `news-write`, `news-read`, `identity`, `notifications`, `kafka`, `api`. Te same nazwy czytają usługi jako `ConnectionStrings:<nazwa>`.
 
 ```csharp
 var builder = DistributedApplication.CreateBuilder(args);
@@ -190,7 +190,7 @@ Workery otwierają własny span dopiero wtedy, gdy jest praca (krok 4). Pusty ob
 
 ### 3c. Nazwa usługi
 
-Aspire ustawia `OTEL_SERVICE_NAME` na nazwę zasobu: `api` w tym numerze, potem `identity-api`, `news-api`, `users-api`, `notifications-worker`, `gateway`. W telemetrii obowiązuje ta nazwa, a nie `JJDevHub.Api` z 06. Wygenerowany Compose ustawia tę samą zmienną. Filtry w Jaegerze i Grafanie przechodzą na nowe nazwy w [18-ci-uslug.md](18-ci-uslug.md), razem z celami Prometheusa.
+Aspire ustawia `OTEL_SERVICE_NAME` na nazwę zasobu: `api` w tym numerze, potem `identity-api`, `news-api`, `notifications-worker`, `gateway`. W telemetrii obowiązuje ta nazwa, a nie `JJDevHub.Api` z 06. Wygenerowany Compose ustawia tę samą zmienną. Filtry w Jaegerze i Grafanie przechodzą na nowe nazwy w [18-ci-uslug.md](18-ci-uslug.md), razem z celami Prometheusa.
 
 ### 3d. Nieoczekiwany wyjątek
 
@@ -263,7 +263,7 @@ builder.AddNpgsqlDbContext<NewsWriteContext>(
 builder.AddKafkaProducer<string, string>(ResourceNames.Kafka);
 ```
 
-Integracja dodaje health check, ślady i metryki. Domyślnie włącza też `NpgsqlRetryingExecutionStrategy`, a ta strategia rzuca `InvalidOperationException` przy transakcji otwartej ręcznie (`BeginTransactionAsync` w `NewsUnitOfWork`). Konteksty, w których `TransactionBehavior` albo outbox otwiera transakcję (`news-write`, `identity`, `users`, `notifications`), dostają `DisableRetry = true`. Ponowienie całej komendy po błędzie przejściowym zostaje dla klienta HTTP i dla konsumenta Kafki, który i tak ponawia. Kontekst tylko do odczytu (`news-read`) zostaje z ponowieniami. `AddNewsWrite` z [09-komenda.md](09-komenda.md) i `AddNewsRead` z [10-projekcja.md](10-projekcja.md) dostają przeciążenia bez connection stringa, które pomijają `AddDbContext`. `AddKafkaEventBus` z [13-kafka.md](13-kafka.md) bierze `IProducer<string, string>` z DI, gdy już jest zarejestrowany.
+Integracja dodaje health check, ślady i metryki. Domyślnie włącza też `NpgsqlRetryingExecutionStrategy`, a ta strategia rzuca `InvalidOperationException` przy transakcji otwartej ręcznie (`BeginTransactionAsync` w `NewsUnitOfWork`). Konteksty, w których `TransactionBehavior` albo outbox otwiera transakcję (`news-write`, `identity`, `notifications`), dostają `DisableRetry = true`. Ponowienie całej komendy po błędzie przejściowym zostaje dla klienta HTTP i dla konsumenta Kafki, który i tak ponawia. Kontekst tylko do odczytu (`news-read`) zostaje z ponowieniami. `AddNewsWrite` z [09-komenda.md](09-komenda.md) i `AddNewsRead` z [10-projekcja.md](10-projekcja.md) dostają przeciążenia bez connection stringa, które pomijają `AddDbContext`. `AddKafkaEventBus` z [13-kafka.md](13-kafka.md) bierze `IProducer<string, string>` z DI, gdy już jest zarejestrowany.
 
 ### 6. Publikacja na VM
 
@@ -340,7 +340,7 @@ Istniejące `tests/JJDevHub.Api.Tests` przechodzą bez zmian poza endpointem `/h
 - Zastąpienie Prometheusa, Jaegera i Grafany dashboardem Aspire na serwerze. Dashboard jest dla dev.
 - Backend logów na VM (Loki, OpenSearch). Logi zostają w `docker logs` z `trace_id`, a ślad prowadzi do linii logu.
 - Zmiana env, celów Prometheusa i dashboardów na VM — [18-ci-uslug.md](18-ci-uslug.md).
-- Identity, News.API, Users, Notifications w AppHost — numery `15`–`17`.
+- Identity, News.API, Notifications w AppHost — numery `15`–`17`.
 - Pipeline publikacji — [18-ci-uslug.md](18-ci-uslug.md).
 
 ## Źródła

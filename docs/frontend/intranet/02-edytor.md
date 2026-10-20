@@ -1,10 +1,10 @@
 # Intranet: edytor treści
 
-Ten plik opisuje ekrany pisania w intranecie: edytor Markdown z podglądem z serwera, zapis z `If-Match` i rozwiązywanie konfliktu, szkic w przeglądarce, kolejność lekcji, import z GitHuba, publikację i historię notatki oraz edycję CV z wyborem dowodów. Trasy, strażnik i listy są w [01-dostep-i-trasy.md](01-dostep-i-trasy.md), klient HTTP i `ServerHtml` w [react/05-tresc-z-api.md](../react/05-tresc-z-api.md).
+Ten plik opisuje ekrany pisania w intranecie: edytor Markdown z podglądem z serwera, zapis z `If-Match` i rozwiązywanie konfliktu, szkic w przeglądarce, kolejność lekcji, przykłady kodu w lekcji, publikację i historię notatki oraz edycję CV z wyborem dowodów. Trasy, strażnik i listy są w [01-dostep-i-trasy.md](01-dostep-i-trasy.md), klient HTTP i `ServerHtml` w [react/05-tresc-z-api.md](../react/05-tresc-z-api.md).
 
 ## Po co
 
-Źródłem treści jest Markdown: ten sam format, który przychodzi z importu repozytorium GitHub w [19-learning.md](../../api/19-learning.md). Lekcja napisana w intranecie i lekcja z importu przechodzą przez jeden potok (`JJDevHub.Markdown`: Markdig, linki `[[hasło]]`, `HtmlSanitizer`). Edytor musi więc pokazywać dokładnie ten HTML, który zobaczy student, a zapis nie może po cichu nadpisać zmiany z drugiej karty.
+Źródłem wyjaśnienia jest Markdown z [19-learning.md](../../api/19-learning.md). Przykład kodu jest osobnym polem lekcji (`language`, `source`, podpis), nie blokiem w tym Markdownie. Edytor musi pokazywać dokładnie ten HTML wyjaśnienia, który zobaczy student, a zapis nie może po cichu nadpisać zmiany z drugiej karty.
 
 ## Dlaczego te narzędzia
 
@@ -302,22 +302,16 @@ Ten sam hook obsługuje listę z [01-dostep-i-trasy.md](01-dostep-i-trasy.md) i 
 
 Ruch wyłącza się przy `prefers-reduced-motion`: `DragOverlay` bez animacji `dropAnimation`.
 
-### 10. Import z GitHuba
+### 10. Przykłady w lekcji
 
-`ImportDialog` na stronie kursu:
+`LessonEditPage` ma edytor Markdown wyjaśnienia i listę przykładów pod nim.
 
-| Pole | Walidacja w kliencie | Domyślnie |
-| --- | --- | --- |
-| repozytorium | `^[\w.-]+/[\w.-]+$` (`owner/nazwa`) | ostatnio użyte dla kursu |
-| gałąź albo tag | niepuste | `main` |
-| katalog | bez `..` | puste (korzeń) |
-| język | `pl` albo `en` | `pl` |
+- każdy przykład: `select` języka z listy w [19](../../api/19-learning.md) (`tsx` dla komponentu React, `csharp`, `sql` i reszta), pole źródła i opcjonalny podpis,
+- kolejność przykładów to kolejność na stronie; strzałki w górę i w dół, ten sam układ co przy lekcjach kursu,
+- zapis lekcji to jeden `PUT` z wyjaśnieniem i całą listą przykładów oraz `If-Match` lekcji. `ETag` kursu się od tego nie zmienia,
+- nowa lekcja to `POST /api/learning/lessons` z `If-Match` kursu.
 
-Wysłanie → `POST /api/learning/tracks/{id}/import`. Odpowiedź `ImportReport` rysuje `ImportReportTable`: plik, wynik (`Added`, `Updated`, `Unchanged`, `Skipped`), powód dla `Skipped`. `503` z `Retry-After` wyłącza przycisk i odlicza sekundy („GitHub ogranicza zapytania, spróbuj za 42 s”).
-
-Nowe lekcje z importu są `Private` ([19](../../api/19-learning.md)). Pod raportem link „Przejrzyj nowe lekcje” prowadzi do listy lekcji z filtrem `Prywatne`.
-
-Lekcja ze źródłem otwiera się w edytorze tylko do odczytu (`readOnly` w hooku), z linkiem do pliku na GitHubie i przyciskiem „Odłącz źródło” (`DELETE …/lessons/{lessonId}/source`). `alert-dialog` wyjaśnia skutek: lekcja staje się edytowalna, a kolejny import ją pominie (`Skipped`), żeby nie nadpisać ręcznej zmiany.
+Podgląd Markdown dotyczy wyjaśnienia. Źródło przykładu w podglądzie jest kodem, nie HTML-em z serwera.
 
 ### 11. Notatka: publikacja, lekcja i historia
 
@@ -401,9 +395,8 @@ CodeMirror w jsdom działa bez układu strony (brak `getClientRects` daje ostrze
 
 ## Zasady
 
-- Treść pisze się w Markdown. HTML pochodzi z serwera, także w podglądzie.
+- Treść wyjaśnienia pisze się w Markdown. HTML pochodzi z serwera, także w podglądzie. Przykład kodu zapisuje się jako źródło i język.
 - Zapis zawsze z `If-Match`. Nadpisanie wersji z serwera wymaga kliknięcia „Zapisz moją wersję”.
-- Lekcja ze źródłem jest tylko do odczytu, dopóki owner nie odłączy źródła.
 - Szkic w `localStorage` zawiera tylko treść i `ETag`. Tokenu, kodów zaproszeń i danych z CV poza treścią formularza tam nie ma.
 - Kolory edytora ze zmiennych tokenów, bez drugiej palety.
 - Każda operacja przeciągania ma odpowiednik z klawiatury.
@@ -412,7 +405,7 @@ CodeMirror w jsdom działa bez układu strony (brak `getClientRects` daje ostrze
 
 - Wspólna edycja w czasie rzeczywistym (Yjs, CRDT). Jeden owner, a konflikty łapie `If-Match`.
 - WYSIWYG i edycja w podglądzie.
-- Wgrywanie obrazów. Obrazy lekcji leżą w repozytorium GitHub i przychodzą z importem, a notatka linkuje obraz absolutnym adresem `https`.
+- Wgrywanie obrazów. Obraz w wyjaśnieniu linkuje absolutnym adresem `https`.
 - Synchronizacja przewijania edytora i podglądu.
 - Edycja `cv.local.json`. Plik służy tylko do jednorazowego importu z [01-dostep-i-trasy.md](01-dostep-i-trasy.md).
 
