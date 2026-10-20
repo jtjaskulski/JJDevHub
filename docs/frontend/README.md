@@ -130,7 +130,7 @@ Po [react/05-tresc-z-api.md](react/05-tresc-z-api.md), na komponentach z [shadcn
 | Plik | Zakres |
 | --- | --- |
 | [intranet/01-dostep-i-trasy.md](intranet/01-dostep-i-trasy.md) | `/intranet/*` poza językiem, `OwnerRoute` z ról z `GET /api/auth/me`, `next` po logowaniu, leniwy chunk, listy z widocznością, studenci, zaproszenia, operacje jednorazowe. |
-| [intranet/02-edytor.md](intranet/02-edytor.md) | CodeMirror 6, podgląd z `POST /api/learning/preview`, `If-Match` i dialog konfliktu `412`, szkic w `localStorage`, `useOptimistic`, kolejność lekcji, import z GitHuba, publikacja i historia notatki, CV z wyborem dowodów. |
+| [intranet/02-edytor.md](intranet/02-edytor.md) | CodeMirror 6, podgląd z `POST /api/learning/preview`, `If-Match` i dialog konfliktu `412`, szkic w `localStorage`, `useOptimistic`, kolejność lekcji, przykłady kodu w lekcji, publikacja i historia notatki, CV z wyborem dowodów. |
 
 ## Tutorial
 
@@ -231,7 +231,7 @@ Intranet dochodzi w tym samym kliencie web, gdy treść siedzi w API: [intranet/
 4. **Logowanie.** `/login` poza językiem. Formularz z button i input shadcn. Błąd pola widać przy polu. Żądanie idzie `fetch` na `/api` przez proxy w dev.
 5. **CV.** Dziś strona `/:lang/cv` czyta wygenerowany `cv.json`, a autor trzyma prawdziwe dane w `cv.local.json` poza gitem. Docelowo CV jest w usłudze Cv z [api/22](../api/22-cv.md): jednorazowy import pliku, potem edycja w intranecie, PDF i JSON Resume z API, umiejętności z dowodami z kursów i notatek.
 6. **Lista kursów na telefonie.** Osobny ekran, klasy NativeWind, te same liczby. Scroll dokumentu i `backdrop-filter` zostają przy webie.
-7. **Intranet.** Owner wchodzi na `/intranet`, pisze lekcję w Markdown z podglądem z serwera, importuje kurs z repozytorium GitHub, publikuje notatkę dla studentów i wybiera dowody do CV. Ten sam klient, te same komponenty UI, zapisy z `If-Match`. Student i gość wracają na `/pl`.
+7. **Intranet.** Owner wchodzi na `/intranet`, pisze lekcję: wyjaśnienie w Markdown z podglądem z serwera i przykłady kodu obok akapitów, publikuje notatkę dla studentów i wybiera dowody do CV. Ten sam klient, te same komponenty UI, zapisy z `If-Match`. Student i gość wracają na `/pl`.
 8. **Kurs dla studenta.** Student rejestruje się z kodem zaproszenia, wchodzi z kompendium w technologię, otwiera kurs i oznacza lekcje jako przeczytane. Lekcje `Students` widzi tylko zalogowany z rolą.
 
 ## Zasady

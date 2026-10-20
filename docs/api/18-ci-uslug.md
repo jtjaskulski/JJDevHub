@@ -79,7 +79,7 @@ Prometheus, Jaeger i Grafana z [docs/CICD/07](../CICD/07-prometheus.md)–[09](.
 | `infra/ci/deploy-gate.mjs`, `deploy-gate.test.mjs` | wymagane workflowy: `ci` i `web` |
 | `infra/ci/release-and-deploy.sh` | weryfikacja atestacji, obrazy po digeście, migracje, smoke, rollback |
 | `infra/ci/trivy-image.sh` | skan dowolnego obrazu (z `trivy-api.sh`) |
-| `infra/ci/migrate-from-single-api.sh` | jednorazowe przejście VM: dump `jjdevhub`, przeniesienie env |
+| `infra/ci/migrate-from-single-api.sh` | jednorazowe przejście VM: dump starej bazy `jjdevhub`, odtworzenie do `identity_write`, przeniesienie env |
 | `infra/runner/Dockerfile`, `infra/runner/jjdevhub-build-runner.service` | efemeryczny runner build |
 | `infra/docker/docker-compose.yml` | zostają `web`, `prometheus`, `jaeger`, `grafana`; znikają `db` i `api`; sieć `jjdevhub` jako zewnętrzna |
 | `src/Clients/web/nginx.conf` | `/api/`, `/.well-known/`, `/health` → `gateway:8080` |
@@ -98,7 +98,7 @@ Prometheus, Jaeger i Grafana z [docs/CICD/07](../CICD/07-prometheus.md)–[09](.
 | --- | --- |
 | `postgres` | 512 MB |
 | `kafka` (`KAFKA_HEAP_OPTS=-Xms256m -Xmx512m`) | 768 MB |
-| `identity-api`, `news-api`, `users-api`, `gateway`, `notifications-worker` | po 256 MB |
+| `identity-api`, `news-api`, `gateway`, `notifications-worker` | po 256 MB |
 | `web` (nginx) | 64 MB |
 | `prometheus` | 384 MB |
 | `jaeger` (`max_traces: 10000`) | 256 MB |
@@ -135,7 +135,7 @@ Runner build: `infra/runner/Dockerfile` na bazie `ghcr.io/actions/actions-runner
 
 `registry:2` na VM build, port `5000`, tylko z LAN-u Proxmoxa. Adres to zmienna repozytorium `vars.REGISTRY` (np. `registry.jjdevhub.lan:5000`), nie sekret. Certyfikat wystawia lokalne CA (`step-ca` albo jednorazowy `openssl`), a obie VM mają certyfikat CA w magazynie systemu i w `/etc/docker/certs.d/<adres>/ca.crt`. `insecure-registries` odpada, bo weryfikacja atestacji po `oci://` wymaga HTTPS.
 
-Obrazy: `jjdevhub/identity-api`, `jjdevhub/news-api`, `jjdevhub/users-api`, `jjdevhub/notifications-worker`, `jjdevhub/gateway`, `jjdevhub/web` oraz `jjdevhub/<usługa>-migrations`. `19` i `22` dokładają `jjdevhub/learning-api` i `jjdevhub/cv-api`. Obraz web przechodzi z archiwum w artefakcie ([13-lancuch-dostaw.md](../CICD/13-lancuch-dostaw.md)) na ten sam rejestr.
+Obrazy: `jjdevhub/identity-api`, `jjdevhub/news-api`, `jjdevhub/notifications-worker`, `jjdevhub/gateway`, `jjdevhub/web` oraz `jjdevhub/<usługa>-migrations`. `19` i `22` dokładają `jjdevhub/learning-api` i `jjdevhub/cv-api`. Obraz web przechodzi z archiwum w artefakcie ([13-lancuch-dostaw.md](../CICD/13-lancuch-dostaw.md)) na ten sam rejestr.
 
 ### 4. Mapa usług i wykrywanie zmian
 
@@ -162,7 +162,7 @@ Obrazy: `jjdevhub/identity-api`, `jjdevhub/news-api`, `jjdevhub/users-api`, `jjd
 }
 ```
 
-Pozostałe usługi analogicznie. Identity zachowuje `sonarKey` `jjdevhub-api`, żeby historia analizy z [10-sonarqube.md](../CICD/10-sonarqube.md) nie przepadła. Users ma w `paths` także `src/services/Identity/Identity.Contracts/**`, Notifications oba `*.Contracts`.
+Pozostałe usługi analogicznie. Identity zachowuje `sonarKey` `jjdevhub-api`, żeby historia analizy z [10-sonarqube.md](../CICD/10-sonarqube.md) nie przepadła. Notifications ma w `paths` oba `*.Contracts`.
 
 `releasePath` to ścieżka komponentu w `release-please-config.json`, a klucz usługi (`news`) to nazwa komponentu i przedrostek tagu (`news-v1.4.0`). `release.yml` zamienia `paths_released` z release-please na klucze usług przez to pole. Opcjonalne `setup` to skrypt uruchamiany przed testami, gdy usługa potrzebuje pliku spoza repozytorium: model wektorów w [20-wyszukiwanie.md](20-wyszukiwanie.md), Typst w [22-cv.md](22-cv.md). Workflow trzyma jego wynik w `actions/cache` z kluczem z sumy manifestu.
 
@@ -206,7 +206,7 @@ Podpisującym atestacji jest reużywalny workflow, nie `release.yml`. Deploy spr
 
 Zmiany w plikach z [docs/CICD](../CICD/README.md), wdrażane razem z pierwszym deployem nowego układu:
 
-- `infra/prometheus/prometheus.yml` — zamiast `jjdevhub-api` jeden job na usługę: `job_name` równe nazwie zasobu (`identity-api`, `news-api`, `users-api`, `notifications-worker`, `gateway`), cel `<nazwa>:8080`, `metrics_path: /metrics`, `scrape_interval: 15s`. Prometheus jest w sieci `jjdevhub` razem z usługami z Compose Aspire.
+- `infra/prometheus/prometheus.yml` — zamiast `jjdevhub-api` jeden job na usługę: `job_name` równe nazwie zasobu (`identity-api`, `news-api`, `notifications-worker`, `gateway`), cel `<nazwa>:8080`, `metrics_path: /metrics`, `scrape_interval: 15s`. Prometheus jest w sieci `jjdevhub` razem z usługami z Compose Aspire.
 - `infra/grafana/dashboards/jjdevhub-services.json` — zmienna `service` z `label_values(up, job)`, panele: `up{job=~"$service"}`, tempo i p95 z `http_server_request_duration_seconds_*` po `http_route`, `jjdevhub_projection_lag`, `jjdevhub_outbox_pending`, `jjdevhub_kafka_consumer_lag`, `rate(jjdevhub_kafka_dlq_total[5m])`. Stary `jjdevhub-api-overview.json` znika, jego `uid` przestaje istnieć.
 - Ślady: AppHost w trybie publikacji ustawia każdej usłudze `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` z parametru `otlp-traces-endpoint` (`http://jaeger:4317` w `compose.env`). `OTEL_EXPORTER_OTLP_ENDPOINT` zostaje puste, więc metryki i logi nie idą do Jaegera ([14-aspire.md](14-aspire.md), krok 3a). `OTEL_SERVICE_NAME` to nazwa zasobu. W Jaegerze i w Explore Grafany usługi to `identity-api`, `news-api`… zamiast `JJDevHub.Api`.
 - `max_traces: 10000` w [infra/jaeger/config.yaml](../../infra/jaeger/config.yaml) zostaje. Filtr `/metrics` i `/health` oraz sampler z 14 utrzymują ruch tła blisko zera.
@@ -226,7 +226,7 @@ Mechanizm jest z [12-sekrety.md](../CICD/12-sekrety.md): zaszyfrowane pliki w `i
 | `infra/secrets/compose.sops.env` | `POSTGRES_PASSWORD`, `GRAFANA_ADMIN_PASSWORD` | bez zmian z 12 |
 | `infra/secrets/identity.sops.env` | `ConnectionStrings__identity` | z `api.sops.env`; `Jwt__Key` znika |
 | `infra/secrets/identity-signing.sops.pem` | klucz RSA z [15-identity.md](15-identity.md) | nowy |
-| `infra/secrets/news.sops.env`, `users.sops.env`, `notifications.sops.env` | connection stringi baz usługi | nowe |
+| `infra/secrets/news.sops.env`, `notifications.sops.env` | connection stringi baz usługi | nowe |
 | `infra/secrets/learning.sops.env`, `cv.sops.env` | connection stringi baz usługi | od `19` i `22` |
 
 AppHost w trybie publikacji (callback `PublishAsDockerComposeService`) usuwa z wygenerowanego `environment:` wpisy z wartością sekretną (connection stringi z hasłem) i dopisuje usłudze `secrets:` z plikami `/run/jjdevhub/secrets/<usługa>/<klucz>`. Identity dostaje jawne `Jwt__SigningKeyPath=/run/secrets/identity-signing.pem`. Postgres dostaje `POSTGRES_PASSWORD_FILE`, Grafana `GF_SECURITY_ADMIN_PASSWORD__FILE`. Wartości jawne (`Jwt__Issuer`, `Identity__Url`, `otlp-traces-endpoint`, adresy obrazów) zostają parametrami Aspire w wygenerowanym `.env`, a w pliku SOPS są niezaszyfrowane dzięki `unencrypted_regex` z [12-sekrety.md](../CICD/12-sekrety.md).
@@ -240,7 +240,7 @@ Jednorazowo, ręcznie, przez `infra/ci/migrate-from-single-api.sh` na VM produkc
 - wyłączenie `release.yml` i `deploy.yml` w GitHubie, żeby żadne wydanie nie wdrożyło się w trakcie,
 - `pg_dump -Fc jjdevhub` z kontenera `jjdevhub-db` do `/var/lib/jjdevhub/backup/`,
 - pliki z kroku 9 powstają wcześniej, w PR tego numeru, przez `sops edit` na maszynie właściciela; skrypt tylko sprawdza, że odszyfrowały się na VM,
-- pierwszy deploy nowego układu bez usług (`postgres`, `kafka`), `pg_restore` do bazy `jjdevhub` w nowym Postgresie,
+- pierwszy deploy nowego układu bez usług (`postgres`, `kafka`), `pg_restore` do bazy `identity_write` w nowym Postgresie,
 - pełny deploy, smoke, włączenie obu workflowów.
 
 Stary kontener `jjdevhub-db` i jego volume zostają zatrzymane, nie usunięte, do czasu potwierdzenia, że logowanie działa na starych kontach.
@@ -272,7 +272,7 @@ Job `deploy`:
 
 Migracje są wstecznie zgodne (dodanie kolumny teraz, usunięcie w kolejnym wydaniu), więc rollback obrazów nie wymaga rollbacku schematu.
 
-Komponenty release-please po tym numerze: jeden na usługę (`identity`, `news`, `users`, `notifications`, `gateway`, od `19` i `22` także `learning` i `cv`), `platform`, `web` i `infra`. `api` znika z `release-please-config.json`; `identity` startuje od wersji, na której skończyło się `api`, bo to ten sam kod po przeniesieniu. Zmiana w `*.Contracts` wydaje usługę, która kontrakt publikuje. Konsument nie musi się przebudować: zgodna zmiana kontraktu jest addytywna, a niezgodna to `.v2` i zmiana w kodzie konsumenta, czyli osobne wydanie.
+Komponenty release-please po tym numerze: jeden na usługę (`identity`, `news`, `notifications`, `gateway`, od `19` i `22` także `learning` i `cv`), `platform`, `web` i `infra`. `api` znika z `release-please-config.json`; `identity` startuje od wersji, na której skończyło się `api`, bo to ten sam kod po przeniesieniu. Zmiana w `*.Contracts` wydaje usługę, która kontrakt publikuje. Konsument nie musi się przebudować: zgodna zmiana kontraktu jest addytywna, a niezgodna to `.v2` i zmiana w kodzie konsumenta, czyli osobne wydanie.
 
 ### 12. Aktualizacja docs/CICD i reguły
 
@@ -321,7 +321,7 @@ Projektu .NET w tym numerze nie ma. Sprawdzenia:
 
 | Sprawdzenie | Gdzie | Wynik |
 | --- | --- | --- |
-| `node --test infra/ci/changed-services.test.mjs` | job `changes` | zmiana tylko w `src/services/News/**` daje `["news"]`; zmiana w `src/building-blocks/**` daje wszystkie; zmiana w `Identity.Contracts` daje `identity`, `users`, `notifications`; brak zmian .NET daje `[]` |
+| `node --test infra/ci/changed-services.test.mjs` | job `changes` | zmiana tylko w `src/services/News/**` daje `["news"]`; zmiana w `src/building-blocks/**` daje wszystkie; zmiana w `Identity.Contracts` daje `identity`, `notifications`; brak zmian .NET daje `[]` |
 | `node --test infra/ci/deploy-gate.test.mjs` | job `gate` w `release.yml` | wymaga `ci` i `web` dla SHA wydania; brakujący przebieg zostaje uruchomiony |
 | `actionlint` | job `lint` | kod 0 |
 | `shellcheck infra/ci/*.sh` | job `lint` | kod 0 |
