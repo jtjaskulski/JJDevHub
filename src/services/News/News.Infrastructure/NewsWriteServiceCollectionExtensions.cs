@@ -1,9 +1,13 @@
 using JJDevHub.Cqrs;
 using JJDevHub.Domain;
+using JJDevHub.EventBus;
 using JJDevHub.EventStore;
 using JJDevHub.EventStore.Postgres;
+using JJDevHub.IntegrationEventLog;
+using JJDevHub.News.Contracts;
 using JJDevHub.News.Domain.Articles;
 using JJDevHub.News.Infrastructure.Persistence;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -28,6 +32,9 @@ namespace JJDevHub.News.Infrastructure
             services.AddScoped<IStreamNaming<Article>, ArticleStreamNaming>();
             services.AddScoped<IUnitOfWork, NewsUnitOfWork>();
             services.TryAddSingleton(TimeProvider.System);
+            services.AddIntegrationEventLog<NewsWriteContext>(typeof(ArticleCreatedIntegrationEvent).Assembly);
+            services.AddSingleton<IEventBus, InMemoryEventBus>();
+            services.Configure<InboxOptions>(options => options.Consumer = "News");
             return services;
         }
     }
