@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\building-blocks\JJDevHub.Cqrs\JJDevHub.Cqrs.csproj" />
     <ProjectReference Include="..\..\..\building-blocks\JJDevHub.EventStore\JJDevHub.EventStore.csproj" />
+    <ProjectReference Include="..\News.Contracts\News.Contracts.csproj" />
     <ProjectReference Include="..\News.Domain\News.Domain.csproj" />
   </ItemGroup>
 

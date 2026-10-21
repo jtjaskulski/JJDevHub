@@ -1,9 +1,13 @@
 using JJDevHub.Cqrs;
 using JJDevHub.Domain;
+using JJDevHub.EventBus;
 using JJDevHub.EventStore;
 using JJDevHub.EventStore.Postgres;
+using JJDevHub.IntegrationEventLog;
+using JJDevHub.News.Contracts;
 using JJDevHub.News.Domain.Articles;
 using JJDevHub.News.Infrastructure.Persistence;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -16,13 +20,17 @@ namespace JJDevHub.News.Infrastructure
         public static IServiceCollection AddNewsWrite(this IServiceCollection services, string connectionString)
         {
             services.AddDbContext<NewsWriteContext>(options => options.UseNpgsql(connectionString));
-            services.AddSingleton(EventTypeRegistry.FromAssemblies(typeof(IDomainEvent), typeof(Article).Assembly));
+            services.AddSingleton(EventTypeRegistry.FromAssemblies(
+                typeof(IDomainEvent), typeof(Article).Assembly));
             services.AddSingleton<IEventSerializer, JsonEventSerializer>();
             services.AddPostgresEventStore<NewsWriteContext>();
             services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
             services.AddScoped<IStreamNaming<Article>, ArticleStreamNaming>();
             services.AddScoped<IUnitOfWork, NewsUnitOfWork>();
             services.TryAddSingleton(TimeProvider.System);
+            services.AddIntegrationEventLog<NewsWriteContext>(typeof(ArticleCreatedIntegrationEvent).Assembly);
+            services.AddSingleton<IEventBus, InMemoryEventBus>();
+            services.Configure<InboxOptions>(options => options.Consumer = "News");
             return services;
         }
     }

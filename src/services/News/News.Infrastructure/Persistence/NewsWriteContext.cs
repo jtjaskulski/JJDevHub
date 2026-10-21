@@ -1,4 +1,6 @@
 using JJDevHub.EventStore.Postgres;
+using JJDevHub.IntegrationEventLog;
+
 using Microsoft.EntityFrameworkCore;
 
 namespace JJDevHub.News.Infrastructure.Persistence
@@ -9,6 +11,7 @@ namespace JJDevHub.News.Infrastructure.Persistence
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.ApplyEventStore();
+            modelBuilder.ApplyIntegrationEventLog();
         }
     }
 }
