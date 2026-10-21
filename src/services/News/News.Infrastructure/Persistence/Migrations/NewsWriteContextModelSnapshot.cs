@@ -16,13 +16,13 @@ partial class NewsWriteContextModelSnapshot : ModelSnapshot
     // If you encounter a merge conflict in the line below, it means you need to
     // discard one of the migration branches and recreate its migrations on top of
     // the other branch. See https://aka.ms/efcore-docs-migrations-conflicts for more info.
-    public override string LastMigrationId => "20261015022516_NewsWriteInitial";
+    public override string LastMigrationId => "20261021121434_NewsWriteOutbox";
 
     protected override void BuildModel(ModelBuilder modelBuilder)
     {
 #pragma warning disable 612, 618
         modelBuilder
-            .HasAnnotation("ProductVersion", "11.0.0-rc.1.26425.128")
+            .HasAnnotation("ProductVersion", "11.0.0-rc.2.26504.105")
             .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
         NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -82,6 +82,68 @@ partial class NewsWriteContextModelSnapshot : ModelSnapshot
                 b.HasKey("StreamId");
 
                 b.ToTable("EventStreams");
+            });
+
+        modelBuilder.Entity("JJDevHub.IntegrationEventLog.InboxMessage", b =>
+            {
+                b.Property<Guid>("EventId")
+                    .HasColumnType("uuid");
+
+                b.Property<string>("Consumer")
+                    .HasColumnType("text");
+
+                b.Property<string>("Name")
+                    .IsRequired()
+                    .HasColumnType("text");
+
+                b.Property<DateTimeOffset>("ProcessedOn")
+                    .HasColumnType("timestamp with time zone");
+
+                b.HasKey("EventId", "Consumer");
+
+                b.ToTable("InboxMessages");
+            });
+
+        modelBuilder.Entity("JJDevHub.IntegrationEventLog.OutboxMessage", b =>
+            {
+                b.Property<Guid>("EventId")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("uuid");
+
+                b.Property<int>("Attempts")
+                    .HasColumnType("integer");
+
+                b.Property<DateTimeOffset>("CreatedOn")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<string>("LastError")
+                    .HasMaxLength(2000)
+                    .HasColumnType("character varying(2000)");
+
+                b.Property<string>("Name")
+                    .IsRequired()
+                    .HasColumnType("text");
+
+                b.Property<DateTimeOffset>("OccurredOn")
+                    .HasColumnType("timestamp with time zone");
+
+                b.Property<string>("PartitionKey")
+                    .IsRequired()
+                    .HasColumnType("text");
+
+                b.Property<string>("Payload")
+                    .IsRequired()
+                    .HasColumnType("jsonb");
+
+                b.Property<DateTimeOffset?>("ProcessedOn")
+                    .HasColumnType("timestamp with time zone");
+
+                b.HasKey("EventId");
+
+                b.HasIndex("CreatedOn")
+                    .HasFilter("\"ProcessedOn\" IS NULL");
+
+                b.ToTable("OutboxMessages");
             });
 #pragma warning restore 612, 618
     }

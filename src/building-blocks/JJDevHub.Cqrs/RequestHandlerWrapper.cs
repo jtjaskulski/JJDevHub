@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace JJDevHub.Cqrs
 {
-    internal abstract class RequestHandlerWrapper<TResponse>
+    public abstract class RequestHandlerWrapper<TResponse>
     {
         public abstract Task<Result<TResponse>> Handle(
             IRequest<TResponse> request,
@@ -12,7 +12,7 @@ namespace JJDevHub.Cqrs
             CancellationToken cancellationToken);
     }
 
-    internal sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandlerWrapper<TResponse>
+    public sealed class RequestHandlerWrapper<TRequest, TResponse> : RequestHandlerWrapper<TResponse>
         where TRequest : IRequest<TResponse>
     {
         public override Task<Result<TResponse>> Handle(
@@ -30,18 +30,33 @@ namespace JJDevHub.Cqrs
             if (handler is null)
             {
                 throw new InvalidOperationException(
-                    $"No handler registered for request '{typeof(TRequest).Name}'.");
+                    $"Handler for '{typeof(TRequest).Name}' is not registered.");
             }
 
-            RequestHandlerDelegate<TResponse> next = () => handler.Handle(typed, cancellationToken);
-            foreach (var behavior in services.GetServices<IPipelineBehavior<TRequest, TResponse>>().Reverse())
+            return Invoke(typed, handler, services, cancellationToken);
+        }
+
+        private static Task<Result<TResponse>> Invoke(
+            TRequest request,
+            IRequestHandler<TRequest, TResponse> handler,
+            IServiceProvider services,
+            CancellationToken cancellationToken)
+        {
+            var behaviors = services.GetServices<IPipelineBehavior<TRequest, TResponse>>().ToList();
+            RequestHandlerDelegate<TResponse> next = () => handler.Handle(request, cancellationToken);
+            for (var index = behaviors.Count - 1; index >= 0; index--)
             {
-                var current = behavior;
-                var nextCopy = next;
-                next = () => current.Handle(typed, nextCopy, cancellationToken);
+                next = Wrap(behaviors[index], request, next, cancellationToken);
             }
 
             return next();
         }
+
+        private static RequestHandlerDelegate<TResponse> Wrap(
+            IPipelineBehavior<TRequest, TResponse> behavior,
+            TRequest request,
+            RequestHandlerDelegate<TResponse> inner,
+            CancellationToken cancellationToken) =>
+            () => behavior.Handle(request, inner, cancellationToken);
     }
 }

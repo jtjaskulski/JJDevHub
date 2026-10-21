@@ -1,3 +1,4 @@
+using JJDevHub.EventBus;
 using JJDevHub.EventStore;
 using JJDevHub.News.Application;
 using JJDevHub.News.Domain.Articles;
@@ -20,7 +21,14 @@ namespace News.Application.Tests
             services.AddSingleton<IStreamNaming<Article>, TestArticleStreamNaming>();
             services.AddScoped<IRepository<Article>, Repository<Article>>();
             services.AddSingleton<TimeProvider>(new FixedTimeProvider(Occurred));
+            services.AddSingleton<IIntegrationEventOutbox, DiscardingOutbox>();
             return services.BuildServiceProvider();
+        }
+
+        private sealed class DiscardingOutbox : IIntegrationEventOutbox
+        {
+            public Task AddAsync(IIntegrationEvent integrationEvent, CancellationToken cancellationToken) =>
+                Task.CompletedTask;
         }
 
         private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
