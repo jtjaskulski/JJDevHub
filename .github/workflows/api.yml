@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - "src/api/**"
+      - "src/aspire/JJDevHub.ServiceDefaults/**"
       - "tests/JJDevHub.Api.Tests/**"
       - "nuget.config"
       - "Directory.Build.props"

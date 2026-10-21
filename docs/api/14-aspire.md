@@ -206,7 +206,10 @@ namespace JJDevHub.ServiceDefaults
         public async ValueTask<bool> TryHandleAsync(
             HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
         {
-            logger.LogError(exception, "Unhandled exception on {Path}", httpContext.Request.Path);
+            string path = httpContext.Request.Path.ToString()
+                .Replace("\r", string.Empty)
+                .Replace("\n", string.Empty);
+            logger.LogError(exception, "Unhandled exception on {Path}", path);
             Activity.Current?.AddException(exception);
             Activity.Current?.SetStatus(ActivityStatusCode.Error);
 
@@ -226,7 +229,7 @@ namespace JJDevHub.ServiceDefaults
 }
 ```
 
-Treść wyjątku nie trafia do odpowiedzi. `OperationCanceledException` przy przerwanym żądaniu (`httpContext.RequestAborted.IsCancellationRequested`) idzie do logu na poziomie `Debug` zamiast `Error`, bez statusu `Error` na spanie: klient sam zrezygnował i odpowiedzi już nie czyta.
+Treść wyjątku nie trafia do odpowiedzi. Ścieżka żądania w logu ma usunięte `\r` i `\n`, żeby wpis nie rozbił się na drugą linię. `OperationCanceledException` przy przerwanym żądaniu (`httpContext.RequestAborted.IsCancellationRequested`) idzie do logu na poziomie `Debug` zamiast `Error`, bez statusu `Error` na spanie: klient sam zrezygnował i odpowiedzi już nie czyta.
 
 ### 4. Źródła śladów i mierniki w bibliotekach
 

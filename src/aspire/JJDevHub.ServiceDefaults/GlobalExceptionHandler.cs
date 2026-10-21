@@ -44,7 +44,9 @@ namespace JJDevHub.ServiceDefaults
 
         private static string PathForLog(HttpContext httpContext)
         {
-            return (httpContext.Request.Path.Value ?? string.Empty).ReplaceLineEndings(string.Empty);
+            return httpContext.Request.Path.ToString()
+                .Replace("\r", string.Empty)
+                .Replace("\n", string.Empty);
         }
     }
 }
