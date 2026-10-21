@@ -4,7 +4,6 @@ using JJDevHub.News.Domain.Articles;
 
 namespace JJDevHub.News.Application.Articles
 {
-
     public sealed class ReviseArticleCommandValidator : AbstractValidator<ReviseArticleCommand>
     {
         public ReviseArticleCommandValidator()

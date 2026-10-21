@@ -3,7 +3,6 @@ using JJDevHub.EventStore;
 
 namespace JJDevHub.Projections
 {
-
     public interface IProjection
     {
         string Name { get; }

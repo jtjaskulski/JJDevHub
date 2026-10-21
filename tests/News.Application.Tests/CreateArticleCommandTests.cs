@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace News.Application.Tests
 {
-
     public sealed class CreateArticleCommandTests
     {
         [Fact]

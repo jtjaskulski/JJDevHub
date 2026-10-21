@@ -2,7 +2,6 @@ using JJDevHub.Domain;
 
 namespace JJDevHub.News.Domain.Articles
 {
-
     public sealed class ArticleTitle : ValueObject
     {
         public const int MaxLength = 200;

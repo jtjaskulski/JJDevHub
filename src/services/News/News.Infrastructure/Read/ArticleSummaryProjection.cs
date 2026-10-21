@@ -5,7 +5,6 @@ using JJDevHub.Projections;
 
 namespace JJDevHub.News.Infrastructure.Read
 {
-
     public sealed class ArticleSummaryProjection(NewsReadContext read) : IProjection
     {
         public string Name => "article-summaries";

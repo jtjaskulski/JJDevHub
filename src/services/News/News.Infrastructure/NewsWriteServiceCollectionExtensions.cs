@@ -14,7 +14,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace JJDevHub.News.Infrastructure
 {
-
     public static class NewsWriteServiceCollectionExtensions
     {
         public static IServiceCollection AddNewsWrite(this IServiceCollection services, string connectionString)

@@ -2,7 +2,6 @@ using JJDevHub.Domain;
 
 namespace JJDevHub.EventStore
 {
-
     public interface IEventSerializer
     {
         SerializedEvent Serialize(IDomainEvent domainEvent);

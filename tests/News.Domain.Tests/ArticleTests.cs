@@ -3,7 +3,6 @@ using JJDevHub.News.Domain.Articles;
 
 namespace News.Domain.Tests
 {
-
     public sealed class ArticleTests
     {
         private static readonly DateTimeOffset Occurred = new(2026, 1, 1, 10, 0, 0, TimeSpan.Zero);

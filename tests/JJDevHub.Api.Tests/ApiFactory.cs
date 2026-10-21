@@ -4,7 +4,6 @@ using Testcontainers.PostgreSql;
 
 namespace JJDevHub.Api.Tests
 {
-
     public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
     {
         private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine")

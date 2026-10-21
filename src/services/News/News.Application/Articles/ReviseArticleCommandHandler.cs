@@ -5,7 +5,6 @@ using JJDevHub.News.Domain.Articles;
 
 namespace JJDevHub.News.Application.Articles
 {
-
     public sealed class ReviseArticleCommandHandler(IRepository<Article> articles, TimeProvider time)
         : ICommandHandler<ReviseArticleCommand, ArticleWritten>
     {

@@ -8,7 +8,6 @@ using OpenTelemetry.Trace;
 
 namespace JJDevHub.AppHost.Tests
 {
-
     public sealed class TelemetryConfigurationTests
     {
         [Fact]

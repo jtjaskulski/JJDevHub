@@ -4,7 +4,6 @@ using OpenTelemetry.Trace;
 
 namespace JJDevHub.ServiceDefaults
 {
-
     public sealed class RootClientSpanSampler : Sampler
     {
         public RootClientSpanSampler()

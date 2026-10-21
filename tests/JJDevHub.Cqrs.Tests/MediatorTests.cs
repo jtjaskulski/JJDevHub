@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace JJDevHub.Cqrs.Tests
 {
-
     public sealed class MediatorTests
     {
         [Fact]

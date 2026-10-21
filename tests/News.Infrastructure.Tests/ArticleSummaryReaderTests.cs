@@ -7,7 +7,6 @@ using Testcontainers.PostgreSql;
 
 namespace News.Infrastructure.Tests
 {
-
     public sealed class ArticleSummaryReaderTests : IAsyncLifetime
     {
         private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();

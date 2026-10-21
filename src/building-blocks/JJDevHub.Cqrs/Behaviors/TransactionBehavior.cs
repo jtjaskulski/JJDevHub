@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace JJDevHub.Cqrs.Behaviors
 {
-
     public sealed class TransactionBehavior<TRequest, TResponse>(IServiceProvider services)
         : IPipelineBehavior<TRequest, TResponse>
         where TRequest : IRequest<TResponse>
@@ -27,7 +26,7 @@ namespace JJDevHub.Cqrs.Behaviors
             }
 
             await unitOfWork.BeginAsync(cancellationToken);
-            var completed = false;
+            bool completed = false;
             try
             {
                 var result = await next();

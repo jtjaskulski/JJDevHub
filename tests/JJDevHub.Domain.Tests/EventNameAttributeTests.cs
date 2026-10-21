@@ -3,7 +3,6 @@ using JJDevHub.Domain;
 
 namespace JJDevHub.Domain.Tests
 {
-
     public sealed class EventNameAttributeTests
     {
         [Fact]

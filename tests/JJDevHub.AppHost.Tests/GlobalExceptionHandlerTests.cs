@@ -10,7 +10,6 @@ using JJDevHub.ServiceDefaults;
 
 namespace JJDevHub.AppHost.Tests
 {
-
     public sealed class GlobalExceptionHandlerTests
     {
         [Fact]

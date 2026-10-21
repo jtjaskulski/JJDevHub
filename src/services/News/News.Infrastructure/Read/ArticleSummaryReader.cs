@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace JJDevHub.News.Infrastructure.Read
 {
-
     public sealed class ArticleSummaryReader(NewsReadContext read) : IArticleSummaryReader
     {
         private static readonly Expression<Func<ArticleSummaryRow, ArticleSummary>> ToSummary =

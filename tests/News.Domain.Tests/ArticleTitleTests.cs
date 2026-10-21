@@ -3,7 +3,6 @@ using JJDevHub.News.Domain.Articles;
 
 namespace News.Domain.Tests
 {
-
     public sealed class ArticleTitleTests
     {
         [Fact]

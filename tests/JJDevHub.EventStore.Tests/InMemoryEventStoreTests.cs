@@ -3,7 +3,6 @@ using JJDevHub.EventStore;
 
 namespace JJDevHub.EventStore.Tests
 {
-
     public sealed class InMemoryEventStoreTests
     {
         private static readonly DateTimeOffset Occurred = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
@@ -128,8 +127,8 @@ namespace JJDevHub.EventStore.Tests
 
             var results = await Task.WhenAll(first, second);
 
-            var successes = results.Count(r => r.Succeeded);
-            var conflicts = results.Count(r => r.Error == ResultError.Conflict);
+            int successes = results.Count(r => r.Succeeded);
+            int conflicts = results.Count(r => r.Error == ResultError.Conflict);
             Assert.Equal(1, successes);
             Assert.Equal(1, conflicts);
         }

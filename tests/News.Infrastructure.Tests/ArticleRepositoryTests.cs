@@ -8,7 +8,6 @@ using Testcontainers.PostgreSql;
 
 namespace News.Infrastructure.Tests
 {
-
     public sealed class ArticleRepositoryTests : IAsyncLifetime
     {
         private static readonly DateTimeOffset Occurred = new(2026, 1, 1, 10, 0, 0, TimeSpan.Zero);

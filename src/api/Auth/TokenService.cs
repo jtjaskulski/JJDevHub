@@ -7,7 +7,6 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace JJDevHub.Api.Auth
 {
-
     public sealed class TokenService(IOptions<JwtOptions> jwtOptions)
     {
         private readonly JwtOptions _jwt = jwtOptions.Value;

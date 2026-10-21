@@ -1,6 +1,5 @@
 namespace JJDevHub.News.Application.Articles
 {
-
     public interface IArticleSummaryReader
     {
         Task<ArticleSummary?> FindAsync(Guid articleId, CancellationToken cancellationToken);

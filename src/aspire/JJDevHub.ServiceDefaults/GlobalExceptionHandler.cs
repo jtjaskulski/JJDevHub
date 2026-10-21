@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging;
 
 namespace JJDevHub.ServiceDefaults
 {
-
     public sealed class GlobalExceptionHandler(
         IProblemDetailsService problemDetails,
         ILogger<GlobalExceptionHandler> logger) : IExceptionHandler
@@ -15,10 +14,7 @@ namespace JJDevHub.ServiceDefaults
         public async ValueTask<bool> TryHandleAsync(
             HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
         {
-            string path = httpContext.Request.Path.ToString()
-                .Replace("\r", string.Empty)
-                .Replace("\n", string.Empty);
-
+            string path = PathForLog(httpContext);
             if (exception is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested)
             {
                 logger.LogDebug(exception, "Request aborted on {Path}", path);
@@ -44,6 +40,13 @@ namespace JJDevHub.ServiceDefaults
                     },
                 },
             });
+        }
+
+        private static string PathForLog(HttpContext httpContext)
+        {
+            return httpContext.Request.Path.ToString()
+                .Replace("\r", string.Empty)
+                .Replace("\n", string.Empty);
         }
     }
 }

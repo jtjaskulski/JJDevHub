@@ -4,7 +4,6 @@ using JJDevHub.Domain;
 
 namespace JJDevHub.Cqrs
 {
-
     public sealed class Mediator(IServiceProvider services) : IMediator
     {
         private static readonly ConcurrentDictionary<Type, object> Wrappers = new();

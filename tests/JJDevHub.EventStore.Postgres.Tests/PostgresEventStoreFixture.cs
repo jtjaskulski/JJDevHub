@@ -6,7 +6,6 @@ using Testcontainers.PostgreSql;
 
 namespace JJDevHub.EventStore.Postgres.Tests
 {
-
     public sealed class PostgresEventStoreFixture : IAsyncLifetime
     {
         private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();

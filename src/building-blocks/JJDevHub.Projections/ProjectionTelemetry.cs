@@ -4,7 +4,6 @@ using System.Diagnostics.Metrics;
 
 namespace JJDevHub.Projections
 {
-
     public static class ProjectionTelemetry
     {
         public const string Name = "JJDevHub.Projections";
@@ -56,13 +55,13 @@ namespace JJDevHub.Projections
         {
             foreach (var projection in projectionList)
             {
-                var checkpoint = positions[projection.Name];
+                long checkpoint = positions[projection.Name];
                 if (advancedTo is long end && checkpoint < end)
                 {
                     checkpoint = end;
                 }
 
-                var lag = head - checkpoint;
+                long lag = head - checkpoint;
                 if (lag < 0)
                 {
                     lag = 0;
@@ -86,7 +85,7 @@ namespace JJDevHub.Projections
         {
             public void Dispose()
             {
-                for (var index = activities.Count - 1; index >= 0; index--)
+                for (int index = activities.Count - 1; index >= 0; index--)
                 {
                     activities[index].Dispose();
                 }

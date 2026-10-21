@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace JJDevHub.Cqrs
 {
-
     public abstract class RequestHandlerWrapper<TResponse>
     {
         public abstract Task<Result<TResponse>> Handle(

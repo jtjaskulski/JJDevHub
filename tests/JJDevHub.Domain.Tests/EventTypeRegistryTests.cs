@@ -3,7 +3,6 @@ using JJDevHub.Domain.Tests.Fixtures;
 
 namespace JJDevHub.Domain.Tests
 {
-
     public sealed class EventTypeRegistryTests
     {
         [Fact]

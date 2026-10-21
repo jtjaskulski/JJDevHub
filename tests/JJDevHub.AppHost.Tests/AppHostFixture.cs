@@ -5,7 +5,6 @@ using JJDevHub.AppHost;
 
 namespace JJDevHub.AppHost.Tests
 {
-
     public sealed class AppHostFixture : IAsyncLifetime
     {
         private DistributedApplication? _app;

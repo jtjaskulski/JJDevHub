@@ -1,6 +1,5 @@
 namespace JJDevHub.Api.Auth
 {
-
     public sealed class JwtOptions
     {
         public const string SectionName = "Jwt";

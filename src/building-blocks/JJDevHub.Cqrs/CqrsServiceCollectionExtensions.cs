@@ -8,7 +8,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace JJDevHub.Cqrs
 {
-
     public static class CqrsServiceCollectionExtensions
     {
         public static IServiceCollection AddCqrs(this IServiceCollection services, params Assembly[] assemblies)

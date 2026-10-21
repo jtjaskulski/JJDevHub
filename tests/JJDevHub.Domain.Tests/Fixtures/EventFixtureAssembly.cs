@@ -4,7 +4,6 @@ using JJDevHub.Domain;
 
 namespace JJDevHub.Domain.Tests.Fixtures
 {
-
     public static class EventFixtureAssembly
     {
         public static Assembly Create(params (string TypeName, string? EventName)[] events)

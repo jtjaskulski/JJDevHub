@@ -4,7 +4,6 @@ using Npgsql;
 
 namespace JJDevHub.EventStore.Postgres
 {
-
     public sealed class PostgresEventStore<TContext>(
         TContext context,
         IEventSerializer serializer) : IEventStore
@@ -22,13 +21,13 @@ namespace JJDevHub.EventStore.Postgres
                 return Result<int>.Fail(ResultError.Invalid);
             }
 
-            var ownsTransaction = context.Database.CurrentTransaction is null;
+            bool ownsTransaction = context.Database.CurrentTransaction is null;
             if (ownsTransaction)
             {
                 await context.Database.BeginTransactionAsync(cancellationToken);
             }
 
-            var committed = false;
+            bool committed = false;
             try
             {
                 var result = await AppendInTransaction(
@@ -135,7 +134,7 @@ namespace JJDevHub.EventStore.Postgres
             int expectedVersion,
             IReadOnlyCollection<IDomainEvent> domainEvents)
         {
-            var index = 0;
+            int index = 0;
             foreach (var domainEvent in domainEvents)
             {
                 var serialized = serializer.Serialize(domainEvent);
@@ -176,7 +175,7 @@ namespace JJDevHub.EventStore.Postgres
 
         private static bool IsUniqueViolation(DbUpdateException exception)
         {
-            for (var current = exception.InnerException; current is not null; current = current.InnerException)
+            for (Exception? current = exception.InnerException; current is not null; current = current.InnerException)
             {
                 if (current is PostgresException postgres && postgres.SqlState == PostgresErrorCodes.UniqueViolation)
                 {

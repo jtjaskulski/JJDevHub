@@ -1,6 +1,5 @@
 namespace JJDevHub.EventStore.Postgres
 {
-
     public sealed class EventRecord
     {
         public long Position { get; set; }

@@ -10,7 +10,6 @@ using OpenTelemetry.Metrics;
 
 namespace JJDevHub.ServiceDefaults
 {
-
     public static class ServiceDefaultsExtensions
     {
         public static TBuilder AddServiceDefaults<TBuilder>(this TBuilder builder)

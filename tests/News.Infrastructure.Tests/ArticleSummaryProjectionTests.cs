@@ -14,7 +14,6 @@ using Testcontainers.PostgreSql;
 
 namespace News.Infrastructure.Tests
 {
-
     public sealed class ArticleSummaryProjectionTests : IAsyncLifetime
     {
         private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
@@ -57,12 +56,12 @@ namespace News.Infrastructure.Tests
             await WriteAsync(provider, new CreateArticleCommand("Nowy wpis", "cześć", null));
             await RunOnceAsync(provider);
 
-            var processed = await RunOnceAsync(provider);
+            int processed = await RunOnceAsync(provider);
 
             Assert.Equal(0, processed);
             await using var scope = provider.CreateAsyncScope();
             var read = scope.ServiceProvider.GetRequiredService<NewsReadContext>();
-            var count = await read.ArticleSummaries.CountAsync();
+            int count = await read.ArticleSummaries.CountAsync();
             Assert.Equal(1, count);
         }
 
@@ -115,7 +114,7 @@ namespace News.Infrastructure.Tests
             await WriteAsync(provider, new CreateArticleCommand("Drugi wpis", "cześć", null));
             await WriteAsync(provider, new CreateArticleCommand("Trzeci wpis", "cześć", null));
 
-            var processed = await RunOnceAsync(provider);
+            int processed = await RunOnceAsync(provider);
 
             Assert.Equal(2, processed);
         }

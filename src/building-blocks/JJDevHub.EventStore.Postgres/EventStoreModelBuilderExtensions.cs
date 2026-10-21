@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace JJDevHub.EventStore.Postgres
 {
-
     public static class EventStoreModelBuilderExtensions
     {
         public static void ApplyEventStore(this ModelBuilder modelBuilder)

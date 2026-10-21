@@ -12,7 +12,6 @@ using Testcontainers.PostgreSql;
 
 namespace News.Infrastructure.Tests
 {
-
     public sealed class ArticleCommandTests : IAsyncLifetime
     {
         private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
@@ -51,7 +50,7 @@ namespace News.Infrastructure.Tests
             Assert.True(result.TryGetValue(out var written));
             await using var read = Provider.CreateAsyncScope();
             var context = read.ServiceProvider.GetRequiredService<NewsWriteContext>();
-            var count = await context.Set<EventRecord>()
+            int count = await context.Set<EventRecord>()
                 .CountAsync(record => record.StreamId == $"article-{written.ArticleId}");
             Assert.Equal(1, count);
         }

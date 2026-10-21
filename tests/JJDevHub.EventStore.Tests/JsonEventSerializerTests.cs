@@ -5,7 +5,6 @@ using JJDevHub.EventStore.Fixtures;
 
 namespace JJDevHub.EventStore.Tests
 {
-
     public sealed class JsonEventSerializerTests
     {
         private static readonly DateTimeOffset Occurred = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);

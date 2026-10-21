@@ -2,7 +2,6 @@ using Microsoft.Extensions.Configuration;
 
 namespace JJDevHub.ServiceDefaults
 {
-
     public static class OtlpEndpoints
     {
         public static (Uri? Traces, Uri? Metrics, Uri? Logs) Resolve(IConfiguration configuration)
