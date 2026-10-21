@@ -16,6 +16,11 @@ namespace JJDevHub.News.Infrastructure
         public static IServiceCollection AddNewsWrite(this IServiceCollection services, string connectionString)
         {
             services.AddDbContext<NewsWriteContext>(options => options.UseNpgsql(connectionString));
+            return services.AddNewsWrite();
+        }
+
+        public static IServiceCollection AddNewsWrite(this IServiceCollection services)
+        {
             services.AddSingleton(EventTypeRegistry.FromAssemblies(typeof(IDomainEvent), typeof(Article).Assembly));
             services.AddSingleton<IEventSerializer, JsonEventSerializer>();
             services.AddPostgresEventStore<NewsWriteContext>();

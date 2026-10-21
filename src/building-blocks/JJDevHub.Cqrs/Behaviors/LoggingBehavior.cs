@@ -21,6 +21,7 @@ namespace JJDevHub.Cqrs.Behaviors
             logger.LogInformation("Handling {RequestName}", requestName);
 
             var stopwatch = Stopwatch.StartNew();
+            using var activity = CqrsTelemetry.ActivitySource.StartActivity($"Send {requestName}");
             var result = await next();
             stopwatch.Stop();
 

@@ -182,6 +182,8 @@ Wersje centralnie w [Directory.Packages.props](../../Directory.Packages.props). 
 | `Aspire.Hosting.Testing` | MIT | test AppHost | `14` |
 | `Microsoft.Extensions.ServiceDiscovery`, `Microsoft.Extensions.Http.Resilience` | MIT | `ServiceDefaults` | `14` |
 | `OpenTelemetry.*` (są) | Apache 2.0 | `ServiceDefaults` | `14` |
+| `Npgsql.OpenTelemetry` | PostgreSQL | ślady zapytań Npgsql w `ServiceDefaults` | `14` |
+| `Npgsql` | PostgreSQL | lista baz w teście AppHost | `14` |
 | `Yarp.ReverseProxy`, `Microsoft.Extensions.ServiceDiscovery.Yarp` | MIT | `JJDevHub.Gateway` | `16` |
 | `Asp.Versioning.Http` | MIT | wersja API w nagłówku `api-version`, `ServiceDefaults` | `16` |
 | `Markdig` | BSD-2-Clause | Markdown → HTML; od `21` w `JJDevHub.Markdown` | `19` |

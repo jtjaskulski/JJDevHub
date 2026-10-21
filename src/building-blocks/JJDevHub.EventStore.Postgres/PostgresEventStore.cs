@@ -88,6 +88,14 @@ namespace JJDevHub.EventStore.Postgres
             return ToStored(records);
         }
 
+        public async Task<long> ReadHeadPositionAsync(CancellationToken cancellationToken)
+        {
+            var head = await context.Set<EventRecord>()
+                .AsNoTracking()
+                .MaxAsync(record => (long?)record.Position, cancellationToken);
+            return head ?? 0;
+        }
+
         private async Task<Result<int>> AppendInTransaction(
             string streamId,
             int expectedVersion,
