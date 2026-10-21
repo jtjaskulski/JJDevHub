@@ -173,6 +173,8 @@ Wersje centralnie w [Directory.Packages.props](../../Directory.Packages.props). 
 | `Microsoft.EntityFrameworkCore.Design` (jest) | MIT | migracje, `PrivateAssets` przy projekcie startowym | `06` |
 | `Testcontainers.PostgreSql` (jest) | MIT | testy baz | `06` |
 | `FluentValidation`, `FluentValidation.DependencyInjectionExtensions` | Apache 2.0 | walidatory komend i zapytań | `08` |
+| `Microsoft.Extensions.Hosting.Abstractions` | MIT | `ProjectionWorker` (`BackgroundService`) | `10` |
+| `Microsoft.Extensions.Options.ConfigurationExtensions` | MIT | sekcja `Projections` dla `ProjectionOptions` | `10` |
 | `Testcontainers.Kafka` | MIT | test szyny | `13` |
 | `Confluent.Kafka` | Apache 2.0 | producent i konsument | `13` |
 | `Aspire.Hosting.AppHost`, `Aspire.Hosting.PostgreSQL`, `Aspire.Hosting.Kafka`, `Aspire.Hosting.Docker` | MIT | AppHost i publikacja Compose | `14` |

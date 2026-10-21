@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\building-blocks\JJDevHub.EventStore.Postgres\JJDevHub.EventStore.Postgres.csproj" />
+    <ProjectReference Include="..\..\..\building-blocks\JJDevHub.Projections\JJDevHub.Projections.csproj" />
     <ProjectReference Include="..\News.Application\News.Application.csproj" />
     <ProjectReference Include="..\News.Domain\News.Domain.csproj" />
   </ItemGroup>
