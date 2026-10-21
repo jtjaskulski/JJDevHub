@@ -4,7 +4,6 @@ using Microsoft.Extensions.Hosting;
 
 namespace JJDevHub.ServiceDefaults
 {
-
     public static class HealthCheckExtensions
     {
         public static TBuilder AddDefaultHealthChecks<TBuilder>(this TBuilder builder)

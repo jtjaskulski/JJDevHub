@@ -13,7 +13,6 @@ using OpenTelemetry.Trace;
 
 namespace JJDevHub.ServiceDefaults
 {
-
     public static class TelemetryExtensions
     {
         public static TBuilder ConfigureOpenTelemetry<TBuilder>(this TBuilder builder)

@@ -2,7 +2,6 @@ using System.Reflection;
 
 namespace JJDevHub.Domain
 {
-
     public sealed class EventTypeRegistry
     {
         private readonly Dictionary<string, Type> _typesByName;

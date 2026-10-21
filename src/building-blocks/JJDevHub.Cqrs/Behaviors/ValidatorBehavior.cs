@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging;
 
 namespace JJDevHub.Cqrs.Behaviors
 {
-
     public sealed class ValidatorBehavior<TRequest, TResponse>(
         IEnumerable<IValidator<TRequest>> validators,
         ILogger<ValidatorBehavior<TRequest, TResponse>> logger) : IPipelineBehavior<TRequest, TResponse>
@@ -23,7 +22,7 @@ namespace JJDevHub.Cqrs.Behaviors
                 return await next();
             }
 
-            var failed = false;
+            bool failed = false;
             foreach (var validator in validators)
             {
                 var validation = await validator.ValidateAsync(request, cancellationToken);

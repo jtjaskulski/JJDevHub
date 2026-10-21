@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace News.Application.Tests
 {
-
     internal static class ArticleCommandServices
     {
         private static readonly DateTimeOffset Occurred = new(2026, 1, 1, 10, 0, 0, TimeSpan.Zero);

@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace JJDevHub.News.Application
 {
-
     public static class NewsApplicationServiceCollectionExtensions
     {
         public static IServiceCollection AddNewsApplication(this IServiceCollection services) =>

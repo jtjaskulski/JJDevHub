@@ -1,6 +1,5 @@
 namespace JJDevHub.Cqrs
 {
-
     public interface IUnitOfWork
     {
         bool HasActiveTransaction { get; }

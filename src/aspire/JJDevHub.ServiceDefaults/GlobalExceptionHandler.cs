@@ -7,7 +7,6 @@ using Microsoft.Extensions.Logging;
 
 namespace JJDevHub.ServiceDefaults
 {
-
     public sealed class GlobalExceptionHandler(
         IProblemDetailsService problemDetails,
         ILogger<GlobalExceptionHandler> logger) : IExceptionHandler

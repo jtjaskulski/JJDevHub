@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace JJDevHub.News.Infrastructure.Read
 {
-
     public sealed class ArticleSummaryRowConfiguration : IEntityTypeConfiguration<ArticleSummaryRow>
     {
         public void Configure(EntityTypeBuilder<ArticleSummaryRow> builder)

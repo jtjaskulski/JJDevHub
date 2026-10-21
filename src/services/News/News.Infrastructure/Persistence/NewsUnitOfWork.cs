@@ -2,7 +2,6 @@ using JJDevHub.Cqrs;
 
 namespace JJDevHub.News.Infrastructure.Persistence
 {
-
     public sealed class NewsUnitOfWork(NewsWriteContext context) : IUnitOfWork
     {
         public bool HasActiveTransaction => context.Database.CurrentTransaction is not null;

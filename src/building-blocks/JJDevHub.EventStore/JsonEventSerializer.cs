@@ -4,7 +4,6 @@ using JJDevHub.Domain;
 
 namespace JJDevHub.EventStore
 {
-
     public sealed class JsonEventSerializer(
         EventTypeRegistry registry,
         IEnumerable<IEventUpcaster> upcasters) : IEventSerializer
@@ -34,7 +33,7 @@ namespace JJDevHub.EventStore
 
         private (JsonObject Payload, string Name) Upgrade(JsonObject payload, string name)
         {
-            for (var steps = 1; Find(name) is { } upcaster; steps++)
+            for (int steps = 1; Find(name) is { } upcaster; steps++)
             {
                 EnsureNoCycle(steps);
                 payload = upcaster.Upcast(payload);

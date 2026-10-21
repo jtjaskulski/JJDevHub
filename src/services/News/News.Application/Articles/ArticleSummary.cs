@@ -1,6 +1,5 @@
 namespace JJDevHub.News.Application.Articles
 {
-
     public sealed record ArticleSummary(
         Guid ArticleId,
         string Title,

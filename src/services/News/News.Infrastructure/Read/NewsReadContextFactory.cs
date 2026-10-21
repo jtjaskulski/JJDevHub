@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore.Design;
 
 namespace JJDevHub.News.Infrastructure.Read
 {
-
     public sealed class NewsReadContextFactory : IDesignTimeDbContextFactory<NewsReadContext>
     {
         public NewsReadContext CreateDbContext(string[] args)

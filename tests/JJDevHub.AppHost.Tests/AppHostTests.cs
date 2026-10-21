@@ -9,7 +9,6 @@ using Npgsql;
 
 namespace JJDevHub.AppHost.Tests
 {
-
     public sealed class AppHostTests : IClassFixture<AppHostFixture>
     {
         private const int TimeoutMilliseconds = 180_000;

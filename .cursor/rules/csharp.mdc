@@ -1,7 +1,7 @@
 ---
-description: Czysty C# — krótkie klasy, kolejność składowych, wczesny return
+description: Czysty C# — jeden powód do zmiany, kolejność składowych, wczesny return
 globs: "**/*.cs"
-alwaysApply: false
+alwaysApply: true
 ---
 
 # C#
@@ -9,22 +9,23 @@ alwaysApply: false
 Typ i metoda robią jedną rzecz. Czytelnik nie schodzi w zagnieżdżenie.
 
 - Jeden publiczny typ na plik. Namespace w klamrach (`namespace X.Y { … }`), bez file-scoped (`namespace X.Y;`). Klasa `sealed`. Dane bez zachowania to `record`.
-- Klasa mieści się na jednym ekranie. Drugi powód do zmiany albo drugi ekran to nowy typ.
+- Od `sealed` odstępują klasa `abstract`, klasa `static` i `partial class Program`. Migracje EF (`Migrations/`, `*.Designer.cs`, `*ModelSnapshot.cs`) są poza tą regułą.
+- Drugi powód do zmiany to nowy typ. Długość jest zapachem, nie progiem.
 - Kolejność składowych: pola, konstruktory, właściwości, metody. W grupie najpierw publiczne, potem prywatne, a statyczne przed instancją.
 - Primary constructor zostaje na deklaracji typu. Dalsze konstruktory idą za polami.
-- Metoda mieści się na ekranie i ma jeden poziom wcięcia. Kolejny poziom rozbijasz albo wychodzisz wcześniej.
+- Długość metody jest zapachem. W szczęśliwym przebiegu jest jeden poziom wcięcia i wczesne wyjście. `try`, `finally`, `using` oraz jedna gałąź w pętli zostają. Kolejny poziom, który ma własny powód, wychodzi do metody.
 - Oczekiwany brak i błąd walidacji to wynik (`Results` albo własny typ), nie wyjątek. `catch` łapie konkretny typ i nic nie połyka.
-- Metoda `async` bierze `CancellationToken` i podaje go w każde wywołanie. Bez `.Result`, `.Wait()` i `async void`.
+- Metoda `async` bierze `CancellationToken` i podaje go tam, gdzie wywołanie ma ten parametr. Bez `.Result`, `.Wait()` i `async void`.
 - Nullable jest włączone. `null` sprawdzasz na granicy, raz. Operator `!` nie wchodzi do kodu.
 - Zależności wchodzą primary constructorem. Prywatne pole istnieje tylko, gdy wartość żyje dłużej niż metoda.
-- Nazwa mówi, co funkcja zwraca albo jaki skutek ma. Bez skrótów, `#region` i komentarza do następnej linii.
-- `var`, gdy typ stoi po prawej stronie przypisania. W przeciwnym razie typ jest jawny.
-- Test ma jeden powód do padnięcia: arrange, act, assert.
+- Nazwa mówi, co funkcja zwraca albo jaki skutek ma. Bez nowych skrótów (`usr`, `cfg`, `tmp`), `#region` i komentarza do następnej linii. Ustalone nazwy zostają: `Id`, `Jwt`, `Http`, `Url`.
+- `var`, gdy typ widać po prawej (`new`, rzutowanie) albo nazwa metody go niesie. Przy prymitywie, liczbie i wywołaniu bez widocznego typu typ jest jawny.
+- Test ma jeden powód do padnięcia: arrange, act, assert. Kilka asercji jednego skutku to nadal jeden powód.
 
 ```csharp
-static async Task<IResult> GetNews(Guid id, AppDb db, CancellationToken ct)
+static async Task<IResult> GetNews(Guid id, AppDb database, CancellationToken cancellationToken)
 {
-    var news = await db.News.FindAsync([id], ct);
+    var news = await database.News.FindAsync([id], cancellationToken);
     if (news is not { Published: true })
     {
         return Results.NotFound();
@@ -33,3 +34,4 @@ static async Task<IResult> GetNews(Guid id, AppDb db, CancellationToken ct)
     return Results.Ok(news);
 }
 ```
+- Brak pustej linii na końcu pliku.

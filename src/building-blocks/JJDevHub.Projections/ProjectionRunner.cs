@@ -5,7 +5,6 @@ using Microsoft.Extensions.Options;
 
 namespace JJDevHub.Projections
 {
-
     public sealed class ProjectionRunner<TContext>(
         IEventStore eventStore,
         TContext context,

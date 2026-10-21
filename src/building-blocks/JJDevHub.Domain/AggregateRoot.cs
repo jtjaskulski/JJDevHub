@@ -1,6 +1,5 @@
 namespace JJDevHub.Domain
 {
-
     public abstract class AggregateRoot : Entity, IAggregateRoot
     {
         private readonly List<IDomainEvent> _domainEvents = [];

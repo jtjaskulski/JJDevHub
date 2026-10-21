@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace JJDevHub.EventStore.Postgres.Tests
 {
-
     public sealed class PostgresEventStoreTests(PostgresEventStoreFixture fixture) : IClassFixture<PostgresEventStoreFixture>
     {
         private static readonly DateTimeOffset Occurred = new(2026, 1, 1, 12, 0, 0, TimeSpan.Zero);
@@ -87,7 +86,7 @@ namespace JJDevHub.EventStore.Postgres.Tests
 
             await store.AppendAsync(streamId, 0, [Created()], null, CancellationToken.None);
 
-            var count = await context.Set<EventRecord>().CountAsync(item => item.StreamId == streamId);
+            int count = await context.Set<EventRecord>().CountAsync(item => item.StreamId == streamId);
             Assert.Equal(1, count);
         }
 

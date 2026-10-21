@@ -1,6 +1,5 @@
 namespace JJDevHub.AppHost
 {
-
     public static class ResourceNames
     {
         public const string Postgres = "postgres";

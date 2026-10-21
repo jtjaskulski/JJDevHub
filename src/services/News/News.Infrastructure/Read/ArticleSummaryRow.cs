@@ -1,6 +1,5 @@
 namespace JJDevHub.News.Infrastructure.Read
 {
-
     public sealed class ArticleSummaryRow
     {
         public Guid ArticleId { get; set; }

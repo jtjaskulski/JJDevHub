@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace JJDevHub.Api.Auth
 {
-
     public static class AuthEndpoints
     {
         public static RouteGroupBuilder MapAuthEndpoints(this WebApplication app)

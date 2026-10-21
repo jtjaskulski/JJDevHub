@@ -2,7 +2,6 @@ using JJDevHub.Domain;
 
 namespace JJDevHub.EventStore
 {
-
     public sealed class InMemoryEventStore : IEventStore
     {
         private readonly Dictionary<string, List<StoredEvent>> _streams = new(StringComparer.Ordinal);
@@ -25,7 +24,7 @@ namespace JJDevHub.EventStore
 
             lock (_lock)
             {
-                var currentVersion = GetStreamVersion(streamId);
+                int currentVersion = GetStreamVersion(streamId);
                 if (currentVersion != expectedVersion)
                 {
                     return Task.FromResult(Result<int>.Fail(ResultError.Conflict));
@@ -42,17 +41,17 @@ namespace JJDevHub.EventStore
                     _streams[streamId] = streamEvents;
                 }
 
-                var index = 0;
+                int index = 0;
                 foreach (var domainEvent in domainEvents)
                 {
-                    var version = expectedVersion + index + 1;
+                    int version = expectedVersion + index + 1;
                     var stored = new StoredEvent(++_lastPosition, streamId, version, domainEvent);
                     streamEvents.Add(stored);
                     _globalLog.Add(stored);
                     index++;
                 }
 
-                var newVersion = expectedVersion + domainEvents.Count;
+                int newVersion = expectedVersion + domainEvents.Count;
                 return Task.FromResult(Result<int>.Ok(newVersion));
             }
         }
@@ -66,7 +65,7 @@ namespace JJDevHub.EventStore
                     return Task.FromResult(new EventStreamRead(0, []));
                 }
 
-                var version = streamEvents[^1].Version;
+                int version = streamEvents[^1].Version;
                 return Task.FromResult(new EventStreamRead(version, streamEvents.ToArray()));
             }
         }

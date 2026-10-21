@@ -7,7 +7,6 @@ using Microsoft.Extensions.Options;
 
 namespace JJDevHub.Projections
 {
-
     public sealed class ProjectionWorker<TContext>(
         IServiceScopeFactory scopes,
         IOptions<ProjectionOptions> options,

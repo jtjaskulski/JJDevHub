@@ -5,7 +5,6 @@ using Microsoft.Extensions.Hosting;
 
 namespace JJDevHub.ServiceDefaults
 {
-
     public sealed class ExceptionHandlingStartupFilter : IStartupFilter
     {
         public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)

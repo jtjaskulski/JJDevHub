@@ -5,7 +5,6 @@ using System.Text.Json;
 
 namespace JJDevHub.Api.Tests
 {
-
     public sealed class AuthAndHealthTests : IClassFixture<ApiFactory>
     {
         private static readonly JsonSerializerOptions Json = new()
@@ -42,10 +41,14 @@ namespace JJDevHub.Api.Tests
             var login = await _client.PostAsJsonAsync("/api/auth/login", body);
             Assert.Equal(HttpStatusCode.OK, login.StatusCode);
             var loggedIn = await login.Content.ReadFromJsonAsync<AuthResponse>(Json);
-            Assert.False(string.IsNullOrWhiteSpace(loggedIn?.Token));
+            if (loggedIn is null || string.IsNullOrWhiteSpace(loggedIn.Token))
+            {
+                Assert.Fail("Login did not return a token.");
+                return;
+            }
 
             using var meRequest = new HttpRequestMessage(HttpMethod.Get, "/api/auth/me");
-            meRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", loggedIn!.Token);
+            meRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", loggedIn.Token);
             var me = await _client.SendAsync(meRequest);
 
             Assert.Equal(HttpStatusCode.OK, me.StatusCode);

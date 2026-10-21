@@ -2,7 +2,6 @@ using JJDevHub.Domain;
 
 namespace JJDevHub.EventStore
 {
-
     public sealed class Repository<T>(IEventStore store, IStreamNaming<T> naming) : IRepository<T>
         where T : AggregateRoot, new()
     {

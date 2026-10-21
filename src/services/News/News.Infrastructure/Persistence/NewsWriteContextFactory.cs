@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore.Design;
 
 namespace JJDevHub.News.Infrastructure.Persistence
 {
-
     public sealed class NewsWriteContextFactory : IDesignTimeDbContextFactory<NewsWriteContext>
     {
         public NewsWriteContext CreateDbContext(string[] args)

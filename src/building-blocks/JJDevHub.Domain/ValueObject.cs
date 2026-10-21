@@ -1,6 +1,5 @@
 namespace JJDevHub.Domain
 {
-
     public abstract class ValueObject
     {
         protected abstract IEnumerable<object?> GetEqualityComponents();

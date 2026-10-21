@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace JJDevHub.Projections
 {
-
     public abstract class ReadContext(DbContextOptions options) : DbContext(options)
     {
         public DbSet<Checkpoint> Checkpoints => Set<Checkpoint>();

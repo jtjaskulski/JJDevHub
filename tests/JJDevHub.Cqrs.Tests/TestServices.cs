@@ -6,7 +6,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace JJDevHub.Cqrs.Tests
 {
-
     internal static class TestServices
     {
         public static ServiceCollection Create()

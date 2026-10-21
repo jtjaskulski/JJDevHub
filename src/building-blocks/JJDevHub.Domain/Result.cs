@@ -2,7 +2,6 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace JJDevHub.Domain
 {
-
     public sealed record Result<T>(T? Value, ResultError Error)
     {
         public bool Succeeded => Error == ResultError.None;

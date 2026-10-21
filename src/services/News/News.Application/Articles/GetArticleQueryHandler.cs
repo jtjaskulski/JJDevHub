@@ -3,7 +3,6 @@ using JJDevHub.Domain;
 
 namespace JJDevHub.News.Application.Articles
 {
-
     public sealed class GetArticleQueryHandler(IArticleSummaryReader reader)
         : IQueryHandler<GetArticleQuery, ArticleSummary>
     {

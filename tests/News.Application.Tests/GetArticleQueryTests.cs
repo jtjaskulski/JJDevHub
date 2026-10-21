@@ -8,7 +8,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace News.Application.Tests
 {
-
     public sealed class GetArticleQueryTests
     {
         [Fact]

@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace JJDevHub.News.Infrastructure
 {
-
     public static class NewsReadServiceCollectionExtensions
     {
         public static IServiceCollection AddNewsRead(this IServiceCollection services, string connectionString)

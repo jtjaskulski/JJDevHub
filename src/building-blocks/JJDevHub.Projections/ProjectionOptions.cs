@@ -1,6 +1,5 @@
 namespace JJDevHub.Projections
 {
-
     public sealed class ProjectionOptions
     {
         public int BatchSize { get; set; } = 100;

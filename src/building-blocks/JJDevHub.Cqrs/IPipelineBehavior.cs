@@ -2,7 +2,6 @@ using JJDevHub.Domain;
 
 namespace JJDevHub.Cqrs
 {
-
     public interface IPipelineBehavior<in TRequest, TResponse>
         where TRequest : IRequest<TResponse>
     {

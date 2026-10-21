@@ -2,7 +2,6 @@ using JJDevHub.Domain;
 
 namespace JJDevHub.EventStore.Tests
 {
-
     public sealed class RepositoryTests
     {
         [Fact]
@@ -99,7 +98,7 @@ namespace JJDevHub.EventStore.Tests
         private static Counter Raise(Guid id, int times)
         {
             var counter = new Counter();
-            for (var index = 0; index < times; index++)
+            for (int index = 0; index < times; index++)
             {
                 counter.Increment(id);
             }
