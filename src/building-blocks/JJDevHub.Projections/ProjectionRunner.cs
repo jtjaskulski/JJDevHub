@@ -25,15 +25,21 @@ namespace JJDevHub.Projections
             var positions = Positions(projectionList, checkpoints);
             var batch = await eventStore.ReadAllAsync(
                 positions.Values.Min(), options.Value.BatchSize, cancellationToken);
+            var head = await eventStore.ReadHeadPositionAsync(cancellationToken);
             if (batch.Count == 0)
             {
+                ProjectionTelemetry.RememberLags(projectionList, positions, head, advancedTo: null);
                 return 0;
             }
 
-            await ProjectAsync(projectionList, positions, batch, cancellationToken);
-            Advance(projectionList, checkpoints, positions, batch[^1].Position);
-            await context.SaveChangesAsync(cancellationToken);
-            return batch.Count;
+            using (ProjectionTelemetry.Begin(projectionList, positions, batch[^1].Position))
+            {
+                await ProjectAsync(projectionList, positions, batch, cancellationToken);
+                Advance(projectionList, checkpoints, positions, batch[^1].Position);
+                await context.SaveChangesAsync(cancellationToken);
+                ProjectionTelemetry.RememberLags(projectionList, positions, head, batch[^1].Position);
+                return batch.Count;
+            }
         }
 
         private static Dictionary<string, long> Positions(

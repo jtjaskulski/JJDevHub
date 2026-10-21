@@ -95,6 +95,14 @@ namespace JJDevHub.EventStore
             }
         }
 
+        public Task<long> ReadHeadPositionAsync(CancellationToken cancellationToken)
+        {
+            lock (_lock)
+            {
+                return Task.FromResult(_lastPosition);
+            }
+        }
+
         private int GetStreamVersion(string streamId)
         {
             if (!_streams.TryGetValue(streamId, out var streamEvents) || streamEvents.Count == 0)

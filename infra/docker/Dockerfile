@@ -4,6 +4,7 @@ WORKDIR /src
 ENV NUGET_PACKAGES=/root/.nuget/packages
 
 COPY nuget.config Directory.Build.props Directory.Packages.props global.json ./
+COPY src/aspire/JJDevHub.ServiceDefaults/ src/aspire/JJDevHub.ServiceDefaults/
 COPY src/api/ src/api/
 
 # global.json stays on preview.7 so local SDKs can roll forward. This image only has rc.2.

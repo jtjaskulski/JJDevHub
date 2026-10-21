@@ -16,5 +16,7 @@ namespace JJDevHub.EventStore
 
         Task<IReadOnlyList<StoredEvent>> ReadAllAsync(
             long afterPosition, int maxCount, CancellationToken cancellationToken);
+
+        Task<long> ReadHeadPositionAsync(CancellationToken cancellationToken);
     }
 }
