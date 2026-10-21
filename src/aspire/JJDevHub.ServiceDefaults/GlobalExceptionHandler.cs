@@ -15,13 +15,17 @@ namespace JJDevHub.ServiceDefaults
         public async ValueTask<bool> TryHandleAsync(
             HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
         {
+            string path = httpContext.Request.Path.ToString()
+                .Replace("\r", string.Empty)
+                .Replace("\n", string.Empty);
+
             if (exception is OperationCanceledException && httpContext.RequestAborted.IsCancellationRequested)
             {
-                logger.LogDebug(exception, "Request aborted on {Path}", httpContext.Request.Path);
+                logger.LogDebug(exception, "Request aborted on {Path}", path);
                 return true;
             }
 
-            logger.LogError(exception, "Unhandled exception on {Path}", httpContext.Request.Path);
+            logger.LogError(exception, "Unhandled exception on {Path}", path);
             Activity.Current?.AddException(exception);
             Activity.Current?.SetStatus(ActivityStatusCode.Error);
 
