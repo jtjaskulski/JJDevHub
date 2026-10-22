@@ -15,6 +15,11 @@ namespace JJDevHub.Projections
     {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            if (!options.Value.Enabled)
+            {
+                return;
+            }
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 try

@@ -8,6 +8,8 @@ namespace JJDevHub.AppHost
 
         public const string NewsRead = "news-read";
 
+        public const string NewsApi = "news-api";
+
         public const string Identity = "identity";
 
         public const string IdentityWrite = "identity-write";
@@ -15,6 +17,8 @@ namespace JJDevHub.AppHost
         public const string IdentityRead = "identity-read";
 
         public const string IdentityApi = "identity-api";
+
+        public const string Gateway = "gateway";
 
         public const string Notifications = "notifications";
 

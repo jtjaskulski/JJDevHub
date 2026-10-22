@@ -28,7 +28,7 @@ var signingKeyPath = builder.AddParameter("signing-key-path");
 var ownerEmail = builder.AddParameter("owner-email");
 
 var identityApi = builder.AddProject<Projects.Identity_API>(ResourceNames.IdentityApi)
-    .WithHttpEndpoint(port: 5080, targetPort: 8080, name: "http")
+    .WithHttpEndpoint(port: 5082, targetPort: 8080, name: "http")
     .WithReference(identityWrite).WaitFor(identityWrite)
     .WithReference(identityRead).WaitFor(identityRead)
     .WithReference(kafka).WaitFor(kafka)
@@ -39,7 +39,18 @@ var identityApi = builder.AddProject<Projects.Identity_API>(ResourceNames.Identi
 
 identityApi.WithEnvironment("Identity__Url", identityApi.GetEndpoint("http"));
 
-_ = newsWrite;
-_ = newsRead;
+var newsApi = builder.AddProject<Projects.News_API>(ResourceNames.NewsApi)
+    .WithReference(newsWrite).WaitFor(newsWrite)
+    .WithReference(newsRead).WaitFor(newsRead)
+    .WithReference(kafka).WaitFor(kafka)
+    .WithEnvironment("Identity__Url", identityApi.GetEndpoint("http"))
+    .PublishAsDockerComposeService((_, service) => service.Networks.Add("jjdevhub"));
+
+builder.AddProject<Projects.JJDevHub_Gateway>(ResourceNames.Gateway)
+    .WithReference(identityApi)
+    .WithReference(newsApi)
+    .WithHttpEndpoint(port: 5080, targetPort: 8081, name: "http")
+    .WithExternalHttpEndpoints()
+    .PublishAsDockerComposeService((_, service) => service.Networks.Add("jjdevhub"));
 
 builder.Build().Run();
