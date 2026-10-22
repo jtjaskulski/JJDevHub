@@ -1,10 +1,14 @@
 # SonarQube — Quality Gate na `main`
 
-## Po co ten krok
+## Po co
 
-CodeQL ([04-codeql.md](04-codeql.md)) łapie klasy błędów bezpieczeństwa. Dependencies i obrazy ([05-zaleznosci-i-obrazy.md](05-zaleznosci-i-obrazy.md)) pilnują CVE. SonarQube pilnuje **jakości i coverage** po merge na `main`: smród kodu, duplikaty, brak testów na nowym kodzie. Serwer stoi na tej samej VM Proxmox co Compose ([01-proxmox.md](01-proxmox.md)). Jeden projekt Sonara na serwis (`jjdevhub-api`, `jjdevhub-web`).
+CodeQL ([04-codeql.md](04-codeql.md)) łapie klasy błędów bezpieczeństwa. Zależności i obrazy ([05-zaleznosci-i-obrazy.md](05-zaleznosci-i-obrazy.md)) pilnują CVE. Zostaje jakość nowego kodu: zapachy, duplikaty, brak testów po merge na `main`.
 
-Job analizy używa runnera `[self-hosted, jjdevhub]` **tylko** przy pushu na `main`. Pull request — także z forka — nie odpala tam `dotnet`, `pnpm` ani Dockera. Build i testy PR zostają na `ubuntu-latest` w jobach `build`. Check `sonar-api` / `sonar-web` powstaje na pushu `main`, nie jako required check PR ([03-github.md](03-github.md)).
+## Dlaczego ta technologia
+
+### SonarQube Community na VM
+
+SonarQube trzyma historię jakości i liczy, czy nowy kod mieści się w progach. CI buduje projekt, dokleja raport pokrycia i wysyła paczkę na serwer. Serwer zwraca Pass albo Fail. Obraz Community na tej samej VM, w osobnym Compose pod `/opt/sonarqube`, nie wchodzi do [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml): `release-and-deploy.sh` nie przebudowuje wtedy JVM i własnego Postgresa przy każdym deployu huba. Edycja Developer i SonarCloud przegrały: widok pull requestu jest płatny, a ten hub i tak analizuje commit już obecny na `main`. Wtyczka community-branch przegrała, bo nie ma wsparcia SonarSource. Koszt: jeden snapshot projektu, check `sonar-api` / `sonar-web` powstaje na pushu `main`, nie jako bramka przed merge. Job idzie na runner `[self-hosted, jjdevhub]` tylko przy tym pushu. Pull request, także z forka, zostaje na `ubuntu-latest`.
 
 ## Co już jest w repo
 
@@ -369,54 +373,7 @@ Negatyw: `https://hub.example.com` nie serwuje `:9000`. Compose aplikacji (`jjde
 
 ## Pełny tutorial: SonarQube (od zera)
 
-Ta sekcja tłumaczy serwer, skaner i bramkę. Przepis Compose i jobów jest wyżej. Nie zastępuje CodeQL ([04-codeql.md](04-codeql.md)) ani skanu CVE ([05-zaleznosci-i-obrazy.md](05-zaleznosci-i-obrazy.md)).
-
-### Co to jest
-
-SonarQube trzyma historię jakości kodu i liczy, czy **nowy** kod mieści się w progach. CI buduje projekt, dokleja raport pokrycia i wysyła paczkę na serwer. Serwer zwraca Pass albo Fail. W tym repozytorium serwer to obraz `sonarqube:26.9.0.129388-community` na tej samej VM co hub, w **osobnym** Compose pod `/opt/sonarqube`. Deploy huba (`release-and-deploy.sh`) go nie restartuje. Tag wersji jest w przepisie od pierwszego `up` — pływające `sonarqube:community` przy następnym `pull` może zrobić migrację schematu na istniejącym volume.
-
-Trzy warstwy obok siebie:
-
-| Warstwa | Pytanie | Gdzie |
-| --- | --- | --- |
-| CodeQL | Czy jest ścieżka do niebezpiecznego API? | 04, GitHub code scanning |
-| Dependabot, audyt, Trivy | Czy paczka albo obraz ma znane CVE? | 05 |
-| SonarQube | Jaki jest dług, duplikacja i pokrycie **nowego** kodu? | ten plik |
-
-Reguły security w Sonarze częściowo zahaczają o te same klasy co CodeQL. Bramka jakości i tak zostaje tutaj: pokrycie, bugi, zapachy. `security-and-quality` w CodeQL tego nie zastępuje.
-
-```
-push na main (checkout na runnerze jjdevhub na VM)
-    ├─ dotnet sonarscanner begin
-    ├─ dotnet build
-    ├─ dotnet test  →  TestResults/**/coverage.opencover.xml
-    └─ dotnet sonarscanner end
-            │
-            ▼  HTTP, token
-    127.0.0.1:9000   sonarqube  →  sonarqube-db (osobny Postgres)
-            │
-            ▼
-    Quality Gate Pass/Fail  →  kod wyjścia joba (gdy wait=true)
-            │
-            ▼
-    check sonar-api / sonar-web na commicie main
-```
-
-Pull request nie wchodzi na ten runner. Jego build i testy zostają na `ubuntu-latest`.
-
-Front idzie inną drogą: obraz `sonarsource/sonar-scanner-cli` w Dockerze, bez raportu pokrycia, dopóki `pnpm test:ci` go nie zacznie pisać.
-
-### Community i jedna gałąź
-
-Obraz z kroku 1 to **Community**. Analiza gałęzi i osobny widok pull requestu są w edycji Developer i wyżej. Na Community jest jeden snapshot projektu, zwykle gałąź główna.
-
-Z tego wynikają trzy rzeczy, których UI nie pokaże:
-
-- Nie ma listy PR-ów w projekcie. Ostatni skan nadpisuje poprzedni. Ten przepis analizuje commit z `main` po merge, więc w UI zostaje ta analiza.
-- Parametry `sonar.pullrequest.key` / `sonar.pullrequest.branch` serwer Community odrzuca. Nie doklejaj ich „żeby zobaczyć PR”.
-- Check na GitHubie powstaje na tym pushu `main`, nie na pull requeście. Runner robi checkout commita z `main`, nie kodu z PR. Skaner liczy gate tej migawki, a `qualitygate.wait=true` kończy job niezerem, gdy próg nie przeszedł. Czerwień jest na checku `sonar-api` / `sonar-web` już zmergowanego commita, nie jako bramka przed merge i nie jako komentarz Sonara pod diffem.
-
-Wtyczka community-branch (osobne repo, bez wsparcia SonarSource) umie domalować gałęzie. Ten przepis jej nie używa. SonarCloud byłby tym samym modelem w SaaS, z PR-ami w cenie planu — tu zostaje serwer na VM.
+Wybór Community na osobnym Compose jest w [Dlaczego ta technologia](#dlaczego-ta-technologia). Tu zostają skaner, bramka i pliki na VM. Przepis Compose i jobów jest wyżej. Nie zastępuje CodeQL ([04-codeql.md](04-codeql.md)) ani skanu CVE ([05-zaleznosci-i-obrazy.md](05-zaleznosci-i-obrazy.md)).
 
 ### Serwer obok huba, nie w nim
 

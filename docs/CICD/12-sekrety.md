@@ -1,6 +1,6 @@
 # Sekrety — SOPS i age w gicie, klucz w vTPM, sekrety Compose
 
-## Po co ten krok
+## Po co
 
 Dziś sekrety produkcji leżą w jednym pliku `/etc/jjdevhub/api.env` na VM ([01-proxmox.md](01-proxmox.md)): hasło Postgresa, klucz JWT, hasło admina Grafany. Plik nie ma historii ani kopii, a jego treść trafia do zmiennych środowiskowych kontenerów, więc widzi ją każdy, kto zrobi `docker inspect jjdevhub-api` albo przeczyta `/proc/<pid>/environ`. Nie wiadomo, które sekrety istnieją, kto je zna i kiedy były zmieniane.
 
@@ -13,6 +13,20 @@ Po tym kroku:
 - Każdy sekret ma wpis w inwentarzu: gdzie jest, kto go czyta, jak go zmienić.
 
 Żaden sekret produkcji nie trafia do GitHuba. CI niczego nie odszyfrowuje.
+
+## Dlaczego ta technologia
+
+### SOPS i age zamiast pliku na dysku VM
+
+SOPS szyfruje wartości w pliku dotenv (AES-256-GCM, osobno każdą wartość) i zostawia nazwy kluczy jawne. Klucz danych pliku jest zaszyfrowany dla listy odbiorców. Diff w PR pokazuje, który sekret się zmienił, bez wartości. age daje jeden wiersz klucza (`age1…`) i stałe algorytmy (X25519, ChaCha20-Poly1305). GPG przegrał: keyring, podklucze i wybór algorytmu łatwo zostawić w słabej konfiguracji. git-crypt przegrał: szyfruje cały plik, więc nie ma diffu na poziomie jednego klucza i trudno zdjąć odbiorcę. Menedżer haseł w chmurze przegrał, bo deploy zależy wtedy od cudzej usługi. Serwer z dynamicznymi poświadczeniami zostaje kierunkiem w [przyszlosc.md](przyszlosc.md), nie w tym numerze: to kolejny proces do utrzymania. Koszt: trzech odbiorców (YubiKey, klucz awaryjny, klucz VM) i `sops updatekeys` przy rotacji.
+
+### vTPM zamiast pliku `age.key`
+
+Plik `age.key` z `chmod 600` chroni przed innymi użytkownikami tej VM. Nie chroni przed kopią dysku. `systemd-creds encrypt --with-key=host+tpm2` szyfruje klucz kluczem maszyny i TPM. Plik `.cred` skopiowany na inną VM się nie odszyfruje. Koszt: kopia zapasowa całej VM zawiera też stan vTPM, więc kopie hosta Proxmoxa mają być szyfrowane osobno. Zmiana firmware (PCR 7) unieważnia `.cred` i klucz powstaje od nowa.
+
+### Plik sekretu Compose zamiast zmiennej środowiskowej
+
+Kontener dostaje sekret jako plik w `/run/secrets`, a ASP.NET Core czyta go przez `AddKeyPerFile`. Zmienna środowiskowa przegrała: widać ją w `docker inspect`, w `/proc/<pid>/environ` i w zrzucie środowiska. Dwanaście czynników z 2011 roku wybierało env, bo alternatywą był plik konfiguracyjny w repo. Plik montowany przez Compose rozdziela kod i konfigurację bez wystawiania wartości w metadanych kontenera. Koszt: prawa `0444` na pliku i `0700` na katalogu, bo proces w kontenerze nie jest rootem hosta.
 
 ## Co już jest w repo
 
@@ -495,6 +509,8 @@ docker compose --env-file infra/docker/prod.env -f infra/docker/docker-compose.y
 
 ## Pełny tutorial: sekrety w repozytorium i na serwerze (od zera)
 
+Wybór SOPS, age, vTPM i pliku sekretu jest w [Dlaczego ta technologia](#dlaczego-ta-technologia). Tu zostają trzy pytania o sekret, kształt zaszyfrowanego pliku i typowe pomyłki.
+
 ### Trzy pytania o każdy sekret
 
 1. **Gdzie jest źródło prawdy?** Jedno miejsce, z historią. Plik na serwerze bez kopii to brak historii i jedna awaria dysku od utraty.
@@ -523,39 +539,6 @@ Klucz zmiennej jest danymi uwierzytelnionymi wartości: zaszyfrowanej wartości 
 
 Diff w PR pokazuje zmieniony wiersz `Jwt__Key=ENC[…]` i nowy `sops_mac`. Recenzent wie, który sekret się zmienił, bez dostępu do wartości.
 
-### age zamiast GPG
-
-| | age | GPG |
-| --- | --- | --- |
-| Klucz | jeden wiersz `age1…` | keyring, podklucze, daty ważności, sieć zaufania |
-| Algorytmy | X25519, ChaCha20-Poly1305, stałe | konfigurowalne, łatwo o słabą konfigurację |
-| Sprzęt | `age-plugin-yubikey` (PIV) | karta OpenPGP |
-| Typowe użycie | SOPS, Flux, sops-nix, chezmoi | e-mail, podpisy pakietów |
-
-SOPS obsługuje też AWS KMS, GCP KMS, Azure Key Vault i HashiCorp Vault Transit jako odbiorców. Dla jednej VM w domu chmurowy KMS byłby zależnością od konta w chmurze tylko po to, żeby odszyfrować hasło do lokalnej bazy.
-
-### Dlaczego vTPM, a nie plik z kluczem
-
-Plik `age.key` na dysku VM (`chmod 600`) chroni przed innymi użytkownikami tej VM. Nie chroni przed kopią dysku: kopią zapasową, snapshotem, obrazem przeniesionym na inny host. Kto ma dysk, ma klucz, a z kluczem i repo ma wszystkie sekrety.
-
-`systemd-creds encrypt --with-key=host+tpm2` szyfruje klucz kluczem z `/var/lib/systemd/credential.secret` i kluczem TPM. TPM nie wypuszcza swojego klucza. Plik `.cred` skopiowany na inną maszynę albo dysk podpięty do innej VM nie odszyfruje się, bo tamten TPM jest inny.
-
-Granica tej ochrony: vTPM to plik stanu (`tpmstate0`) na storage Proxmoxa, a kopia zapasowa VM zawiera dysk i stan TPM razem. Kto ma kopię zapasową całej VM albo root na hoście Proxmoxa, ma oba. Dlatego kopie zapasowe VM mają być szyfrowane po stronie klienta (Proxmox Backup Server z kluczem szyfrowania), a dostęp do hosta Proxmoxa jest osobną granicą zaufania. Fizyczny TPM w hoście z przekazaniem do VM albo zdalne odszyfrowanie (Tang/Clevis) to kolejne poziomy, poza tym krokiem.
-
-Domyślnie `systemd-creds` wiąże klucz z PCR 7 (stan Secure Boot). Zmiana ustawień firmware VM (np. włączenie Secure Boot) zmienia PCR 7, a `.cred` przestaje się odszyfrowywać. Wtedy `age.key.cred` powstaje od nowa (krok 4) i `sops updatekeys` z nowym kluczem publicznym.
-
-### Dlaczego pliki, a nie zmienne środowiskowe
-
-| Gdzie widać wartość | Zmienna środowiskowa | Plik w `/run/secrets` |
-| --- | --- | --- |
-| `docker inspect` | tak (`Config.Env`) | nie |
-| `/proc/<pid>/environ` | tak | nie |
-| procesy potomne | dziedziczą | nie |
-| zrzut środowiska w logu błędu albo w narzędziu APM | często | nie |
-| `docker compose config` | tak | tylko ścieżka |
-
-12-factor app zalecał konfigurację w env w 2011 roku, gdy alternatywą były pliki konfiguracyjne w repo. Pliki montowane przez orkiestrator (sekrety Compose, Kubernetes Secrets jako wolumen) dają to samo rozdzielenie kodu i konfiguracji bez wystawiania wartości w metadanych kontenera.
-
 ### Sekrety w CI
 
 Najlepszy sekret w CI to taki, którego nie ma. Ten układ trzyma w GitHubie tylko tokeny Sonara, które dotyczą narzędzia jakości, nie produkcji. Deploy nie potrzebuje sekretów, bo biegnie na VM, która sama odszyfrowuje pliki.
@@ -565,18 +548,6 @@ Gdy sekret w CI jest konieczny:
 - environment z regułą gałęzi zamiast sekretu repo,
 - OIDC (`id-token: write`) zamiast długowiecznego klucza tam, gdzie dostawca to obsługuje (chmury, rejestry, Sigstore w [13-lancuch-dostaw.md](13-lancuch-dostaw.md)),
 - nigdy w jobie uruchamianym przez `pull_request_target` z checkoutem kodu PR.
-
-### Alternatywy
-
-| Rozwiązanie | Model | Plusy | Dlaczego nie teraz |
-| --- | --- | --- | --- |
-| HashiCorp Vault / [OpenBao](https://openbao.org/) | serwer sekretów, dynamiczne poświadczenia, dzierżawy | hasło do bazy wydawane na godzinę, audyt każdego odczytu | kolejny serwer do utrzymania, rozszczelnianie po restarcie; [przyszlosc.md](przyszlosc.md) |
-| Infisical, Doppler | SaaS albo self-hosted z UI | wygodne UI, integracje | sekrety poza repo, osobne konto i dostęp |
-| 1Password / Bitwarden Secrets Manager | menedżer haseł z CLI | jedno źródło dla ludzi i maszyn | zależność od usługi przy każdym deployu |
-| git-crypt | całe pliki szyfrowane GPG w gicie | przezroczyste przy `checkout` | brak diffu na poziomie kluczy, trudna rotacja odbiorców |
-| Sealed Secrets | kontroler Kubernetes | GitOps dla K8s | tu nie ma Kubernetes |
-| sekrety GitHuba + deploy z CI | sekret w GitHubie, wstrzyknięty w job | proste | produkcyjne hasła opuszczają dom i przechodzą przez runner |
-| `systemd-creds` bez SOPS | pliki `.cred` na VM | brak dodatkowego narzędzia | brak historii i review, edycja tylko na VM |
 
 ### Typowe pomyłki
 

@@ -1,7 +1,7 @@
 ---
 description: Jak pisać dokumenty API (DDD, event sourcing, CQRS, mikroserwisy)
 globs: docs/api/**/*.md
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Dokumenty API

@@ -55,7 +55,7 @@ Digest mówi „ten sam obraz”, ale nie mówi „zbudowany przez nasz workflow
 
 ### Trivy
 
-Trivy (Apache 2.0) skanuje obraz pod kątem znanych podatności. Już jest w [infra/ci/trivy-api.sh](../../infra/ci/trivy-api.sh). Grype (Apache 2.0) jest równoważny. Zostajemy przy tym, co działa.
+Trivy (Apache 2.0) skanuje obraz pod kątem znanych podatności. Już jest w [infra/ci/trivy-api.sh](../../infra/ci/trivy-api.sh). Grype (Apache 2.0) jest równoważny i przegrywa tylko dlatego, że drugi skaner nie zmienia wyniku. Koszt: kolejny krok w jobie obrazu i próg, od którego CVE zatrzymuje wydanie.
 
 ### Telemetria zostaje, zmienia się adresacja
 

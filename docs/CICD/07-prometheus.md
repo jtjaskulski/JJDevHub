@@ -1,10 +1,18 @@
 # 07 — Prometheus
 
-## Po co ten krok
+## Po co
 
-Prometheus ma **co 15 sekund** ściągać (pull) metryki z API pod ścieżką `/metrics`. Kontener Prometheusa stoi w **tym samym Compose** co `api` / `db` / `web`, w sieci Dockera. Port UI/API Prometheusa jest zbindowany **tylko na `127.0.0.1`**. Tunel Cloudflare z [02-cloudflare-tunnel.md](02-cloudflare-tunnel.md) **nie** publikuje Prometheusa — zostaje sam origin `127.0.0.1:4200`.
+Metryki z [06-opentelemetry.md](06-opentelemetry.md) powstają w procesie i nie mają gdzie się zbierać. Ten numer daje im odbiornik: co 15 sekund, w tym samym Compose, z UI tylko na `127.0.0.1`. Tunel z [02-cloudflare-tunnel.md](02-cloudflare-tunnel.md) Prometheusa nie publikuje.
 
-Wymaga instrumentacji z [06-opentelemetry.md](06-opentelemetry.md). Ten plik dokłada eksporter Prometheus (endpoint scrape) oraz usługę `prometheus`.
+## Dlaczego ta technologia
+
+### Prometheus i pull zamiast pusha
+
+Prometheus (CNCF) sam robi GET na adres, który mu podasz, i składa bazę szeregów czasowych. API nie łączy się z nim: wystawia tekst pod `/metrics`. Martwy cel widać od razu, bo scrape nie wraca i metryka `up` spada do 0. Push z aplikacji do centrali przegrał: Jaeger nie przyjmuje metryk, a OTLP metryk w 06 idzie tylko na osobny adres, którego tu nie ma. Pushgateway przegrał, bo to nie jest jednorazowy job, tylko proces, który żyje. Koszt: scrape co 15 sekund, retencja na dysku kontenera i brak alertów — wykres na co dzień jest w Grafanie ([09-grafana.md](09-grafana.md)).
+
+### Eksporter w procesie zamiast sidecaru
+
+`AddPrometheusExporter` i `MapPrometheusScrapingEndpoint("/metrics")` w [src/api/Program.cs](../../src/api/Program.cs) otwierają czytnik na porcie, na którym API już nasłuchuje. Sidecar albo agent na hoście przegrał: dokładają drugi proces i drugą konfigurację, a tekst metryk i tak powstaje w tym samym procesie. Ścieżka bez JWT przegrała z pomysłem `RequireAuthorization`: job scrape nie ma tokenu, a 401 to target DOWN. Z zewnątrz VM jej nie ma, bo host publikuje `127.0.0.1:5080`, a nginx tej ścieżki nie proxy'uje. Koszt: oba wywołania muszą być naraz — sam eksporter nie otwiera portu, samo mapowanie bez eksportera daje pustkę.
 
 ## Co już jest w repo
 
@@ -187,31 +195,7 @@ docker compose --env-file /etc/jjdevhub/api.env -f infra/docker/docker-compose.y
 
 ## Pełny tutorial: Prometheus (od zera)
 
-Ta sekcja tłumaczy scrape i PromQL na tym API. Przepis eksportera i Compose jest wyżej. Nie stawiasz tu Jaegera, Grafany ani Alertmanagera.
-
-### Co to jest
-
-Prometheus (CNCF) sam co jakiś czas robi GET na adres, który mu podasz, i składa z odpowiedzi bazę szeregów czasowych (TSDB). Pytać ją umie językiem PromQL. UI na `:9090` jest do sprawdzenia targetu i zapytania. Wykres na co dzień jest w Grafanie ([09-grafana.md](09-grafana.md)); ten numer ma dostarczyć jej dane.
-
-Model to **pull**. API nie łączy się z Prometheusem. Wystawia tekst pod `/metrics`. Prometheus go ściąga. Martwy cel widać od razu: scrape nie wraca, metryka `up` spada do 0. Push (aplikacja wysyła próbki do centrali) w tym stacku jest osobno i tylko dla OTLP, gdy ustawisz endpoint z 06. Do Prometheusa nic nie pushujesz. Pushgateway — osobny komponent na jednorazowe joby — tu nie wchodzi.
-
-```
-co 15 s
-prometheus (jjdevhub-prometheus)
-    GET http://api:8080/metrics
-        ▲
-        │  tekst liczników, bez JWT
-        │
-      API :8080
-        MapPrometheusScrapingEndpoint
-        instrumentacje z 06 (ASP.NET, HttpClient, runtime)
-
-z hosta VM:
-  curl 127.0.0.1:5080/metrics     ten sam endpoint, mapowanie 5080→8080
-  curl 127.0.0.1:9090/-/healthy   UI Prometheusa, bind tylko loopback
-```
-
-Nginx (`web`) proxy’uje `/health` i `/api/`, nie `/metrics`. Tunel Cloudflare zostaje przy `127.0.0.1:4200`. Publiczny hub tych liczb nie serwuje, bo port hosta API to `127.0.0.1:5080`, nie `0.0.0.0:5080`. Scrape Prometheusa i tak idzie po `api:8080` w sieci Compose i tego bindu nie potrzebuje.
+Czym jest Prometheus i dlaczego pull, jest w [Dlaczego ta technologia](#dlaczego-ta-technologia). Tu zostają scrape i PromQL na tym API. Przepis eksportera i Compose jest wyżej. Nie stawiasz tu Jaegera, Grafany ani Alertmanagera.
 
 ### Dwa wyjścia tych samych metryk
 

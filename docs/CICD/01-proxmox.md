@@ -4,9 +4,19 @@ Aplikacja zostaje na Twoim komputerze. Ten dokument stawia osobną maszynę wirt
 
 Gałąź w repo to `main`. Stack to Postgres 16, API .NET i React za nginx — plik [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml).
 
-## Dlaczego VM, nie LXC
+## Po co
 
-Docker w kontenerze LXC na Proxmoxie wymaga nestingu i bywa niestabilny przy cgroup. Użyj zwykłej VM.
+Laptop zostaje maszyną do pracy. Serwer ma być osobną maszyną, na której stoi Docker i pierwszy `docker compose up` z [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml). Bez tej maszyny tunel i deploy nie mają gdzie wylądować.
+
+## Dlaczego ta technologia
+
+### Proxmox i zwykła VM zamiast LXC
+
+Proxmox stawia maszynę wirtualną na własnym hoście. VM ma własny kernel, więc Docker Engine działa tak samo jak na fizycznym serwerze. Kontener LXC na Proxmoxie musiałby zagnieżdżać Dockera: nesting i cgroup przy tym układzie bywają niestabilne, a dysk i sieć dzielą kernel hosta. Koszt to 4 GB RAM, 40 GB dysku i osobny system do aktualizacji. Publiczne IP nie jest potrzebne — tunel z następnego numeru wychodzi z VM na zewnątrz.
+
+### Docker Engine i plugin Compose
+
+Stack jest opisany w [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml). Oficjalny Docker Engine z pluginem `docker compose` buduje obrazy API i weba na VM i trzyma Postgresa, API i nginx w jednym projekcie. Stary pakiet `docker-compose` (v1, Python) przegrał: nie jest już utrzymywany i nie czyta tego samego formatu co plugin v2. Kubernetes na jednej VM przegrał, bo dokładają się etcd, ingress i osobny sposób sekretów, a dziś wystarcza jeden plik Compose. Koszt: obrazy budują się na VM, pierwszy build trwa kilka minut, a użytkownik deployu musi być w grupie `docker`.
 
 ## 1. ISO
 

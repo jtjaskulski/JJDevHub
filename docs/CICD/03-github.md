@@ -1,10 +1,20 @@
 # GitHub — deploy na VM
 
-Push na `main` ma przebudować Compose na VM z [proxmox.md](01-proxmox.md). Aplikacja jest wtedy dostępna tunelem z [cloudflare-tunnel.md](02-cloudflare-tunnel.md).
+Push na `main` ma przebudować Compose na VM z [01-proxmox.md](01-proxmox.md). Aplikacja jest wtedy dostępna tunelem z [02-cloudflare-tunnel.md](02-cloudflare-tunnel.md).
 
-Zrób to **self-hosted runnerem** na tej samej VM. Runner sam wychodzi do GitHuba, więc do domu nie musi wchodzić webhook.
+## Po co
 
-Godzinny cron zostaje jako zapas, gdy runner jest offline. Nie stawiaj nasłuchu webhooka na VM i nie uruchamiaj deployu na `ubuntu-latest`: hosted runner nie ma Twojego `/etc/jjdevhub/api.env` i nie buduje obrazów na Proxmoxie.
+Workflowy `api` i `web` już budują i testują. Brakuje mechanizmu, który ten sam commit postawi na maszynie z `/etc/jjdevhub/api.env`. Bez tego zielone CI nie zmienia tego, co widać przez tunel.
+
+## Dlaczego ta technologia
+
+### Self-hosted runner zamiast `ubuntu-latest`
+
+Runner GitHub Actions stoi na tej samej VM co Compose, z etykietą `jjdevhub`. Sam wychodzi do GitHuba, więc do domu nie wchodzi webhook. Hosted runner `ubuntu-latest` przegrał: nie ma `/etc/jjdevhub/api.env`, nie widzi Dockera na Proxmoxie i budowałby obrazy gdzie indziej niż one działają. Webhook HTTP na VM przegrał: wymaga otwartego portu albo osobnej trasy tunelu i sekretu. Koszt: runner musi być online w chwili sukcesu CI, a usługa chodzi na użytkowniku deployu, nie na root, żeby `docker` i `git` w `/opt/jjdevhub` były te same co przy ręcznym Compose. Poleceń pobrania archiwum runnera nie ma w tym pliku — wersja zmienia się w panelu.
+
+### Cron jako zapas
+
+[infra/ci/jjdevhub-release.cron](../../infra/ci/jjdevhub-release.cron) i [infra/ci/release-and-deploy.sh](../../infra/ci/release-and-deploy.sh) co godzinę dociągają `origin/main`, gdy runner leży. Sam cron przegrał jako jedyna ścieżka: czeka do 59 minut i wstaje nawet, gdy `api` albo `web` jest czerwony. Deploy po zielonym CI idzie z [.github/workflows/deploy.yml](../../.github/workflows/deploy.yml) dla tego SHA. Koszt: dwa wejścia do tego samego skryptu biorą `flock` na `/var/lib/jjdevhub/deploy.lock`, inaczej cron i runner zrobią `git checkout` naraz.
 
 ## Co już jest w repo
 

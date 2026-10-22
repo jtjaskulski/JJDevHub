@@ -1,6 +1,6 @@
 # Branche i wydania — trunk-based, release-please, deploy z tagu
 
-## Po co ten krok
+## Po co
 
 Dziś każdy zielony merge na `main` od razu jedzie na produkcję: [deploy.yml](../../.github/workflows/deploy.yml) startuje po `api` albo `web` (`workflow_run`), a [release-and-deploy.sh](../../infra/ci/release-and-deploy.sh) zakłada lokalną gałąź `release/YYYY-MM-DD.N` jako znacznik wdrożenia. Nie ma numeru wersji, changelogu ani odpowiedzi na pytanie „co jest na produkcji i co zmieniło się od wczoraj”. Branch protection z [03-github.md](03-github.md) jest wyklikana w panelu i nie ma jej w gicie.
 
@@ -12,6 +12,20 @@ Po tym kroku:
 - Reguły gałęzi i tagów są plikami JSON w `.github/rulesets/`, nakładanymi skryptem. Tag wydania nie da się przesunąć ani usunąć, a GitHub Release jest niezmienny (Immutable Releases).
 
 Wszystko na `GITHUB_TOKEN`. Ten krok nie dodaje żadnego sekretu.
+
+## Dlaczego ta technologia
+
+### Trunk-based i Release PR zamiast GitFlow
+
+GitFlow (`develop`, `release/*`, `hotfix/*`) powstał dla produktu, w którym kilka wersji żyje równolegle. Usługa webowa ma jedną wersję: tę na serwerze. Długie gałęzie dają duże scalenia tuż przed wydaniem. Trunk-based trzyma jedną długowieczną gałąź, `main`, i krótkie gałęzie wracające jednym squashem. Sam GitHub Flow („scalenie = wdrożenie”) przegrał, bo odbiera chwilę, w której widać, co wchodzi razem. Release PR jest tą chwilą: wersje i changelog przed tagiem. Koszt: tytuł PR musi być Conventional Commitem, a merge commit i rebase merge są wyłączone, bo changelog zakłada jeden commit na PR.
+
+### release-please zamiast wydania przy każdym pushu
+
+[release-please](https://github.com/googleapis/release-please) czyta commity od ostatniego tagu `<komponent>-v*` i trzyma otwarty Release PR (`version.txt`, `CHANGELOG.md`, manifest). Scalenie tego PR tworzy tagi i GitHub Release. semantic-release przegrał: wydaje przy każdym pushu, bez przeglądu, i jest ekosystemem Node. Changesets przegrały: dokładają plik `.changeset` do każdego PR i są nastawione na npm. GitVersion i Nerdbank.GitVersioning przegrały: liczą wersję z historii albo wysokości commita i nie piszą changelogu pod przegląd. Koszt: tag tworzy `GITHUB_TOKEN`, więc zdarzenie `release` nie odpala kolejnych workflowów. Deploy jest następnym jobem w `release.yml`, nie osobnym triggerem `release: published`.
+
+### Ruleset w gicie zamiast branch protection w panelu
+
+Ruleset to jeden JSON w `.github/rulesets/`, nakładany skryptem. Klasyczna branch protection przegrała: żyje w panelu, administrator ją omija, a tagów nie obejmuje (stara ochrona tagów jest wycofana). Ruleset obowiązuje także administratora, chyba że jest na liście `bypass_actors`, i umie `target: tag`. Koszt: reguła w trybie wymuszania blokuje scalenie, dopóki wymagany check nie pojawi się na commicie. Immutable Releases dokładają drugą kłódkę: tagu wydania nie da się przesunąć na inny commit, a `gh release verify` sprawdza atestację in-toto.
 
 ## Co już jest w repo
 
@@ -612,19 +626,7 @@ node --test infra/ci/pr-title.test.mjs infra/ci/deploy-gate.test.mjs
 
 ## Pełny tutorial: gałęzie, wersje i wydania (od zera)
 
-Ta sekcja tłumaczy, skąd biorą się decyzje z kroków wyżej i jakie są alternatywy. Przepis plików jest wyżej.
-
-### Trunk-based zamiast GitFlow
-
-GitFlow (gałęzie `develop`, `release/*`, `hotfix/*`, `main`) powstał dla oprogramowania wydawanego paczkami, gdzie kilka wersji żyje równolegle i każda dostaje poprawki. Usługa webowa ma jedną wersję: tę na serwerze. Długie gałęzie oznaczają duże scalenia, konflikty i „integration hell” tuż przed wydaniem.
-
-Trunk-based: wszyscy integrują się do `main` często, małymi porcjami, a `main` zawsze przechodzi testy. Badania DORA (*Accelerate*, raporty State of DevOps) łączą tę praktykę z wyższą częstotliwością wdrożeń i krótszym czasem przywrócenia usługi. GitHub Flow to ta sama idea w prostszej wersji: gałąź, PR, scalenie, wdrożenie. Ten krok dokłada do GitHub Flow jawną chwilę wydania (Release PR), bo „scalenie = wdrożenie” odbiera kontrolę nad tym, kiedy kilka zmian wchodzi razem.
-
-| Model | Gałęzie długowieczne | Kiedy wdrożenie | Dla kogo |
-| --- | --- | --- | --- |
-| GitFlow | `main`, `develop` (+ `release/*`, `hotfix/*`) | po scaleniu `release/*` | produkty z wieloma utrzymywanymi wersjami |
-| GitHub Flow | `main` | po każdym scaleniu | małe zespoły, ciągłe wdrażanie |
-| Trunk-based + Release PR (ten krok) | `main` | po scaleniu Release PR | usługi, w których wydanie ma być decyzją, a nie skutkiem ubocznym |
+Wybór trunk-based, release-please i rulesetów jest w [Dlaczego ta technologia](#dlaczego-ta-technologia). Tu zostają Conventional Commits, przebieg release-please i typowe pomyłki. Przepis plików jest wyżej.
 
 ### Conventional Commits i SemVer
 
@@ -653,46 +655,6 @@ Dwie fazy przy każdym pushu na `main`:
 Release PR jest miejscem przeglądu: widać, co wejdzie, jakie wersje i z jakim opisem. Można poprawić changelog, edytując treść PR, zanim się go scali. Kilka scaleń w ciągu dnia daje jedno wydanie.
 
 Commit dotykający dwóch komponentów pojawia się w obu changelogach. Commit spoza wszystkich ścieżek (np. `docs/`) nie pojawia się nigdzie.
-
-### Dlaczego tag z GITHUB_TOKEN nie odpala workflowów
-
-GitHub blokuje rekurencję: zdarzenie wywołane przez `GITHUB_TOKEN` nie tworzy nowych przebiegów, żeby workflow nie wywoływał sam siebie w nieskończoność. Dotyczy to `push`, `pull_request`, `release`, `create`. Wyjątki to `workflow_dispatch` i `repository_dispatch`, które są jawnym wywołaniem.
-
-Z tego wynikają dwie decyzje z kroku 6:
-
-| Problem | Typowe rozwiązanie | Ten krok |
-| --- | --- | --- |
-| Release PR bez checków | PAT albo token GitHub App w `release-please-action` | `workflow_dispatch` na gałęzi Release PR |
-| Deploy na `release: published` nie startuje | ten sam token | deploy jako kolejny job w `release.yml` |
-
-Token GitHub App jest dobrym rozwiązaniem w organizacji: krótkie tokeny, uprawnienia na repo, audyt. Wymaga jednak klucza prywatnego aplikacji w sekretach, czyli kolejnej pozycji w inwentarzu z [12-sekrety.md](12-sekrety.md). PAT jest gorszy: długowieczny, z uprawnieniami całego konta.
-
-### Rulesets a klasyczna branch protection
-
-| Cecha | Branch protection | Ruleset |
-| --- | --- | --- |
-| Zarządzanie | panel albo osobne endpointy na regułę | jeden JSON przez `/rulesets`, łatwy do trzymania w gicie |
-| Administrator | domyślnie omija | obowiązuje, chyba że jest na liście `bypass_actors` |
-| Wiele reguł na ref | jedna reguła na wzorzec | warstwy: wszystkie pasujące rulesety obowiązują naraz |
-| Tagi | brak (stara „tag protection” wycofana) | `target: tag` |
-| Tryb próbny | brak | `enforcement: evaluate` w organizacjach (Insights pokazuje, co by zablokował) |
-| Ograniczenia metod scalania | ustawienia repo | `allowed_merge_methods` w regule `pull_request` |
-
-`gh ruleset check <gałąź>` pokazuje reguły, które naprawdę obowiązują dla danego refa, po złożeniu wszystkich warstw.
-
-### Immutable Releases i atestacja wydania
-
-Bez tego ustawienia właściciel (albo ukradziony token z `contents: write`) może usunąć tag `api-v0.4.0` i utworzyć go ponownie na innym commicie. Ktoś, kto wdrożył „wersję 0.4.0”, dostałby inny kod. Ruleset `release-tags` blokuje to na poziomie refa, a Immutable Releases dodatkowo na poziomie wydania i jego plików, także po usunięciu i ponownym założeniu repozytorium o tej samej nazwie. GitHub podpisuje atestację wydania w formacie [in-toto](https://in-toto.io/) i trzyma ją przy repo. `gh release verify` sprawdza, że tag i commit zgadzają się z atestacją, a `gh release verify-asset` — plik wydania. Weryfikację obrazów kontenerów dokłada [13-lancuch-dostaw.md](13-lancuch-dostaw.md).
-
-### Alternatywy dla release-please
-
-| Narzędzie | Jak liczy wersję | Release PR | Monorepo | Dlaczego nie tu |
-| --- | --- | --- | --- | --- |
-| [semantic-release](https://semantic-release.gitbook.io/) | Conventional Commits | nie, wydaje przy każdym pushu | przez wtyczki (`multi-semantic-release`) | brak chwili przeglądu, ekosystem Node |
-| [Changesets](https://github.com/changesets/changesets) | plik `.changeset/*.md` dopisywany w PR | tak („Version Packages”) | natywnie dla pakietów npm | dodatkowy plik w każdym PR, nastawiony na publikację npm |
-| [GitVersion](https://gitversion.net/) | historia i nazwy gałęzi | nie | ograniczone | nie pisze changelogu, konfiguracja pod GitFlow |
-| [Nerdbank.GitVersioning](https://github.com/dotnet/Nerdbank.GitVersioning) | `version.json` + wysokość commita | nie | per katalog | wersja na każdy commit, bez changelogu |
-| release-please | Conventional Commits | tak | tryb manifest | — |
 
 ### Typowe pomyłki
 

@@ -1,8 +1,14 @@
 # Grafana — dashboardy z Prometheusa i Jaegera
 
-## Po co ten krok
+## Po co
 
-Prometheus ([07-prometheus.md](07-prometheus.md)) trzyma metryki, Jaeger ([08-jaeger.md](08-jaeger.md)) trzyma trace. Grafana czyta oba w jednym UI: wykres scrapa i wyszukiwanie trace’ów w Explore. Panel z kroku 4 pokazuje `up` — waterfall Jaegera jest obok, nie otwiera się z tego wykresu sam. Bez Grafany skaczesz między `:9090` a `:16686`. Port na hoście zostaje `127.0.0.1:3000`. Publiczny UI to `https://grafana.jjdevhub.com/` w tym samym tunelu ([02-cloudflare-tunnel.md](02-cloudflare-tunnel.md)).
+Prometheus ([07-prometheus.md](07-prometheus.md)) trzyma metryki, Jaeger ([08-jaeger.md](08-jaeger.md)) trzyma trace. Bez wspólnego UI skaczesz między `:9090` a `:16686`. Port na hoście zostaje `127.0.0.1:3000`. Publiczny UI to `https://grafana.jjdevhub.com/` w tym samym tunelu ([02-cloudflare-tunnel.md](02-cloudflare-tunnel.md)).
+
+## Dlaczego ta technologia
+
+### Grafana jako klient, nie jako zbieracz
+
+Grafana rysuje dane, których sama nie zbiera. W tym Compose jest klientem Prometheusa (`http://prometheus:9090`, PromQL) i Jaegera (`http://jaeger:16686`, HTTP API query, nie OTLP na 4317). Przeglądarka rozmawia tylko z Grafaną. W trybie `proxy` Grafana sama woła backendy w sieci Dockera. Tryb `direct` przegrał: przeglądarka miałaby rozwiązać nazwę `prometheus`, a na laptopie jej nie ma. Jeden panel w UI Prometheusa i drugi w UI Jaegera przegrały jako codzienne miejsce, bo to dwa logowania i dwa adresy. Koszt: katalog [infra/grafana/](../../infra/grafana/) jest źródłem prawdy dashboardu, a nie baza `grafana.db`. Exemplarze (klik w słupek otwiera span) w tym numerze nie są włączone.
 
 ## Co już jest w repo
 
@@ -233,28 +239,7 @@ Hub `https://hub.example.com` nie serwuje Grafany. Publiczny UI jest na `https:/
 
 ## Pełny tutorial: Grafana (od zera)
 
-Ta sekcja tłumaczy provisioning i to, co zobaczysz po zalogowaniu. Przepis plików jest wyżej. Nie dodajesz tu scrapera, collectora OTLP ani alertów na Slacka.
-
-### Co to jest
-
-Grafana rysuje i odpytuje dane, których sama nie zbiera. W tym Compose jest klientem dwóch rzeczy, które już stoją:
-
-- Prometheus ([07-prometheus.md](07-prometheus.md)) — PromQL po `http://prometheus:9090`,
-- Jaeger ([08-jaeger.md](08-jaeger.md)) — HTTP API query po `http://jaeger:16686`, nie OTLP na `4317`.
-
-Przeglądarka rozmawia tylko z Grafaną. Grafana, w trybie `proxy`, sama woła backendy w sieci Dockera. Laptop nie musi rozwiązywać nazwy `prometheus`.
-
-```
-przeglądarka  --SSH -L 3000-->  127.0.0.1:3000  grafana (jjdevhub-grafana)
-                                      │
-                                      ├─ PromQL ──► prometheus:9090
-                                      │                 scrape api:8080/metrics  (to robi 07, nie Grafana)
-                                      │
-                                      └─ /api/traces ► jaeger:16686
-                                                          spany z api → jaeger:4317  (to robi 08)
-```
-
-Jedno `up` na wykresie nie jest linkiem do waterfalla. Exemplarze (próbka spana doklejona do metryki) w tym przepisie nie są włączone. Trace szukasz w **Explore → Jaeger** albo dokładając osobny panel. Obietnica „klik w słupek otwiera login” wymagałaby tej dokładki; krok 4 jej nie ma.
+Czym jest Grafana jako klient backendów, jest w [Dlaczego ta technologia](#dlaczego-ta-technologia). Tu zostają provisioning i to, co zobaczysz po zalogowaniu. Przepis plików jest wyżej. Nie dodajesz tu scrapera, collectora OTLP ani alertów na Slacka.
 
 ### Co realnie widać po tym kroku
 

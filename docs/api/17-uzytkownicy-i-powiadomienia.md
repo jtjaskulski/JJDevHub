@@ -18,7 +18,7 @@ Powiadomienia reagują na zdarzenia i nikt ich nie wywołuje. Logika to handlery
 
 ### `INotificationSender` z implementacją logującą
 
-Prawdziwy e-mail wymaga dostawcy (SMTP, Cloudflare Email, SendGrid), sekretów i domeny z DKIM. To osobna decyzja. Interfejs z implementacją, która tylko loguje, pozwala zbudować i przetestować cały przepływ (zdarzenie → inbox → wysyłka → `SentNotifications`) bez dostawcy. Podmiana to jedna rejestracja w DI.
+Prawdziwy e-mail wymaga dostawcy (SMTP, Cloudflare Email, SendGrid), sekretów i domeny z DKIM. To osobna decyzja i w tym numerze przegrywa. Interfejs z implementacją, która tylko loguje, pozwala zbudować i przetestować cały przepływ (zdarzenie → inbox → wysyłka → `SentNotifications`) bez dostawcy. Podmiana to jedna rejestracja w DI. Koszt: wiadomość zostaje w logu i w `SentNotifications`, a nie w skrzynce.
 
 ### Testy kontraktów jako snapshoty JSON
 

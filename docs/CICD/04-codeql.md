@@ -1,8 +1,18 @@
 # 04 — CodeQL
 
-## Po co ten krok
+## Po co
 
 CodeQL ma znaleźć typowe dziury w C# (API) i TypeScript (React) zanim trafią na `main`. Wynik ląduje w zakładce **Security → Code scanning** na GitHubie. Ten krok nie wdraża nic na VM z [01-proxmox.md](01-proxmox.md) i nie rusza deployu z [03-github.md](03-github.md).
+
+## Dlaczego ta technologia
+
+### CodeQL zamiast samego lintera
+
+CodeQL (korzenie w Semmle, dziś część GitHuba) traktuje kod jak dane. Ekstraktor składa bazę z plików, typów i krawędzi przepływu, a zapytania QL szukają ścieżki od wejścia żądania do wywołania, które wstawia ten argument do SQL, HTML albo ścieżki pliku. Aplikacja przy tym nie startuje. Linter (ESLint, analyzery Roslyn) przegrał jako jedyna kontrola: pilnuje stylu i wzorca w jednym pliku, a nie ścieżki przez kilka metod. Skan CVE paczek i obrazów jest w [05-zaleznosci-i-obrazy.md](05-zaleznosci-i-obrazy.md), dług i pokrycie w [10-sonarqube.md](10-sonarqube.md). Żaden z nich nie odpowiada na pytanie, czy Twój kod składa niebezpieczną ścieżkę. Koszt: skan trwa kilka–kilkanaście minut, a brak alertu znaczy tylko, że włączony zestaw zapytań nic nie znalazł.
+
+### Default setup zamiast własnego workflowu
+
+Default setup jest konfiguracją w GitHubie, bez pliku w `.github/workflows/`. GitHub sam dobiera harmonogram i tryb bazy bez kompilacji. Własny `codeql.yml` przegrał na start: dokładają się dwa checki, gdy oba mechanizmy są włączone naraz, a hosted runner często nie ma .NET 11 preview, więc zgadywany `dotnet build` pada na restore. Plik workflow dochodzi dopiero, gdy default nie widzi obu języków albo skan C# wraca pusty. Koszt: prywatne repo potrzebuje produktu GitHub Code Security; publiczne dostaje code scanning w ramach GitHuba.
 
 ## Co już jest w repo
 
@@ -165,35 +175,7 @@ Gdy chcesz blokować merge przy nowych alertach: **Settings** → **Branches** �
 
 ## Pełny tutorial: CodeQL (od zera)
 
-Ta sekcja tłumaczy silnik i wynik w UI. Procedura włączenia w JJDevHub jest wyżej, w [Krokach](#kroki). Tutaj nie dodajesz drugiego workflowu.
-
-### Co to jest
-
-CodeQL (korzenie w Semmle, dziś część GitHuba) traktuje kod jak dane. Ekstraktor czyta źródła — a w trybie z buildem także to, co naprawdę skompilował `dotnet build` — i składa **bazę CodeQL**: tabele z plikami, typami, wywołaniami i krawędziami przepływu danych. Potem odpalają się **zapytania QL**. Trafienie staje się alertem w **Security → Code scanning**.
-
-Aplikacja przy tym nie startuje. Nie ma requestu HTTP, nie ma bazy Postgresa, nie ma przeglądarki. Pytanie, które silnik umie zadać, brzmi mniej więcej tak: „czy istnieje ścieżka od argumentu żądania do wywołania, które wstawia ten argument do SQL / HTML / ścieżki pliku, i czy po drodze nic nie zamieniło go na bezpieczną postać?”.
-
-```
-źródła w git
-    → ekstraktor (osobny na język)
-        → baza CodeQL
-            → suite zapytań QL
-                → SARIF
-                    → Security → Code scanning
-                        → adnotacja na PR
-```
-
-Linter (ESLint, analyzery Roslyn) pilnuje stylu i lokalnych wzorców w jednym pliku. CodeQL składa ścieżkę przez kilka metod i plików. W JJDevHub obok niego stoją jeszcze dwie inne kontrole, każda z własnym numerem:
-
-| Warstwa | Pytanie | Dokument |
-| --- | --- | --- |
-| CodeQL | Czy **Twój** kod składa niebezpieczną ścieżkę danych? | ten plik |
-| Dependabot, audyt, Trivy | Czy **paczka albo obraz** ma znane CVE? | [05-zaleznosci-i-obrazy.md](05-zaleznosci-i-obrazy.md) |
-| SonarQube | Jaki jest dług, duplikacja, pokrycie, bramka jakości? | [10-sonarqube.md](10-sonarqube.md) |
-
-Zielony CodeQL zostawia tamte dwie warstwy nietknięte. Secret scanning (osobny przełącznik GitHuba, szuka tokenów w git) też jest czym innym: CodeQL łapie niektóre zahardkodowane sekrety w kodzie, secret scanning przeszukuje historię commitów pod znane formaty kluczy.
-
-Publiczne repo dostaje code scanning w ramach GitHuba. Prywatne wymaga produktu **GitHub Code Security** (wcześniej część Advanced Security). Gdy w Settings nie ma „Set up” przy Code scanning, brakuje tego produktu, a nie pliku YAML.
+Wybór CodeQL jest w [Dlaczego ta technologia](#dlaczego-ta-technologia). Tu zostaje, jak czytać alert i jak idzie jeden skan. Procedura włączenia jest w [Krokach](#kroki). Tutaj nie dodajesz drugiego workflowu.
 
 ### Źródło, zlew, bariera
 
