@@ -14,6 +14,20 @@ Osobne hostname'y, każdy na korzeniu swojej subdomeny, idą w ten sam tunel:
 
 Porty zostają na loopbacku. `cloudflared` stoi na VM i widzi `127.0.0.1`. Routera nie przekierowujesz.
 
+## Po co
+
+VM z [01-proxmox.md](01-proxmox.md) nie ma publicznego IP, a strona ma być zwykłym HTTPS. Origin zostaje `http://127.0.0.1:4200`: kontener `web` w [infra/docker/docker-compose.yml](../../infra/docker/docker-compose.yml) proxy'uje `/api/`, `/health`, `/openapi/` i `/scalar`. Postgres (`5433`) tunelem nie wychodzi.
+
+## Dlaczego ta technologia
+
+### Cloudflare Tunnel zamiast publicznego IP
+
+`cloudflared` na VM wychodzi do Cloudflare (port 7844, UDP przy QUIC albo TCP przy HTTP/2). Cloudflare kończy TLS i wysyła HTTP na nginx na loopbacku. Przekierowanie portów 80 i 443 na routerze przegrało: wystawia VM wprost w sieć i wymaga adresu, który w domu się zmienia. Samo zezwolenie na wyjście 443 nie zestawia tunelu. VPN jako jedyne wejście przegrał, bo strona ma być zwykłym adresem w przeglądarce, a nie siecią tylko dla właściciela. Koszt: domena musi być strefą na koncie Cloudflare, a konektor trzyma jednorazowy token, którego nie ma w gicie.
+
+### Tunel zarządzany z panelu
+
+Trasy hostname'ów zostają w dashboardzie Zero Trust. Na VM jest tylko token i jednostka systemd. Plik konfiguracji w repo przegrał: każda zmiana hostname'a byłaby commitem, a token i tak nie może leżeć obok kodu. Koszt: odtworzenie tunelu wymaga panelu, nie samego klonu. Na architekturze innej niż amd64 pakiet bierze się z kreatora, nie z linku w krokach poniżej.
+
 ## 1. Domena
 
 Darmowy plan Cloudflare wystarcza. Domena musi być strefą na tym koncie (nameservery u rejestratora wskazują na Cloudflare). Dalej w tekście host to `hub.example.com` — podmień na swój.

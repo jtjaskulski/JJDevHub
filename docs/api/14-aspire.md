@@ -46,7 +46,7 @@ Aspire zmienia się szybko: API AppHost i publikacji ewoluowało między wersjam
 
 ### ServiceDefaults jako projekt, nie paczka
 
-Szablon generuje `ServiceDefaults` jako kod w repo. To celowe: każdy zespół zmienia go pod siebie (u nas eksporter Prometheusa i `AddDefaultAuthentication` z [15-identity.md](15-identity.md)), a paczka NuGet wymuszałaby jedną konfigurację dla wszystkich.
+Szablon generuje `ServiceDefaults` jako kod w repo. To celowe: każdy zespół zmienia go pod siebie (u nas eksporter Prometheusa i `AddDefaultAuthentication` z [15-identity.md](15-identity.md)), a paczka NuGet wymuszałaby jedną konfigurację dla wszystkich. Koszt: podbicie wspólnego zachowania jest zmianą w tym repo, nie wersją paczki.
 
 ### Globalny handler wyjątków w ServiceDefaults
 

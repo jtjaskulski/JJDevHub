@@ -2,7 +2,7 @@
 
 Minimal stack: one .NET 11 (Preview 7) API (Identity + JWT + PostgreSQL), React 19 web client (Vite), React Native scaffold.
 
-Kafka, Keycloak, CQRS, Vault, Jenkins and the old microservices are **not** in this tree.
+CQRS, the event store and the Kafka transport are in `src/building-blocks/`. .NET Aspire is in `src/aspire/`. Keycloak, Vault, OpenBao, Jenkins and the old microservices are not in this tree.
 
 ## Secrets
 
@@ -90,11 +90,14 @@ Old Jenkinsfile: only on `archive/pre-rewrite`. Next steps for a CV/enterprise p
 ## Layout
 
 ```
-src/JJDevHub.Api/                 Minimal API (.NET 11 preview), EF Core Identity, JWT
-src/JJDevHub.Api/openapi/         OpenAPI document generated at Debug build
+src/api/                          Minimal API (.NET 11 preview), EF Core Identity, JWT
+src/api/openapi/                  OpenAPI document generated at Debug build
+src/aspire/                       .NET Aspire AppHost and ServiceDefaults
+src/building-blocks/              domain, CQRS, event store, projections, Kafka
+src/services/News/                News service
 src/Clients/web/                  React 19 + Vite (pnpm) + Dockerfile/nginx
 src/Clients/shared/theme/         shared color and type tokens
-src/Clients/mobile/JJDevHubMobile React Native 0.84
+src/Clients/mobile/JJDevHubMobile React Native 0.87
 tests/JJDevHub.Api.Tests/         API tests (Testcontainers)
 infra/docker/                     Postgres 16 + API + web
 infra/ci/                         release cron + deploy script
@@ -102,7 +105,7 @@ infra/ci/                         release cron + deploy script
 .github/workflows/web.yml         GitHub Actions (React / pnpm)
 ```
 
-Event sourcing and CQRS library plan (PL): [docs/api/README.md](docs/api/README.md).
+Event sourcing, CQRS and the service split (PL): [docs/api/README.md](docs/api/README.md).
 
 ---
 
@@ -110,7 +113,7 @@ Event sourcing and CQRS library plan (PL): [docs/api/README.md](docs/api/README.
 
 Minimalny stos: jedno API .NET 11 (Preview 7, Identity + JWT + PostgreSQL), klient webowy React 19 (Vite), szkielet React Native.
 
-Kafka, Keycloak, CQRS, Vault, Jenkins i stare mikroserwisy są poza tym drzewem.
+CQRS, magazyn zdarzeń i transport Kafka są w `src/building-blocks/`. .NET Aspire jest w `src/aspire/`. Keycloak, Vault, OpenBao, Jenkins i stare mikroserwisy są poza tym drzewem.
 
 ## Sekrety
 
@@ -128,7 +131,7 @@ Klucz JWT: `openssl rand -base64 48`
 
 ```bash
 cd infra/docker
-cp .env.example .env   # raz
+cp .env.example .env   # once
 docker compose up --build
 ```
 
@@ -142,7 +145,7 @@ docker compose up --build
 API bez kontenera API (Postgres zostaje w Compose):
 
 ```bash
-dotnet run --project src/JJDevHub.Api
+dotnet run --project src/api
 ```
 
 Rejestracja / logowanie:
@@ -177,7 +180,7 @@ Mobilka (pnpm):
 cd src/Clients/mobile/JJDevHubMobile
 pnpm install
 pnpm start
-# drugi terminal:
+# other terminal:
 pnpm android
 ```
 
@@ -198,11 +201,14 @@ Stary Jenkinsfile jest tylko na `archive/pre-rewrite`. Dalsza ścieżka CV/enter
 ## Układ
 
 ```
-src/JJDevHub.Api/                 Minimal API (.NET 11 preview), EF Core Identity, JWT
-src/JJDevHub.Api/openapi/         dokument OpenAPI generowany przy buildzie Debug
+src/api/                          Minimal API (.NET 11 preview), EF Core Identity, JWT
+src/api/openapi/                  dokument OpenAPI generowany przy buildzie Debug
+src/aspire/                       .NET Aspire: AppHost i ServiceDefaults
+src/building-blocks/              domena, CQRS, magazyn zdarzeń, projekcje, Kafka
+src/services/News/                usługa News
 src/Clients/web/                  React 19 + Vite (pnpm) + Dockerfile/nginx
 src/Clients/shared/theme/         wspólne tokeny koloru i typu
-src/Clients/mobile/JJDevHubMobile React Native 0.84
+src/Clients/mobile/JJDevHubMobile React Native 0.87
 tests/JJDevHub.Api.Tests/         testy API (Testcontainers)
 infra/docker/                     Postgres 16 + API + web
 infra/ci/                         cron wydania + skrypt deployu
@@ -210,4 +216,4 @@ infra/ci/                         cron wydania + skrypt deployu
 .github/workflows/web.yml         GitHub Actions (React / pnpm)
 ```
 
-Plan bibliotek event sourcingu i CQRS: [docs/api/README.md](docs/api/README.md).
+Event sourcing, CQRS i podział na usługi: [docs/api/README.md](docs/api/README.md).

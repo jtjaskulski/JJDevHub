@@ -34,7 +34,7 @@ Data Annotations (`[Required]`, `[MaxLength]`) przegrywają, bo wiążą reguły
 
 ### Zachowania jako open generics w DI
 
-`IPipelineBehavior<,>` rejestrowane jako open generic oznacza, że kontener sam zamyka typ dla każdej komendy. Nowa komenda nie wymaga rejestracji zachowań. Kolejność rejestracji to kolejność owijania, a to jest jawne w jednym miejscu (`AddCqrs`). Dekoratory (Scrutor) dałyby to samo, ale to kolejna biblioteka do jednego wywołania.
+`IPipelineBehavior<,>` rejestrowane jako open generic oznacza, że kontener sam zamyka typ dla każdej komendy. Nowa komenda nie wymaga rejestracji zachowań. Kolejność rejestracji to kolejność owijania, a to jest jawne w jednym miejscu (`AddCqrs`). Dekoratory (Scrutor) dałyby to samo, ale to kolejna biblioteka do jednego wywołania. Koszt: zła kolejność w `AddCqrs` zmienia wynik i nie pada kompilacją.
 
 ## Klasy i ścieżki
 

@@ -1,6 +1,6 @@
 # Łańcuch dostaw — akcje po SHA, zizmor, Scorecard, SBOM i atestacje obrazów
 
-## Po co ten krok
+## Po co
 
 Dziś workflowy wskazują akcje tagiem (`actions/checkout@v7`, `pnpm/action-setup@v6`). Tag to przesuwalny wskaźnik. W marcu 2025 ktoś przejął `tj-actions/changed-files` (CVE-2025-30066) i przestawił wszystkie jego tagi na commit, który wypisywał sekrety z pamięci runnera do logów. Każde repo z `@v45` uruchomiło ten kod przy najbliższym przebiegu, bez żadnej zmiany po swojej stronie.
 
@@ -16,6 +16,20 @@ Po tym kroku:
 - Raz w tygodniu Trivy skanuje SBOM ostatniego wydania, czyli to, co działa, a nie to, co leży w repo.
 
 Żadnego nowego sekretu: podpis bierze tożsamość z tokenu OIDC joba, a weryfikacja na VM używa tokenu joba deployu.
+
+## Dlaczego ta technologia
+
+### SHA commita zamiast tagu akcji
+
+Tag `v7` w repozytorium akcji jest wskaźnikiem, który właściciel albo przejęty token przestawia jedną komendą. SHA commita jest hashem treści: inny kod to inny SHA. W marcu 2025 przestawione tagi `tj-actions/changed-files` uruchomiły obcy kod w każdym repo, które wskazywało `@v45`, bez zmiany po stronie tego repo. Samo przypięcie bez aktualizacji przegrało, bo zamraża podatność. Dependabot z karencją podbija SHA i komentarz wersji, ale nie w dniu publikacji. Koszt: GitHub pokazuje commit z forka pod adresem repozytorium nadrzędnego, więc SHA musi być osiągalny z gałęzi albo tagu oficjalnej akcji. To sprawdza audyt `impostor-commit` w zizmorze.
+
+### Atestacja Sigstore zamiast klucza na VM
+
+GitHub podpisuje provenance SLSA i SBOM tokenem OIDC joba (Fulcio, Rekor). Nie ma klucza prywatnego do rotacji: certyfikat żyje minuty i mówi, który workflow i który commit podpisał plik. VM sprawdza pola certyfikatu (`--repo`, `--signer-workflow`, `--source-ref`, `--source-digest`) zanim zrobi `docker load`. Własne PKI i Notary przegrały: dokładają klucz albo KMS, którego ten numer nie chce. cosign bezpośrednio przegrał do czasu rejestru obrazów: atestacja GitHuba jest tym samym Sigstore, a weryfikacja jest jedną komendą `gh`. Budowa obrazu na VM przegrała, bo maszyna z sekretami nie jest miejscem na `dotnet restore` i `pnpm install`, a Trivy skanowałby inny build niż ten, który działa. Koszt: poziom SLSA L2 (podpis hostowanej platformy), nie L3. L3, czyli przepis builda odizolowany od kroków z repo, jest kierunkiem [docs/api/18-ci-uslug.md](../api/18-ci-uslug.md).
+
+### CycloneDX i Scorecard
+
+SBOM w CycloneDX opisuje, co jest w obrazie, pod kątem podatności. SPDX przegrał w tym numerze: jest mocniejszy przy licencjach, a Trivy i `attest-sbom` i tak mówią CycloneDX natywnie. Syft z Grype przegrały, bo Trivy już skanuje obraz i umie zapisać ten format. OpenSSF Scorecard raz w tygodniu czyta praktyki repo (uprawnienia workflowów, przypięcia, ochronę gałęzi) i wystawia średnią. To nie jest certyfikat: wysoki wynik nie znaczy, że kod jest bezpieczny. Koszt: publiczny wynik i odznaka, oraz świadomość, że niski wynik Code-Review w projekcie jednej osoby opisuje stan, a nie ukrywa lukę.
 
 ## Co już jest w repo
 
@@ -679,7 +693,7 @@ Ciąg `docs/CICD` kończy się na tym numerze. Przeniesienie budowy obrazów na 
 
 ## Pełny tutorial: łańcuch dostaw oprogramowania (od zera)
 
-Ta sekcja tłumaczy, skąd biorą się decyzje z kroków wyżej i jakie są alternatywy. Przepis plików jest wyżej.
+Wybór SHA, atestacji Sigstore i CycloneDX jest w [Dlaczego ta technologia](#dlaczego-ta-technologia). Tu zostają ogniwa ataku, poziomy SLSA, przebieg atestacji i typowe pomyłki. Przepis plików jest wyżej.
 
 ### Gdzie atakuje się łańcuch dostaw
 
@@ -748,34 +762,6 @@ Dlatego polityka z kroku 8 używa wyłącznie flag sprawdzających certyfikat. G
 SBOM przydaje się dopiero wtedy, gdy ktoś go czyta: skan z kroku 11, `jq` na produkcyjnym SBOM przy nowym CVE, odpowiedź na pytanie klienta „czy używacie biblioteki X”.
 
 VEX (Vulnerability Exploitability eXchange) to dokument, w którym producent mówi „CVE-… dotyczy biblioteki w obrazie, ale nas nie dotyczy, bo …”. Trivy przyjmuje VEX (`--vex`) zamiast `.trivyignore`: wyjątek ma uzasadnienie w standardowym formacie i może jechać razem z obrazem. Przy jednym autorze i komentarzach w Dockerfile to na razie nadmiar.
-
-### Dlaczego SHA, a nie tag
-
-Tag `v7` w repo akcji to ref, który właściciel (albo ktoś z jego tokenem) przestawia jedną komendą. SHA commita to hash treści: inny kod to inny SHA.
-
-Jedna pułapka: GitHub pokazuje commit z forka pod adresem repozytorium nadrzędnego (sieć forków dzieli obiekty). `uses: actions/checkout@<sha z forka>` wygląda na przypięcie do oficjalnej akcji, a uruchamia kod z forka. zizmor sprawdza to audytem `impostor-commit`: SHA musi być osiągalny z gałęzi albo tagu repozytorium akcji.
-
-Przypięcie bez aktualizacji to zamrożenie podatności. Dependabot z `cooldown` daje oba efekty: wersje się zmieniają, ale nie w dniu publikacji.
-
-### Co mierzy Scorecard
-
-Scorecard czyta repo przez API i pliki: workflowy (uprawnienia, triggery, przypięcia), Dockerfile'e, `dependabot.yml`, ochronę gałęzi, historię PR i recenzji, wydania, SECURITY.md, licencję. Każda kontrola daje 0–10 z wagą, a wynik ogólny jest średnią ważoną.
-
-To narzędzie do porównań i trendów, nie certyfikat. Wysoki wynik nie znaczy, że kod jest bezpieczny. Niski wynik w Code-Review w projekcie jednej osoby niczego nie ukrywa, tylko opisuje stan. Publiczny wynik jest dla odbiorcy (rekrutera, użytkownika biblioteki) skrótem do pytania „czy ktoś tu myśli o łańcuchu dostaw”.
-
-### Alternatywy
-
-| Rozwiązanie | Co robi | Dlaczego nie tu |
-| --- | --- | --- |
-| cosign (Sigstore) bezpośrednio | podpis obrazu w rejestrze, keyless albo kluczem | atestacje GitHuba to ten sam Sigstore z prostszą weryfikacją; brak rejestru przed 18 |
-| Notation (Notary v2) | podpisy OCI z certyfikatami X.509 | wymaga własnego PKI albo KMS |
-| in-toto / witness | atestacje każdego kroku pipeline'u i polityka całego łańcucha | duża konfiguracja przy dwóch obrazach |
-| SLSA GitHub Generator | provenance L3 przez reużywalny workflow SLSA | ten sam efekt da reużywalny workflow z 18 |
-| Syft + Grype | SBOM i skan podatności (Anchore) | Trivy robi oba i już jest w repo |
-| Renovate | aktualizacje zależności z bogatszą konfiguracją | Dependabot jest wbudowany, ma `cooldown` i grupy |
-| Harden-Runner (StepSecurity) | monitor i blokada ruchu sieciowego runnera | dodatkowa akcja z dostępem do całego joba; warto rozważyć dla `images` |
-| obrazy Chainguard / distroless | minimalne obrazy bazowe z podpisami i SBOM | aspnet z MCR jest oficjalny dla .NET 11 preview; zmiana bazy to osobna decyzja |
-| Kyverno / Connaisseur | weryfikacja podpisów przy wdrożeniu w Kubernetes | tu nie ma Kubernetes; tę rolę pełni skrypt deployu |
 
 ### Typowe pomyłki
 

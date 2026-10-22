@@ -1,6 +1,6 @@
 # 05 — Zależności i obrazy
 
-## Po co ten krok
+## Po co
 
 Zależności NuGet / npm oraz obrazy Dockera mają swoje CVE. Ten krok:
 
@@ -11,6 +11,20 @@ Zależności NuGet / npm oraz obrazy Dockera mają swoje CVE. Ten krok:
 5. Doszczelnia [api.yml](../../.github/workflows/api.yml) i [web.yml](../../.github/workflows/web.yml): `permissions: contents: read` oraz `concurrency`.
 
 Komendy skanów żyją w [infra/ci/](../../infra/ci/). Workflowy tylko je wołają. Deploy z [03-github.md](03-github.md) i CodeQL z [04-codeql.md](04-codeql.md) zostają osobno.
+
+## Dlaczego ta technologia
+
+### Dependabot zamiast ręcznych bumpów
+
+Dependabot czyta manifest (`Directory.Packages.props`, `package.json`, workflowy, Dockerfile) i otwiera PR z nowszą wersją. Sam niczego nie wdraża. Ręczny bump przegrał: CVE w zależności przechodzącej wychodzi na blogu albo po incydencie. Renovate przegrał, bo Dependabot jest wbudowany w GitHuba i wystarcza do grup i harmonogramu. Koszt: otwarte PR trzeba przepuścić przez CI, inaczej bump scala się „na oko”.
+
+### Dependency review i audyt menedżera
+
+Na pull requeście dependency review czyta diff locka wobec bazy GitHub Advisory i kończy job czerwono, gdy PR wprowadza podatność High albo Critical. Dług już obecny na `main` nie zawsze blokuje — brama ma nie pogarszać stanu. `dotnet package list --vulnerable --include-transitive` i `pnpm audit --audit-level=high` patrzą na cały graf, nie tylko na diff. Sam audyt przegrał jako jedyna brama: bywa rozjazd z GitHub Advisory. Same review przegrało, bo nie widzi paczki, która jest podatna od dawna i nie zmienia się w tym PR. Koszt: false positive i brak wersji z poprawką; polityka na start to fail od High w górę, nie od Low.
+
+### Trivy na obrazie, nie tylko na manifeście
+
+Trivy skanuje obraz, który naprawdę wstaje w Compose: paczki systemu w warstwie bazowej i biblioteki znalezione w warstwach. Skan samego `package.json` przegrał, bo produkcja i tak jedzie na `nginx` albo `aspnet` z dziurą w systemie. `trivy fs` i skan IaC zostają poza tym numerem. Koszt: komendy żyją w [infra/ci/](../../infra/ci/), nie są wklejone cztery razy do YAML, a fail na CRITICAL/HIGH boli, dopóki vendor nie wyda poprawki (`--ignore-unfixed` jest świadomym kompromisem, nie domyślnym wyłączeniem).
 
 ## Co już jest w repo
 
@@ -410,80 +424,7 @@ W regule `main` możesz dodać check `dependency-review` obok `api` i `web`. Nie
 
 ## Pełny tutorial: zależności, audyty i skan obrazów (od zera)
 
-### Problem, który rozwiązujesz
-
-Aplikacja to nie tylko Twój kod. NuGet i npm ciągną setki transitive. Obraz Docker = system + runtime + Twoje binaria. CVE pojawiają się w bibliotekach i w warstwach OS (`apk`/`apt` w Alpine/Debian). Bez automatu dowiadujesz się o nich z bloga albo po incydencie.
-
-Trzy warstwy, które się uzupełniają:
-
-1. **Aktualizacje** (Dependabot) — PR z nowszą wersją, zanim CVE stanie się krytyczne w produkcji.
-2. **Brama na PR** (dependency review + audit w CI) — nie wpuszczaj *nowych* High/Critical.
-3. **Obraz** (Trivy) — to, co naprawdę odpalasz w Compose, nie tylko `package.json`.
-
-### Dependabot — jak działa
-
-Plik `.github/dependabot.yml` mówi botowi: ekosystem, katalog z manifestem, harmonogram, limit otwartych PR.
-
-Ekosystemy istotne w monorepo:
-
-| Ecosystem | Manifest | Typowy `directory` |
-| --- | --- | --- |
-| `nuget` | `*.csproj`, `Directory.Packages.props`, `packages.lock.json` | `/` albo katalog projektu |
-| `npm` | `package.json`, lockfile (npm/yarn/pnpm) | katalog frontendu |
-| `github-actions` | `.github/workflows/*.yml` | `/` |
-| `docker` | `Dockerfile` | katalog z Dockerfile |
-
-Bot nie deployuje. Otwiera PR; Twoje CI (build, test, audit, Trivy) ma powiedzieć, czy bump jest bezpieczny. Grupowanie (`groups:`) zmniejsza liczbę PR — opcjonalne na później.
-
-**Alerts** vs **version updates**: alerts to powiadomienia o CVE w zależnościach; version updates to automatyczne PR. Często włącza się oba.
-
-### Dependency review action
-
-Na `pull_request` action czyta diff manifestów/locków i bazę GitHub Advisory. Parametr `fail-on-severity: high` kończy job czerwono, gdy PR *wprowadza* podatność High lub Critical. Już istniejący dług na `main` nie zawsze blokuje — sensem jest nie pogarszać stanu.
-
-Wymaga dependency graph (włączany razem z Dependabot / automatycznie dla publicznych repo).
-
-### Audyt menedżera pakietów
-
-**NuGet** (SDK 5+ / nowoczesne):
-
-```bash
-dotnet restore
-dotnet package list --project JJDevHub.sln --vulnerable --include-transitive
-```
-
-W CI ustawiasz fail, gdy output zawiera Critical/High. Central Package Management (`Directory.Packages.props`) oznacza, że bump wersji jest w jednym pliku — Dependabot i audyt patrzą tam.
-
-**npm / pnpm**:
-
-```bash
-pnpm audit --audit-level=high
-npm audit --audit-level=high
-```
-
-Exit code ≠ 0 przy znalezieniu poziomu ≥ progu. `audit` korzysta z rejestru advisories; bywa rozjazd względem GitHub Advisory — dlatego dependency review + audit razem mają sens. [pnpm-audit-exceptions.yaml](../../src/Clients/web/pnpm-audit-exceptions.yaml) jest pusty, a `auditConfig.ignoreGhsas` bramka odrzuca.
-
-Ograniczenia audytu: false positive, brak fix version, spór „czy to w ogóle osiągalne w naszym kodzie”. Polityka zespołu: High+ fail w CI, Medium w raporcie tygodniowym.
-
-### Trivy — skan obrazu
-
-Typowy przebieg:
-
-```bash
-docker build -t myapp:ci -f Dockerfile .
-trivy image --severity CRITICAL,HIGH --exit-code 1 myapp:ci
-```
-
-Trivy raportuje CVE w:
-
-- pakietach OS warstwy bazowej (`nginx:1.30-alpine`, `mcr.microsoft.com/dotnet/aspnet:…`),
-- bibliotekach aplikacji wykrytych w warstwach.
-
-`--exit-code 1` = fail CI. `--ignore-unfixed` = nie failuj, gdy vendor nie wydał poprawki (kompromis operacyjny).
-
-Inne tryby (na naukę): `trivy fs .` (filesystem bez Dockera), `trivy config` (IaC). W JJDevHub wystarczy `trivy image` na obu Dockerfile’ach.
-
-Czytanie wyniku: ID CVE, severity, pakiet, zainstalowana wersja, fixed version. Remediacja: nowszy base image albo bump paczki.
+Wybór Dependabota, dependency review, audytu i Trivy jest w [Dlaczego ta technologia](#dlaczego-ta-technologia). Tu zostają uprawnienia tokenu, przebieg w zespole i typowe pomyłki.
 
 ### `permissions` i `concurrency` w Actions
 

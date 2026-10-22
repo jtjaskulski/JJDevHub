@@ -1,7 +1,7 @@
 ---
 description: Jak pisać i wdrażać dokumenty CI/CD
 globs: docs/CICD/**/*.md
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Dokumenty CI/CD
@@ -9,3 +9,6 @@ alwaysApply: false
 - Pisz po polsku. Jeden numer (`01`–`13`) na sesję — nie łącz kroków.
 - Opisuj to, co już jest w repo, ze ścieżką do pliku. Nie wklejaj wersji archiwum runnera ani komend z panelu GitHuba.
 - Nie dopisuj Kafka, Keycloak, CQRS, Vault, OpenBao ani Jenkinsa do ciągu `01`–`13`. Vault i OpenBao zostają w [przyszlosc.md](../../docs/CICD/przyszlosc.md).
+- Każdy numer zaczyna się tak: wstęp, `## Po co`, `## Dlaczego ta technologia`. Dalej zostają sekcje operacyjne: co już jest w repo, słownik, kroki, sprawdzenie.
+- `## Po co` to problem, który numer rozwiązuje.
+- `## Dlaczego ta technologia` opisuje prozą każdy wybór (wzorzec, biblioteka, narzędzie): podsekcja `### <wybór>`. Co to jest, jaki problem rozwiązuje, jakie były alternatywy i dlaczego przegrały, jaki koszt bierzemy. Uzasadnienie jest tutaj, nie w krokach i nie w tutorialu na końcu.

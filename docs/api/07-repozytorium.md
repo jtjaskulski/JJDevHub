@@ -22,7 +22,7 @@ Wcześniej agregat implementował interfejs z nazwą strumienia. Domena znała w
 
 ### `Result<int>` z `SaveAsync`
 
-Zapis może się nie udać w oczekiwany sposób: konflikt wersji. To jest `Result.Fail(Conflict)`, a nie wyjątek, bo handler ma na to sensowną odpowiedź (`409`). Udany zapis zwraca nową wersję, potrzebną do nagłówka `ETag`.
+Zapis może się nie udać w oczekiwany sposób: konflikt wersji. To jest `Result.Fail(Conflict)`, a nie wyjątek, bo handler ma na to sensowną odpowiedź (`409`). Wyjątek przegrał: sygnatura `SaveAsync` nie mówiłaby, że odmowa jest normalna. Udany zapis zwraca nową wersję, potrzebną do nagłówka `ETag`. Koszt: handler rozgałęzia się na `Result`, zamiast liczyć, że wyjątek poleci sam.
 
 ## Klasy i ścieżki
 

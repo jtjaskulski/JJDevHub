@@ -1,8 +1,18 @@
 # 06 — OpenTelemetry w API
 
-## Po co ten krok
+## Po co
 
-`JJDevHub.Api` ma emitować **trasy (traces)**, **metryki (metrics)** i **logi** w modelu OpenTelemetry oraz wysyłać je protokołem **OTLP gRPC**, gdy ustawisz endpoint w środowisku. Bez zmiennej aplikacja działa jak dziś: spany powstają w procesie i są porzucane, bez połączenia sieciowego. W tym numerze **nie** stawiasz collectora, Prometheusa ani Jaegera; odbiornik dojdzie w [07-prometheus.md](07-prometheus.md) (metryki pull) i [08-jaeger.md](08-jaeger.md) (trasy).
+`JJDevHub.Api` ma emitować trasy, metryki i logi oraz wysyłać je, gdy w środowisku jest adres. Bez zmiennej spany powstają w procesie i są porzucane. W tym numerze nie stawiasz collectora, Prometheusa ani Jaegera; odbiornik metryk dochodzi w [07-prometheus.md](07-prometheus.md), tras w [08-jaeger.md](08-jaeger.md).
+
+## Dlaczego ta technologia
+
+### OpenTelemetry zamiast klienta jednego backendu
+
+OpenTelemetry (CNCF) to wspólny opis telemetrii: API na `System.Diagnostics.Activity` i `System.Diagnostics.Metrics`, SDK (sampling, batch, resource), gotowe instrumentacje ASP.NET Core, `HttpClient` i runtime oraz eksporter. Instrumentujesz raz w [src/api/Program.cs](../../src/api/Program.cs). Backend (Jaeger, Tempo, Grafana Cloud) wymieniasz adresem, nie przepisując endpointów. Klient jednego dostawcy przegrał: zmiana narzędzia na VM byłaby zmianą kodu API. Własne logowanie czasu żądania przegrało, bo nie niesie `trace_id` między procesami. Koszt: cztery pakiety w [Directory.Packages.props](../../Directory.Packages.props) i puste zmienne, gdy odbiornika jeszcze nie ma.
+
+### OTLP gRPC zamiast własnego protokołu
+
+OTLP wynosi telemetrię z procesu. gRPC na porcie 4317 jest transportem, którego słucha Jaeger w następnym numerze. HTTP/protobuf na 4318 przegrał w tym stacku: Jaeger w Compose nie jest tak ustawiony, a SDK doklejałby `/v1/traces`. Collector jako osobny proces przegrał w tym numerze: nie ma jeszcze odbiornika, a dokładanie hopa przed Jaegerem i Prometheusem nic nie upraszcza. Koszt: `http://` przy gRPC znaczy „bez TLS”, a `https://` pada na odbiorniku bez certyfikatu. Metryki i logi nie idą na adres Jaegera — mają własne zmienne i zostają w procesie, dopóki ich nie ustawisz.
 
 ## Co już jest w repo
 
@@ -215,39 +225,7 @@ dotnet run --project src/api
 
 ## Pełny tutorial: OpenTelemetry (od zera)
 
-Ta sekcja tłumaczy sygnały i kod z [kroku 2](#2-instrumentacja-w-programcs). Procedura włączenia jest wyżej. Tutaj nie dodajesz Jaegera, Prometheusa ani collectora — odbiorniki są w [07-prometheus.md](07-prometheus.md) i [08-jaeger.md](08-jaeger.md).
-
-### Co to jest
-
-OpenTelemetry (CNCF) to wspólny opis telemetrii: jak proces nazywa operację, jak liczy czas i jak oddaje wynik na zewnątrz. Składa się z czterech warstw:
-
-| Warstwa | Rola w tym API |
-| --- | --- |
-| API | Kontrakt „zacznij span / dodaj pomiar”. W .NET siedzi na `System.Diagnostics.Activity` i `System.Diagnostics.Metrics`. Stabilne, cienkie. |
-| SDK | Sampling, batchowanie, resource, limity atrybutów. Pakiet doklejany w kroku 1. |
-| Instrumentacje | Gotowe haki: ASP.NET Core, `HttpClient`, runtime .NET. Nie ruszasz endpointów auth. |
-| Eksporter | Dokąd wysłać. Tu: OTLP gRPC, i tylko gdy endpoint jest niepusty. Prometheus dochodzi w następnym numerze. |
-
-Cel: instrumentujesz raz. Backend (Jaeger, Tempo, Grafana Cloud, Honeycomb) wymieniasz adresem, nie przepisując [AuthEndpoints.cs](../../src/api/Auth/AuthEndpoints.cs).
-
-```
-przeglądarka
-    → nginx :80  (w Compose publikowane jako :4200)
-        → API :8080
-              Activity / span HTTP
-                    │  tylko gdy adres tras jest ustawiony
-                    ▼
-              OTLP gRPC :4317
-                    → Jaeger (08), tylko trace
-              metryka czasu żądania
-                    → OTLP tylko przy OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
-                    → scrape /metrics od numeru 07 (Prometheus), nie Jaeger
-              log z trace id
-                    → konsola zostaje
-                    → OTLP tylko przy OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
-```
-
-Bez adresu strzałka w dół urywa się w procesie. Aplikacja dalej odpowiada na `/health`.
+Czym jest OpenTelemetry i dlaczego OTLP gRPC, jest w [Dlaczego ta technologia](#dlaczego-ta-technologia). Tu zostają trzy sygnały jednego żądania i kod z [kroku 2](#2-instrumentacja-w-programcs). Tutaj nie dodajesz Jaegera, Prometheusa ani collectora — odbiorniki są w [07-prometheus.md](07-prometheus.md) i [08-jaeger.md](08-jaeger.md).
 
 ### Jedno żądanie, trzy sygnały
 

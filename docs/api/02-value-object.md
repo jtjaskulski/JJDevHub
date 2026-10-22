@@ -12,11 +12,11 @@ Typowany identyfikator (`ArticleId` zamiast `Guid`) zamyka drugą klasę błęd�
 
 ### Value object zamiast `string`
 
-`string title` przyjmie pusty tekst, dwa megabajty i same spacje. Każda metoda, która go dostaje, musi to sprawdzić albo ufać, że ktoś sprawdził wcześniej. `ArticleTitle` da się zbudować tylko przez `Create`, który sprawdza reguły. Jeśli masz w ręku `ArticleTitle`, to jest poprawny. Reguła żyje w jednym miejscu, a kompilator pilnuje, żeby nikt nie podał treści w miejsce tytułu. GeekLemon trzyma takie typy w folderze `ValueObjects`, a e-book mikroserwisów .NET opisuje klasę bazową `ValueObject` z `GetEqualityComponents`.
+`string title` przyjmie pusty tekst, dwa megabajty i same spacje. Każda metoda, która go dostaje, musi to sprawdzić albo ufać, że ktoś sprawdził wcześniej. `ArticleTitle` da się zbudować tylko przez `Create`, który sprawdza reguły. Jeśli masz w ręku `ArticleTitle`, to jest poprawny. Reguła żyje w jednym miejscu, a kompilator pilnuje, żeby nikt nie podał treści w miejsce tytułu. GeekLemon trzyma takie typy w folderze `ValueObjects`, a e-book mikroserwisów .NET opisuje klasę bazową `ValueObject` z `GetEqualityComponents`. Koszt: osobny typ na każde pojęcie i `Create` zamiast przypisania.
 
 ### Klasa bazowa `ValueObject` i `record` obok siebie
 
-`record` daje równość po wartości za darmo i jest dobry dla prostych typów. Klasa bazowa `ValueObject` z `GetEqualityComponents` jest potrzebna, gdy równość ma ignorować część pól albo porównywać kolekcje po elementach, czego `record` nie robi (porównuje referencje list). Trzymamy obie drogi: bazę dla złożonych value objectów, wzór z eShop, i `record struct` dla identyfikatorów.
+`record` daje równość po wartości za darmo i jest dobry dla prostych typów. Klasa bazowa `ValueObject` z `GetEqualityComponents` jest potrzebna, gdy równość ma ignorować część pól albo porównywać kolekcje po elementach, czego `record` nie robi (porównuje referencje list). Trzymamy obie drogi: bazę dla złożonych value objectów, wzór z eShop, i `record struct` dla identyfikatorów. Sama klasa bazowa przegrałaby przy identyfikatorze, bo alokowałaby obiekt tam, gdzie wystarcza struktura. Sam `record` przegrałby przy kolekcji, bo porównuje listy po referencji. Koszt: nowy value object musi wybrać jedną z tych dróg.
 
 ### Typowane id jako `readonly record struct`
 

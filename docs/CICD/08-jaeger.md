@@ -1,8 +1,14 @@
 # Jaeger — trace z API po OTLP gRPC
 
-## Po co ten krok
+## Po co
 
-Po [06-opentelemetry.md](06-opentelemetry.md) API potrafi wysyłać spany. Po [07-prometheus.md](07-prometheus.md) masz metryki w Prometheusie. Ten plik dokłada **Jaegera** w tym samym Compose: odbiera **trace** (nie metryki) po OTLP gRPC i pokazuje UI na `127.0.0.1`. Bez Jaegera nie zobaczysz spana HTTP z API (`GET /health`, `POST /api/auth/login`). Osobnego spana SQL w tym stacku jeszcze nie ma — instrumentacja EF nie weszła w 06. Prometheus tego widoku nie zastępuje.
+Po [06-opentelemetry.md](06-opentelemetry.md) API potrafi wysyłać spany, a po [07-prometheus.md](07-prometheus.md) ma metryki. Bez odbiornika tras nie zobaczysz spana HTTP (`GET /health`, `POST /api/auth/login`). Prometheus tego widoku nie zastępuje. Osobnego spana SQL jeszcze nie ma — instrumentacja EF nie weszła w 06.
+
+## Dlaczego ta technologia
+
+### Jaeger all-in-one zamiast osobnego magazynu
+
+Jaeger zapisuje trace: drzewo spanów jednego żądania, z czasami i atrybutami. Obraz `jaegertracing/jaeger` w tym Compose to jeden proces: collector OTLP gRPC na 4317 w sieci Dockera, pamięć procesu i UI na 16686. Osobny collector, Cassandra albo Elasticsearch przegrały: ten hub nie ma ruchu, przy którym pamięć procesu przestaje wystarczać. Tempo i Grafana Cloud przegrały w tym numerze, bo dokładają konto albo drugi składnik, a OTLP z 06 i tak jest wymienialny adresem. Koszt: restart kontenera kasuje historię, a UI zostaje na loopbacku VM (`127.0.0.1:16686`). To nie jest baza metryk ani miejsce na linie `ILogger`.
 
 ## Co już jest w repo
 
@@ -161,39 +167,7 @@ Prometheus (`http://127.0.0.1:9090`) nadal osobno; Jaeger nie listuje metryk `ht
 
 ## Pełny tutorial: Jaeger (od zera)
 
-Ta sekcja tłumaczy, co robi kontener z kroku 1 i co zobaczysz w UI po `curl`. Przepis Compose jest wyżej. Nie dodajesz tu Prometheusa, Grafany ani instrumentacji EF.
-
-### Co to jest
-
-Jaeger zapisuje **trace**: drzewo spanów jednego żądania, z czasami i atrybutami. W tym stacku jest odbiornikiem OTLP, który API z [06-opentelemetry.md](06-opentelemetry.md) już umie karmić. UI na porcie `16686` służy do pytania „co się stało w tym loginie”, nie „ile loginów na sekundę”.
-
-Trzy kawałki w obrazie `jaegertracing/jaeger:2.20.0` (jeden proces, config z pliku):
-
-| Kawałek | Rola |
-| --- | --- |
-| Collector | Przyjmuje spany. Tu słucha OTLP gRPC na **4317** w sieci Dockera. |
-| Storage | Domyślnie **pamięć procesu**. Restart kontenera kasuje historię. |
-| Query + UI | Szuka trace’ów i rysuje oś czasu. HTTP na **16686**. |
-
-To jeden proces na jedną VM. Osobny collector, Cassandra czy Elasticsearch mają sens przy ruchu, którego ten hub nie ma. Ten kontener nie jest bazą metryk (to Prometheus z 07) ani miejscem na linie `ILogger`.
-
-```
-przeglądarka / curl
-    → nginx :4200
-        → API :8080          span HTTP  (service.name = JJDevHub.Api)
-              │
-              │  OTLP gRPC, batch ~5 s
-              ▼
-         jaeger:4317          collector, tylko sieć Compose
-              │
-              ▼
-         pamięć procesu
-              │
-              ▼
-    127.0.0.1:16686           UI, tylko loopback VM
-```
-
-Nginx i Postgres spanów nie wysyłają. W grafie zależności Jaegera zostanie jeden węzeł, `JJDevHub.Api`, a nie mapa całego Compose.
+Czym jest Jaeger all-in-one, jest w [Dlaczego ta technologia](#dlaczego-ta-technologia). Tu zostaje, co zobaczysz w UI po `curl`. Przepis Compose jest wyżej. Nie dodajesz tu Prometheusa, Grafany ani instrumentacji EF.
 
 ### Co realnie widać po tym kroku
 
