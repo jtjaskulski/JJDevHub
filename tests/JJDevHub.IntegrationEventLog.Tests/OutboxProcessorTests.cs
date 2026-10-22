@@ -74,6 +74,54 @@ namespace JJDevHub.IntegrationEventLog.Tests
         }
 
         [Fact]
+        public async Task Failed_publish_records_failure_and_pending()
+        {
+            await fixture.ClearAsync();
+            await StorePendingAsync();
+            using var listener = new System.Diagnostics.Metrics.MeterListener();
+            long failed = 0;
+            long pending = -1;
+            string? eventType = null;
+            listener.InstrumentPublished = (instrument, meterListener) =>
+            {
+                if (instrument.Meter.Name == OutboxTelemetry.Name)
+                {
+                    meterListener.EnableMeasurementEvents(instrument);
+                }
+            };
+            listener.SetMeasurementEventCallback<long>((instrument, value, tags, _) =>
+            {
+                if (instrument.Name == "jjdevhub.outbox.failed")
+                {
+                    failed += value;
+                    foreach (var tag in tags)
+                    {
+                        if (tag.Key == "event_type" && tag.Value is string name)
+                        {
+                            eventType = name;
+                        }
+                    }
+                }
+
+                if (instrument.Name == "jjdevhub.outbox.pending")
+                {
+                    pending = value;
+                }
+            });
+            listener.Start();
+            var bus = new RecordingEventBus { Fail = true };
+            await using (var context = fixture.CreateContext())
+            {
+                await CreateProcessor(context, bus).RunOnceAsync(CancellationToken.None);
+            }
+
+            listener.RecordObservableInstruments();
+            Assert.Equal(1, failed);
+            Assert.Equal("test.integration.sample.v1", eventType);
+            Assert.Equal(1, pending);
+        }
+
+        [Fact]
         public async Task Parallel_processors_do_not_double_publish()
         {
             await fixture.ClearAsync();

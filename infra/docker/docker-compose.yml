@@ -10,6 +10,7 @@ services:
       - "127.0.0.1:5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
       interval: 5s
@@ -25,10 +26,11 @@ services:
       - "127.0.0.1:5080:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
-      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__identity-write: Host=db;Port=5432;Database=identity_write;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__identity-read: Host=db;Port=5432;Database=identity_read;Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
       Jwt__Issuer: ${JWT_ISSUER:-JJDevHub}
       Jwt__Audience: ${JWT_AUDIENCE:-JJDevHub}
-      Jwt__Key: ${JWT_KEY}
+      Jwt__SigningKeyPath: ${JWT_SIGNING_KEY_PATH:-}
       Jwt__ExpiryMinutes: ${JWT_EXPIRY_MINUTES:-60}
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-JJDevHub.Api}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4317}

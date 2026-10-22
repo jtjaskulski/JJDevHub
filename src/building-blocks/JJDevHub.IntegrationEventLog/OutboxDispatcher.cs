@@ -17,6 +17,11 @@ namespace JJDevHub.IntegrationEventLog
     {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            if (!options.Value.DispatcherEnabled)
+            {
+                return;
+            }
+
             while (!stoppingToken.IsCancellationRequested)
             {
                 try

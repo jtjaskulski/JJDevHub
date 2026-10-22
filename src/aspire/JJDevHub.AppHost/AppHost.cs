@@ -16,23 +16,30 @@ var postgres = builder.AddPostgres(ResourceNames.Postgres)
 
 var newsWrite = postgres.AddDatabase(ResourceNames.NewsWrite, "news_write");
 var newsRead = postgres.AddDatabase(ResourceNames.NewsRead, "news_read");
-var jjdevhub = postgres.AddDatabase(ResourceNames.DefaultConnection, "jjdevhub");
+var identityWrite = postgres.AddDatabase(ResourceNames.IdentityWrite, "identity_write");
+var identityRead = postgres.AddDatabase(ResourceNames.IdentityRead, "identity_read");
 
 var kafka = builder.AddKafka(ResourceNames.Kafka)
     .WithKafkaUI()
     .WithDataVolume()
     .WithLifetime(ContainerLifetime.Persistent);
 
-var jwtKey = builder.AddParameter("jwt-key", secret: true);
+var signingKeyPath = builder.AddParameter("signing-key-path");
+var ownerEmail = builder.AddParameter("owner-email");
 
-builder.AddProject<Projects.JJDevHub_Api>(ResourceNames.Api)
-    .WithReference(jjdevhub)
-    .WaitFor(jjdevhub)
-    .WithEnvironment("Jwt__Key", jwtKey)
+var identityApi = builder.AddProject<Projects.Identity_API>(ResourceNames.IdentityApi)
+    .WithHttpEndpoint(port: 5080, targetPort: 8080, name: "http")
+    .WithReference(identityWrite).WaitFor(identityWrite)
+    .WithReference(identityRead).WaitFor(identityRead)
+    .WithReference(kafka).WaitFor(kafka)
+    .WithEnvironment("Jwt__SigningKeyPath", signingKeyPath)
+    .WithEnvironment("Identity__OwnerEmail", ownerEmail)
+    .WithEnvironment("Identity__Audience", "JJDevHub")
     .PublishAsDockerComposeService((_, service) => service.Networks.Add("jjdevhub"));
+
+identityApi.WithEnvironment("Identity__Url", identityApi.GetEndpoint("http"));
 
 _ = newsWrite;
 _ = newsRead;
-_ = kafka;
 
 builder.Build().Run();

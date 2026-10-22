@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>JJDevHub.Api</RootNamespace>
+    <OpenApiGenerateDocumentsOnBuild Condition="'$(Configuration)' == 'Release'">false</OpenApiGenerateDocumentsOnBuild>
+    <OpenApiGenerateDocumentsOnBuild Condition="'$(Configuration)' != 'Release'">true</OpenApiGenerateDocumentsOnBuild>
+    <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)/openapi</OpenApiDocumentsDirectory>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Scalar.AspNetCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Identity.Contracts\Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\building-blocks\JJDevHub.Cqrs\JJDevHub.Cqrs.csproj" />
+    <ProjectReference Include="..\..\..\building-blocks\JJDevHub.Domain\JJDevHub.Domain.csproj" />
+    <ProjectReference Include="..\..\..\building-blocks\JJDevHub.EventBus.Kafka\JJDevHub.EventBus.Kafka.csproj" />
+    <ProjectReference Include="..\..\..\building-blocks\JJDevHub.EventStore\JJDevHub.EventStore.csproj" />
+    <ProjectReference Include="..\..\..\building-blocks\JJDevHub.EventStore.Postgres\JJDevHub.EventStore.Postgres.csproj" />
+    <ProjectReference Include="..\..\..\building-blocks\JJDevHub.IntegrationEventLog\JJDevHub.IntegrationEventLog.csproj" />
+    <ProjectReference Include="..\..\..\building-blocks\JJDevHub.Projections\JJDevHub.Projections.csproj" />
+    <ProjectReference Include="..\..\..\aspire\JJDevHub.ServiceDefaults\JJDevHub.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+</Project>

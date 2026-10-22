@@ -23,7 +23,7 @@ namespace JJDevHub.AppHost.Tests
         [Fact(Timeout = TimeoutMilliseconds)]
         public async Task Api_becomes_healthy()
         {
-            using var client = _fixture.App.CreateHttpClient(ResourceNames.Api);
+            using var client = _fixture.App.CreateHttpClient(ResourceNames.IdentityApi);
 
             var response = await client.GetAsync("/health");
 
@@ -33,7 +33,7 @@ namespace JJDevHub.AppHost.Tests
         [Fact(Timeout = TimeoutMilliseconds)]
         public async Task Api_exposes_alive()
         {
-            using var client = _fixture.App.CreateHttpClient(ResourceNames.Api);
+            using var client = _fixture.App.CreateHttpClient(ResourceNames.IdentityApi);
 
             var response = await client.GetAsync("/alive");
 
@@ -58,7 +58,8 @@ namespace JJDevHub.AppHost.Tests
 
             Assert.Contains("news_write", names);
             Assert.Contains("news_read", names);
-            Assert.Contains("jjdevhub", names);
+            Assert.Contains("identity_write", names);
+            Assert.Contains("identity_read", names);
         }
 
         [Fact(Timeout = TimeoutMilliseconds)]

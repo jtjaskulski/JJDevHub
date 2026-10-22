@@ -10,12 +10,14 @@ namespace JJDevHub.AppHost
 
         public const string Identity = "identity";
 
+        public const string IdentityWrite = "identity-write";
+
+        public const string IdentityRead = "identity-read";
+
+        public const string IdentityApi = "identity-api";
+
         public const string Notifications = "notifications";
 
         public const string Kafka = "kafka";
-
-        public const string Api = "api";
-
-        public const string DefaultConnection = "DefaultConnection";
     }
 }

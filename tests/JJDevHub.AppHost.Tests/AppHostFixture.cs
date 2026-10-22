@@ -26,14 +26,15 @@ namespace JJDevHub.AppHost.Tests
         {
             var builder = await DistributedApplicationTestingBuilder
                 .CreateAsync<Projects.JJDevHub_AppHost>();
-            builder.Configuration["Parameters:jwt-key"] = new string('k', 32);
+            builder.Configuration["Parameters:signing-key-path"] = "";
+            builder.Configuration["Parameters:owner-email"] = "";
 
             _app = await builder.BuildAsync();
             await _app.StartAsync();
 
             using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(3));
             await _app.ResourceNotifications.WaitForResourceHealthyAsync(
-                ResourceNames.Api,
+                ResourceNames.IdentityApi,
                 timeout.Token);
             await _app.ResourceNotifications.WaitForResourceHealthyAsync(
                 ResourceNames.NewsWrite,
@@ -42,7 +43,10 @@ namespace JJDevHub.AppHost.Tests
                 ResourceNames.NewsRead,
                 timeout.Token);
             await _app.ResourceNotifications.WaitForResourceHealthyAsync(
-                ResourceNames.DefaultConnection,
+                ResourceNames.IdentityWrite,
+                timeout.Token);
+            await _app.ResourceNotifications.WaitForResourceHealthyAsync(
+                ResourceNames.IdentityRead,
                 timeout.Token);
         }
 

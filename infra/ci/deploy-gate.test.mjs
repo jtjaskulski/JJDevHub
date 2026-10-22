@@ -15,8 +15,10 @@ import {
 const root = join(dirname(fileURLToPath(import.meta.url)), '../..')
 
 const API_PUSH_PATHS = [
-  'src/api/**',
-  'tests/JJDevHub.Api.Tests/**',
+  'src/services/Identity/**',
+  'src/aspire/JJDevHub.ServiceDefaults/**',
+  'src/building-blocks/**',
+  'tests/Identity.API.Tests/**',
   'nuget.config',
   'Directory.Build.props',
   'Directory.Packages.props',
@@ -158,9 +160,9 @@ test('live api and web push filters', () => {
 
 test('api-only commit does not require web', () => {
   const [api, web] = liveWorkflows()
-  assert.equal(fileMatchesPaths(api.paths, 'src/api/Program.cs'), true)
-  assert.equal(fileMatchesPaths(web.paths, 'src/api/Program.cs'), false)
-  assert.deepEqual(namesFor(['src/api/Program.cs'], 'api'), ['api'])
+  assert.equal(fileMatchesPaths(api.paths, 'src/services/Identity/Identity.API/Program.cs'), true)
+  assert.equal(fileMatchesPaths(web.paths, 'src/services/Identity/Identity.API/Program.cs'), false)
+  assert.deepEqual(namesFor(['src/services/Identity/Identity.API/Program.cs'], 'api'), ['api'])
 })
 
 test('web-only commit does not require api', () => {
