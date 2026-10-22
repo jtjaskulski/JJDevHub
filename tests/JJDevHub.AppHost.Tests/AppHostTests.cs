@@ -25,7 +25,7 @@ namespace JJDevHub.AppHost.Tests
         {
             using var client = _fixture.App.CreateHttpClient(ResourceNames.IdentityApi);
 
-            var response = await client.GetAsync("/health");
+            HttpResponseMessage response = await client.GetAsync("/health");
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
@@ -35,7 +35,7 @@ namespace JJDevHub.AppHost.Tests
         {
             using var client = _fixture.App.CreateHttpClient(ResourceNames.IdentityApi);
 
-            var response = await client.GetAsync("/alive");
+            HttpResponseMessage response = await client.GetAsync("/alive");
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
@@ -43,13 +43,13 @@ namespace JJDevHub.AppHost.Tests
         [Fact(Timeout = TimeoutMilliseconds)]
         public async Task Postgres_has_service_databases()
         {
-            var connectionString = await _fixture.App.GetConnectionStringAsync(ResourceNames.Postgres);
+            string? connectionString = await _fixture.App.GetConnectionStringAsync(ResourceNames.Postgres);
             Assert.False(string.IsNullOrWhiteSpace(connectionString));
 
             await using var connection = new NpgsqlConnection(connectionString);
             await connection.OpenAsync();
             await using var command = new NpgsqlCommand("SELECT datname FROM pg_database", connection);
-            await using var reader = await command.ExecuteReaderAsync();
+            await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
             var names = new List<string>();
             while (await reader.ReadAsync())
             {
@@ -60,6 +60,26 @@ namespace JJDevHub.AppHost.Tests
             Assert.Contains("news_read", names);
             Assert.Contains("identity_write", names);
             Assert.Contains("identity_read", names);
+        }
+
+        [Fact(Timeout = TimeoutMilliseconds)]
+        public async Task Gateway_routes_articles()
+        {
+            using var client = _fixture.App.CreateHttpClient(ResourceNames.Gateway);
+
+            HttpResponseMessage response = await client.GetAsync("/api/articles");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        }
+
+        [Fact(Timeout = TimeoutMilliseconds)]
+        public async Task Gateway_routes_jwks()
+        {
+            using var client = _fixture.App.CreateHttpClient(ResourceNames.Gateway);
+
+            HttpResponseMessage response = await client.GetAsync("/.well-known/jwks.json");
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
 
         [Fact(Timeout = TimeoutMilliseconds)]

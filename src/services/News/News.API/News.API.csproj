@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>JJDevHub.News.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Aspire.Confluent.Kafka" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\News.Application\News.Application.csproj" />
+    <ProjectReference Include="..\News.Infrastructure\News.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\aspire\JJDevHub.ServiceDefaults\JJDevHub.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\..\building-blocks\JJDevHub.EventBus.Kafka\JJDevHub.EventBus.Kafka.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\..\aspire\JJDevHub.AppHost\ResourceNames.cs" Link="ResourceNames.cs" />
+  </ItemGroup>
+
+</Project>
