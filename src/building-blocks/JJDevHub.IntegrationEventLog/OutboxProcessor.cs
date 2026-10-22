@@ -27,6 +27,7 @@ namespace JJDevHub.IntegrationEventLog
                 await context.SaveChangesAsync(cancellationToken);
                 await context.Database.CommitTransactionAsync(cancellationToken);
                 completed = true;
+                await RememberPendingAsync(cancellationToken);
                 return sent;
             }
             finally
@@ -90,6 +91,7 @@ namespace JJDevHub.IntegrationEventLog
         {
             message.Attempts++;
             message.LastError = Trim(exception.Message);
+            OutboxTelemetry.RecordFailure(message.Name);
             if (message.Attempts < options.Value.MaxAttempts)
             {
                 return;
@@ -100,6 +102,13 @@ namespace JJDevHub.IntegrationEventLog
                 "Outbox message {EventId} reached {Attempts} attempts",
                 message.EventId,
                 message.Attempts);
+        }
+
+        private async Task RememberPendingAsync(CancellationToken cancellationToken)
+        {
+            var pending = await context.Set<OutboxMessage>()
+                .LongCountAsync(message => message.ProcessedOn == null, cancellationToken);
+            OutboxTelemetry.RememberPending(pending);
         }
 
         private static IntegrationEnvelope ToEnvelope(OutboxMessage message) =>

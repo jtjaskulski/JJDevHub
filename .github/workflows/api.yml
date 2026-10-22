@@ -5,9 +5,10 @@ on:
   push:
     branches: [main]
     paths:
-      - "src/api/**"
+      - "src/services/Identity/**"
       - "src/aspire/JJDevHub.ServiceDefaults/**"
-      - "tests/JJDevHub.Api.Tests/**"
+      - "src/building-blocks/**"
+      - "tests/Identity.API.Tests/**"
       - "nuget.config"
       - "Directory.Build.props"
       - "Directory.Packages.props"
@@ -55,7 +56,7 @@ jobs:
         run: dotnet build JJDevHub.sln --no-restore -c Release
 
       - name: Test
-        run: dotnet test tests/JJDevHub.Api.Tests/JJDevHub.Api.Tests.csproj --no-build -c Release
+        run: dotnet test tests/Identity.API.Tests/Identity.API.Tests.csproj --no-build -c Release
 
       - name: Install Trivy
         env:
@@ -107,7 +108,7 @@ jobs:
 
       - name: Test with coverage
         run: |
-          dotnet test tests/JJDevHub.Api.Tests/JJDevHub.Api.Tests.csproj -c Release --no-build \
+          dotnet test tests/Identity.API.Tests/Identity.API.Tests.csproj -c Release --no-build \
             --collect:"XPlat Code Coverage;Format=opencover" \
             --results-directory TestResults
 
