@@ -60,6 +60,7 @@ namespace JJDevHub.AppHost.Tests
             Assert.Contains("news_read", names);
             Assert.Contains("identity_write", names);
             Assert.Contains("identity_read", names);
+            Assert.Contains("notifications", names);
         }
 
         [Fact(Timeout = TimeoutMilliseconds)]

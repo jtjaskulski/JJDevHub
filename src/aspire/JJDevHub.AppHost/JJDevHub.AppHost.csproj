@@ -19,6 +19,7 @@
     <ProjectReference Include="..\..\services\Identity\Identity.API\Identity.API.csproj" />
     <ProjectReference Include="..\..\services\News\News.API\News.API.csproj" />
     <ProjectReference Include="..\..\gateway\JJDevHub.Gateway\JJDevHub.Gateway.csproj" />
+    <ProjectReference Include="..\..\services\Notifications\Notifications.Worker\Notifications.Worker.csproj" />
   </ItemGroup>
 
 </Project>

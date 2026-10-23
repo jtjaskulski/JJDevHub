@@ -18,6 +18,7 @@ var newsWrite = postgres.AddDatabase(ResourceNames.NewsWrite, "news_write");
 var newsRead = postgres.AddDatabase(ResourceNames.NewsRead, "news_read");
 var identityWrite = postgres.AddDatabase(ResourceNames.IdentityWrite, "identity_write");
 var identityRead = postgres.AddDatabase(ResourceNames.IdentityRead, "identity_read");
+var notificationsDb = postgres.AddDatabase(ResourceNames.Notifications, "notifications");
 
 var kafka = builder.AddKafka(ResourceNames.Kafka)
     .WithKafkaUI()
@@ -45,6 +46,10 @@ var newsApi = builder.AddProject<Projects.News_API>(ResourceNames.NewsApi)
     .WithReference(kafka).WaitFor(kafka)
     .WithEnvironment("Identity__Url", identityApi.GetEndpoint("http"))
     .PublishAsDockerComposeService((_, service) => service.Networks.Add("jjdevhub"));
+
+builder.AddProject<Projects.Notifications_Worker>(ResourceNames.NotificationsWorker)
+    .WithReference(notificationsDb).WaitFor(notificationsDb)
+    .WithReference(kafka).WaitFor(kafka);
 
 builder.AddProject<Projects.JJDevHub_Gateway>(ResourceNames.Gateway)
     .WithReference(identityApi)

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>JJDevHub.Notifications.Worker</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Identity\Identity.Contracts\Identity.Contracts.csproj" />
+    <ProjectReference Include="..\..\News\News.Contracts\News.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\aspire\JJDevHub.ServiceDefaults\JJDevHub.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\..\..\building-blocks\JJDevHub.IntegrationEventLog\JJDevHub.IntegrationEventLog.csproj" />
+    <ProjectReference Include="..\..\..\building-blocks\JJDevHub.EventBus.Kafka\JJDevHub.EventBus.Kafka.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\..\aspire\JJDevHub.AppHost\ResourceNames.cs" Link="ResourceNames.cs" />
+  </ItemGroup>
+
+</Project>

@@ -54,6 +54,12 @@ namespace JJDevHub.AppHost.Tests
             await _app.ResourceNotifications.WaitForResourceHealthyAsync(
                 ResourceNames.Gateway,
                 timeout.Token);
+            await _app.ResourceNotifications.WaitForResourceHealthyAsync(
+                ResourceNames.Notifications,
+                timeout.Token);
+            await _app.ResourceNotifications.WaitForResourceHealthyAsync(
+                ResourceNames.NotificationsWorker,
+                timeout.Token);
         }
 
         public async Task DisposeAsync()
