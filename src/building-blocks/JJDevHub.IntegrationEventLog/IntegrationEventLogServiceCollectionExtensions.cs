@@ -16,19 +16,18 @@ namespace JJDevHub.IntegrationEventLog
             params Assembly[] assemblies)
             where TContext : DbContext
         {
-            services.AddSingleton(CreateSerializer(assemblies));
-            services.AddScoped<IIntegrationEventOutbox, IntegrationEventOutbox<TContext>>();
-            services.AddScoped<OutboxProcessor<TContext>>();
-            services.AddHostedService<OutboxDispatcher<TContext>>();
-            services.AddScoped<IIntegrationEventReceiver, InboxReceiver<TContext>>();
-            services.AddOptions<OutboxOptions>();
-            services.AddOptions<InboxOptions>();
-            foreach (var assembly in assemblies)
-            {
-                services.AddIntegrationEventHandlers(assembly);
-            }
+            return Register<TContext>(services, assemblies, new IntegrationEventLogOptions());
+        }
 
-            return services;
+        public static IServiceCollection AddIntegrationEventLog<TContext>(
+            this IServiceCollection services,
+            Assembly[] assemblies,
+            Action<IntegrationEventLogOptions> configure)
+            where TContext : DbContext
+        {
+            var options = new IntegrationEventLogOptions();
+            configure(options);
+            return Register<TContext>(services, assemblies, options);
         }
 
         public static IServiceCollection AddIntegrationEventHandlers(
@@ -38,6 +37,31 @@ namespace JJDevHub.IntegrationEventLog
             foreach (var type in assembly.GetTypes())
             {
                 RegisterHandlers(services, type);
+            }
+
+            return services;
+        }
+
+        private static IServiceCollection Register<TContext>(
+            IServiceCollection services,
+            Assembly[] assemblies,
+            IntegrationEventLogOptions options)
+            where TContext : DbContext
+        {
+            services.AddSingleton(CreateSerializer(assemblies));
+            services.AddScoped<IIntegrationEventOutbox, IntegrationEventOutbox<TContext>>();
+            services.AddScoped<OutboxProcessor<TContext>>();
+            if (options.PublishOutbox)
+            {
+                services.AddHostedService<OutboxDispatcher<TContext>>();
+            }
+
+            services.AddScoped<IIntegrationEventReceiver, InboxReceiver<TContext>>();
+            services.AddOptions<OutboxOptions>();
+            services.AddOptions<InboxOptions>();
+            foreach (var assembly in assemblies)
+            {
+                services.AddIntegrationEventHandlers(assembly);
             }
 
             return services;

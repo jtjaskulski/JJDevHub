@@ -22,6 +22,8 @@ namespace JJDevHub.AppHost
 
         public const string Notifications = "notifications";
 
+        public const string NotificationsWorker = "notifications-worker";
+
         public const string Kafka = "kafka";
     }
 }
