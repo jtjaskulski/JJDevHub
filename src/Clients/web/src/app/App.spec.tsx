@@ -27,6 +27,11 @@ describe('App', () => {
     expect(screen.getByRole('link', { name: 'JJDevHub' }).textContent).toContain('JJDevHub');
   });
 
+  it('shows the web version in the footer', async () => {
+    renderAt('/pl');
+    expect(screen.getByText('JJDevHub 0.1.0')).toBeTruthy();
+  });
+
   it('keeps login unlocalized when switching language', async () => {
     renderAt('/login');
     screen.getByRole('button', { name: 'EN' }).click();

@@ -6,6 +6,9 @@ const WORKFLOWS = [
   { name: 'web', file: 'web.yml' },
 ]
 const API = 'https://api.github.com'
+const TAG_NAME = /^[a-z0-9-]+-v\d+\.\d+\.\d+$/
+const POLL_MS = 20_000
+const TIMEOUT_MS = 60 * 60 * 1000
 
 // GitHub path filters: `*` does not cross `/`, `**` does, and `**/` may match
 // zero directories (`docs/**/*.md` matches `docs/README.md`). `?` and `+`
@@ -164,51 +167,105 @@ export function decide({ applicable, runsByWorkflow }) {
   return { deploy: true, wait: false, blocked: false, pending, failed }
 }
 
-export async function main(env = process.env) {
-  const sha = env.HEAD_SHA ?? ''
+export async function gateRelease({
+  env = process.env,
+  github = requestGitHub,
+  sleep = delay,
+  now = Date.now,
+  pollMs = POLL_MS,
+  timeoutMs = TIMEOUT_MS,
+} = {}) {
   const repo = env.REPO ?? ''
-  const trigger = env.TRIGGER ?? ''
   const token = env.GH_TOKEN || env.GITHUB_TOKEN || ''
-  if (!/^[0-9a-f]{40}$/i.test(sha)) throw new Error('deploy: HEAD_SHA must be a full commit sha')
   if (!/^[^/\s]+\/[^/\s]+$/.test(repo)) throw new Error('deploy: REPO must be owner/name')
   if (!token) throw new Error('deploy: GH_TOKEN is required')
-  if (!WORKFLOWS.some((workflow) => workflow.name === trigger)) {
-    throw new Error(`deploy: unknown triggering workflow ${trigger || '(empty)'}`)
+
+  const releaseTag = env.RELEASE_TAG ?? ''
+  let sha
+  let tag = ''
+  if (releaseTag !== '') {
+    if (!TAG_NAME.test(releaseTag)) {
+      throw new Error('deploy: RELEASE_TAG must match <component>-vX.Y.Z')
+    }
+    sha = await commitShaForTag(repo, releaseTag, token, github)
+    tag = releaseTag
+  } else {
+    sha = env.HEAD_SHA ?? ''
+    if (!/^[0-9a-f]{40}$/i.test(sha)) throw new Error('deploy: HEAD_SHA must be a full commit sha')
   }
 
-  const { files, truncated } = await listChangedFiles(repo, sha, token)
-  const workflows = []
+  const deadline = now() + timeoutMs
+  const dispatched = new Set()
+
+  while (now() < deadline) {
+    const runsByWorkflow = {}
+    for (const workflow of WORKFLOWS) {
+      runsByWorkflow[workflow.name] = await listRuns(repo, workflow.file, sha, token, github)
+    }
+    const state = classifyRuns(runsByWorkflow)
+    if (state.failed.length > 0) {
+      const detail = state.failed.map((item) => `${item.name} ${item.conclusion}`).join(', ')
+      throw new Error(`deploy: blocked for ${sha}: ${detail}`)
+    }
+    if (state.ready) {
+      console.log(`deploy: api, web succeeded for ${sha}`)
+      writeOutput(env, sha)
+      return sha
+    }
+
+    const toDispatch = state.missing.filter((name) => !dispatched.has(name))
+    if (toDispatch.length > 0) {
+      if (tag === '') {
+        tag = await findTagPointingAt(repo, sha, token, github)
+        if (tag === '') throw new Error(`deploy: no release tag for ${sha}`)
+      }
+      for (const name of toDispatch) {
+        const workflow = WORKFLOWS.find((item) => item.name === name)
+        await github(`/repos/${repo}/actions/workflows/${workflow.file}/dispatches`, token, {
+          method: 'POST',
+          body: { ref: tag },
+        })
+        dispatched.add(name)
+      }
+    }
+
+    const remaining = deadline - now()
+    if (remaining <= 0) break
+    await sleep(Math.min(pollMs, remaining))
+  }
+
+  throw new Error(`deploy: timed out for ${sha}`)
+}
+
+function classifyRuns(runsByWorkflow) {
+  const failed = []
+  const pending = []
+  const missing = []
   for (const workflow of WORKFLOWS) {
-    const yaml = await readWorkflow(repo, workflow.file, sha, token)
-    workflows.push({ name: workflow.name, paths: parsePushPaths(yaml) })
+    const runs = runsByWorkflow[workflow.name] ?? []
+    if (runs.length === 0) {
+      missing.push(workflow.name)
+      continue
+    }
+    const latest = latestRun(runs)
+    if (latest.status !== 'completed') {
+      pending.push(workflow.name)
+      continue
+    }
+    if (latest.conclusion !== 'success') {
+      failed.push({ name: workflow.name, conclusion: latest.conclusion ?? 'missing' })
+    }
   }
+  return {
+    failed,
+    pending,
+    missing,
+    ready: failed.length === 0 && pending.length === 0 && missing.length === 0,
+  }
+}
 
-  const applicable = applicableWorkflows({
-    workflows,
-    changedFiles: files,
-    triggerName: trigger,
-    filesTruncated: truncated,
-  })
-  const runsByWorkflow = {}
-  for (const name of applicable) {
-    const workflow = WORKFLOWS.find((item) => item.name === name)
-    runsByWorkflow[name] = await listRuns(repo, workflow.file, sha, token)
-  }
-
-  const decision = decide({ applicable, runsByWorkflow })
-  const scope = applicable.join(', ')
-  if (decision.blocked) {
-    const detail = decision.failed.map((item) => `${item.name} ${item.conclusion}`).join(', ')
-    throw new Error(`deploy: blocked for ${sha} (${scope}): ${detail}`)
-  }
-  if (decision.wait) {
-    console.log(`deploy: waiting for ${decision.pending.join(', ')} on ${sha} (${scope})`)
-    writeOutput(env, 'false')
-    return decision
-  }
-  console.log(`deploy: ${scope} succeeded for ${sha}`)
-  writeOutput(env, 'true')
-  return decision
+export async function main(env = process.env) {
+  return gateRelease({ env })
 }
 
 function githubGlobToRegExp(pattern) {
@@ -261,43 +318,37 @@ function latestRun(runs) {
   })[0]
 }
 
-async function listChangedFiles(repo, sha, token) {
-  const commit = await github(`/repos/${repo}/git/commits/${sha}`, token)
-  const parent = commit.body.parents?.[0]?.sha
-  if (!parent) return { files: [], truncated: true }
-
-  // REST compare accepts only three-dot `base...head`. Diffing a commit
-  // against its first parent matches the two-dot file list GitHub uses for
-  // a one-commit push and for a merge commit.
-  const files = []
-  for (let page = 1; page <= 30; page++) {
-    let result
-    try {
-      result = await github(`/repos/${repo}/compare/${parent}...${sha}?per_page=100&page=${page}`, token)
-    } catch (error) {
-      if (error.status === 406 || error.status === 422) return { files, truncated: true }
-      throw error
-    }
-    const batch = result.body.files
-    if (!Array.isArray(batch) || batch.length >= 300) return { files, truncated: true }
-    for (const file of batch) {
-      if (typeof file?.filename === 'string') files.push(file.filename)
-    }
-    const link = result.headers.get('link') ?? ''
-    if (!link.includes('rel="next"')) return { files, truncated: false }
-  }
-  return { files, truncated: true }
+function delay(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
 }
 
-async function readWorkflow(repo, file, sha, token) {
-  const { body } = await github(`/repos/${repo}/contents/.github/workflows/${file}?ref=${sha}`, token)
-  if (body.encoding !== 'base64' || typeof body.content !== 'string') {
-    throw new Error(`deploy: cannot read .github/workflows/${file} at ${sha}`)
+async function commitShaForTag(repo, tag, token, github) {
+  const { body } = await github(`/repos/${repo}/commits/${encodeURIComponent(tag)}`, token)
+  if (typeof body.sha !== 'string' || !/^[0-9a-f]{40}$/i.test(body.sha)) {
+    throw new Error(`deploy: tag ${tag} did not resolve to a commit`)
   }
-  return Buffer.from(body.content, 'base64').toString('utf8')
+  return body.sha
 }
 
-async function listRuns(repo, file, sha, token) {
+async function findTagPointingAt(repo, sha, token, github) {
+  for (let page = 1; page <= 10; page++) {
+    const { body, headers } = await github(`/repos/${repo}/tags?per_page=100&page=${page}`, token)
+    if (!Array.isArray(body)) throw new Error('deploy: tags were not a list')
+    for (const tag of body) {
+      if (typeof tag?.name !== 'string' || !TAG_NAME.test(tag.name)) continue
+      const commitSha = await commitShaForTag(repo, tag.name, token, github)
+      if (commitSha === sha) return tag.name
+    }
+    const link = headers.get('link') ?? ''
+    if (!link.includes('rel="next"')) return ''
+    if (page === 10) throw new Error(`deploy: too many tags while looking for ${sha}`)
+  }
+  return ''
+}
+
+async function listRuns(repo, file, sha, token, github) {
   const runs = []
   for (let page = 1; page <= 10; page++) {
     const { body, headers } = await github(
@@ -322,15 +373,19 @@ async function listRuns(repo, file, sha, token) {
   return runs
 }
 
-async function github(path, token) {
-  const response = await fetch(`${API}${path}`, {
-    headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${token}`,
-      'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': 'jjdevhub-deploy-gate',
-    },
-  })
+async function requestGitHub(path, token, request = {}) {
+  const headers = {
+    Accept: 'application/vnd.github+json',
+    Authorization: `Bearer ${token}`,
+    'X-GitHub-Api-Version': '2022-11-28',
+    'User-Agent': 'jjdevhub-deploy-gate',
+  }
+  const init = { method: request.method ?? 'GET', headers }
+  if (request.body !== undefined) {
+    headers['Content-Type'] = 'application/json'
+    init.body = JSON.stringify(request.body)
+  }
+  const response = await fetch(`${API}${path}`, init)
   const text = await response.text()
   let body = {}
   if (text) {
@@ -349,9 +404,9 @@ async function github(path, token) {
   return { body, headers: response.headers }
 }
 
-function writeOutput(env, deploy) {
+function writeOutput(env, sha) {
   if (!env.GITHUB_OUTPUT) return
-  appendFileSync(env.GITHUB_OUTPUT, `deploy=${deploy}\n`)
+  appendFileSync(env.GITHUB_OUTPUT, `sha=${sha}\n`)
 }
 
 function invokedAsCli() {

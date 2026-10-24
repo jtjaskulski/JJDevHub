@@ -12,7 +12,7 @@ Nothing sensitive belongs in git. Compose only interpolates variables.
 |------|---------|
 | [`infra/docker/.env.example`](infra/docker/.env.example) | Placeholders (committed) |
 | `infra/docker/.env` | Local laptop copy (gitignored). `cp .env.example .env` then edit |
-| `/etc/jjdevhub/api.env` | Server (`root:docker`, mode `640`). `chmod 600` drops the deploy user's read and breaks Compose/cron. Survives `git checkout` of `release/*` |
+| `/etc/jjdevhub/api.env` | Server (`root:docker`, mode `640`). `chmod 600` drops the deploy user's read and breaks Compose/cron. |
 
 Generate a JWT key: `openssl rand -base64 48`
 
@@ -77,11 +77,9 @@ pnpm android
 
 **GitHub Actions** on PR and `main`: [`.github/workflows/api.yml`](.github/workflows/api.yml) restores, builds, tests, and `docker build`s the API (Testcontainers starts its own Postgres). [`.github/workflows/web.yml`](.github/workflows/web.yml) runs `pnpm` test/build and builds the React image. No production secrets in the workflows.
 
-Enable **branch protection** on `main` (GitHub → Settings → Branches): require the `api` check before merge.
+Branch rules for `main` live in [`.github/rulesets/main.json`](.github/rulesets/main.json): a pull request, squash merge, and green `api`, `web`, and `pr-title` checks.
 
-**Self-hosted release** (hourly cron): if `origin/main` moved, create `release/YYYY-MM-DD.N` and `docker compose up --build` with `--env-file /etc/jjdevhub/api.env`. See [`infra/ci/jjdevhub-release.cron`](infra/ci/jjdevhub-release.cron) and [`infra/ci/release-and-deploy.sh`](infra/ci/release-and-deploy.sh).
-
-A green `api` or `web` run on `main` deploys that commit from [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) only after every workflow required by the same SHA has succeeded. Path filters still skip the workflow the commit does not touch. The hourly cron stays the fallback when the runner is offline.
+**Release** ([`.github/workflows/release.yml`](.github/workflows/release.yml)): release-please opens a Release PR from Conventional Commit titles. Merging it creates tags `<component>-vX.Y.Z` (`api`, `web`, `infra`) and deploys that commit. [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) redeploys or rolls back a chosen tag. The hourly cron deploys the latest release tag when the runner was offline at release time. See [`infra/ci/jjdevhub-release.cron`](infra/ci/jjdevhub-release.cron) and [`infra/ci/release-and-deploy.sh`](infra/ci/release-and-deploy.sh).
 
 Step-by-step (PL): [Proxmox](docs/CICD/01-proxmox.md), [Cloudflare Tunnel](docs/CICD/02-cloudflare-tunnel.md), [GitHub runner](docs/CICD/03-github.md).
 
@@ -123,7 +121,7 @@ Nic wrażliwego nie należy do gita. Compose tylko podstawia zmienne.
 |------|------|
 | [`infra/docker/.env.example`](infra/docker/.env.example) | Placeholdery (w gicie) |
 | `infra/docker/.env` | Lokalna kopia na laptopie (gitignored). `cp .env.example .env`, potem edycja |
-| `/etc/jjdevhub/api.env` | Serwer (`root:docker`, tryb `640`). `chmod 600` odbiera odczyt kontu deploy i psuje Compose oraz cron. Przeżywa `git checkout` gałęzi `release/*` |
+| `/etc/jjdevhub/api.env` | Serwer (`root:docker`, tryb `640`). `chmod 600` odbiera odczyt kontu deploy i psuje Compose oraz cron. |
 
 Klucz JWT: `openssl rand -base64 48`
 
@@ -188,11 +186,9 @@ pnpm android
 
 **GitHub Actions** na PR i na `main`: [`.github/workflows/api.yml`](.github/workflows/api.yml) robi restore, build, testy i `docker build` API (Testcontainers stawia własnego Postgresa). [`.github/workflows/web.yml`](.github/workflows/web.yml) odpala `pnpm` test/build i buduje obraz Reacta. W workflow nie ma sekretów produkcyjnych.
 
-Włącz **branch protection** na `main` (GitHub → Settings → Branches): przed merge wymagaj checka `api`.
+Reguły gałęzi `main` są w [`.github/rulesets/main.json`](.github/rulesets/main.json): pull request, squash i zielone checki `api`, `web` i `pr-title`.
 
-**Wydanie self-hosted** (cron co godzinę): jeśli ruszył się `origin/main`, utwórz `release/YYYY-MM-DD.N` i `docker compose up --build` z `--env-file /etc/jjdevhub/api.env`. Patrz [`infra/ci/jjdevhub-release.cron`](infra/ci/jjdevhub-release.cron) i [`infra/ci/release-and-deploy.sh`](infra/ci/release-and-deploy.sh).
-
-Zielony run `api` albo `web` na `main` wdraża ten commit z [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) dopiero, gdy każdy workflow wymagany przez ten sam SHA skończy się sukcesem. Filtr ścieżek nadal pomija workflow, którego commit nie dotyka. Godzinny cron zostaje zapasem, gdy runner jest offline.
+**Wydanie** ([`.github/workflows/release.yml`](.github/workflows/release.yml)): release-please otwiera Release PR z tytułów Conventional Commits. Scalenie tworzy tagi `<komponent>-vX.Y.Z` (`api`, `web`, `infra`) i wdraża ten commit. [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) wdraża ponownie albo cofa wybrany tag. Cron co godzinę wdraża najnowszy tag wydania, gdy runner był offline w chwili wydania. Patrz [`infra/ci/jjdevhub-release.cron`](infra/ci/jjdevhub-release.cron) i [`infra/ci/release-and-deploy.sh`](infra/ci/release-and-deploy.sh).
 
 Krok po kroku: [Proxmox](docs/CICD/01-proxmox.md), [Cloudflare Tunnel](docs/CICD/02-cloudflare-tunnel.md), [runner GitHub](docs/CICD/03-github.md).
 

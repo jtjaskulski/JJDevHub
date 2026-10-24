@@ -55,6 +55,7 @@ services:
       context: ../../src/Clients
       dockerfile: web/Dockerfile
     container_name: jjdevhub-web
+    mem_limit: 64m
     ports:
       - "4200:80"
     depends_on:
@@ -68,6 +69,7 @@ services:
   prometheus:
     image: prom/prometheus:v3.14.0
     container_name: jjdevhub-prometheus
+    mem_limit: 384m
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -84,6 +86,7 @@ services:
   jaeger:
     image: jaegertracing/jaeger:2.20.0
     container_name: jjdevhub-jaeger
+    mem_limit: 256m
     command: ["--config", "/etc/jaeger/config.yaml"]
     volumes:
       - ../jaeger/config.yaml:/etc/jaeger/config.yaml:ro
@@ -95,6 +98,7 @@ services:
   grafana:
     image: grafana/grafana:13.2.2
     container_name: jjdevhub-grafana
+    mem_limit: 256m
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required}

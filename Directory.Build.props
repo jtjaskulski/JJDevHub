@@ -3,4 +3,7 @@
     <!-- Distro SDK packaging can omit prune package data for the TFM. -->
     <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
   </PropertyGroup>
+  <PropertyGroup Condition="Exists('$(MSBuildProjectDirectory)/version.txt')">
+    <Version>$([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/version.txt').Trim())</Version>
+  </PropertyGroup>
 </Project>

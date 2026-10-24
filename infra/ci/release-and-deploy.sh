@@ -3,7 +3,8 @@ set -euo pipefail
 
 ENV_FILE="${JJDEVHUB_ENV_FILE:-/etc/jjdevhub/api.env}"
 STATE_FILE="${JJDEVHUB_STATE_FILE:-/var/lib/jjdevhub/last-release-sha}"
-PUSH_RELEASE="${JJDEVHUB_PUSH_RELEASE:-0}"
+TAGS_FILE="${JJDEVHUB_TAGS_FILE:-/var/lib/jjdevhub/last-release-tags}"
+ALLOW_ROLLBACK="${JJDEVHUB_ALLOW_ROLLBACK:-0}"
 
 if [[ ! -f "$ENV_FILE" ]]; then
   echo "missing env file: $ENV_FILE" >&2
@@ -21,16 +22,20 @@ mkdir -p "$(dirname "$LOCK_FILE")"
 exec 9>"$LOCK_FILE"
 flock 9
 
-# Optional argument: commit to deploy. Cron and manual runs omit it and track origin/main.
+# Optional argument: commit to deploy. Cron omits it and tracks the latest release tag.
 target_sha="${1:-}"
 
-git fetch origin main
+git fetch origin main --tags
 
 if [[ -n "$target_sha" ]]; then
   git cat-file -e "${target_sha}^{commit}"
   remote_sha="$(git rev-parse "${target_sha}^{commit}")"
 else
-  remote_sha="$(git rev-parse origin/main)"
+  if ! described="$(git describe --tags --abbrev=0 --match '*-v*' origin/main 2>/dev/null)"; then
+    echo "no release yet"
+    exit 0
+  fi
+  remote_sha="$(git rev-parse "${described}^{commit}")"
 fi
 
 if [[ -f "$STATE_FILE" ]]; then
@@ -40,7 +45,8 @@ if [[ -f "$STATE_FILE" ]]; then
     exit 0
   fi
   # A later green run of an older commit must not roll back a newer deploy.
-  if [[ -n "$saved_sha" ]] \
+  if [[ "$ALLOW_ROLLBACK" != "1" ]] \
+    && [[ -n "$saved_sha" ]] \
     && git cat-file -e "${saved_sha}^{commit}" 2>/dev/null \
     && git merge-base --is-ancestor "$remote_sha" "$saved_sha"; then
     echo "already deployed $saved_sha"
@@ -48,22 +54,7 @@ if [[ -f "$STATE_FILE" ]]; then
   fi
 fi
 
-date_utc="$(date -u +%Y-%m-%d)"
-n=1
-while git show-ref --verify --quiet "refs/heads/release/${date_utc}.${n}" \
-  || git show-ref --verify --quiet "refs/remotes/origin/release/${date_utc}.${n}"; do
-  n=$((n + 1))
-done
-
-branch="release/${date_utc}.${n}"
-
 git checkout --detach "$remote_sha"
-git branch "$branch" "$remote_sha"
-git checkout "$branch"
-
-if [[ "$PUSH_RELEASE" == "1" ]]; then
-  git push origin "$branch"
-fi
 
 docker compose --env-file "$ENV_FILE" -f "$REPO_ROOT/infra/docker/docker-compose.yml" up -d --build --wait --wait-timeout 180
 
@@ -97,7 +88,7 @@ wait_http() {
 wait_http jjdevhub-api "http://127.0.0.1:5080/health"
 wait_http jjdevhub-jaeger "http://127.0.0.1:16686/"
 
-state_dir="$(dirname "$STATE_FILE")"
-mkdir -p "$state_dir"
+mkdir -p "$(dirname "$STATE_FILE")" "$(dirname "$TAGS_FILE")"
 printf '%s\n' "$remote_sha" > "$STATE_FILE"
-echo "deployed $remote_sha as $branch"
+git tag --points-at "$remote_sha" --list '*-v*' | tee "$TAGS_FILE"
+echo "deployed $remote_sha"
