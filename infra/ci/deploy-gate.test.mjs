@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import test from 'node:test'
@@ -8,6 +9,7 @@ import {
   applicableWorkflows,
   decide,
   fileMatchesPaths,
+  gateRelease,
   matchGithubPath,
   parsePushPaths,
 } from './deploy-gate.mjs'
@@ -299,4 +301,189 @@ test('no applicable workflow blocks', () => {
   const decision = decide({ applicable: [], runsByWorkflow: {} })
   assert.equal(decision.blocked, true)
   assert.equal(decision.deploy, false)
+})
+
+const RELEASE_SHA = 'a'.repeat(40)
+const RELEASE_REPO = 'jtjaskulski/JJDevHub'
+
+function apiResponse(body, link = '') {
+  return { body, headers: { get: (name) => (name === 'link' ? link : '') } }
+}
+
+function releaseEnv(extra = {}) {
+  return {
+    REPO: RELEASE_REPO,
+    GH_TOKEN: 'token',
+    HEAD_SHA: RELEASE_SHA,
+    ...extra,
+  }
+}
+
+test('both green release workflows write the sha', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'deploy-gate-'))
+  const output = join(dir, 'github-output')
+  try {
+    const sha = await gateRelease({
+      env: releaseEnv({ GITHUB_OUTPUT: output }),
+      github: async (path) => {
+        if (path.includes('/workflows/api.yml/runs')) return apiResponse({ workflow_runs: [success(1)] })
+        if (path.includes('/workflows/web.yml/runs')) return apiResponse({ workflow_runs: [success(2)] })
+        throw new Error(`unexpected ${path}`)
+      },
+    })
+    assert.equal(sha, RELEASE_SHA)
+    assert.equal(readFileSync(output, 'utf8'), `sha=${RELEASE_SHA}\n`)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('a missing web run dispatches once on the release tag', async () => {
+  let webPolls = 0
+  let clock = 0
+  const dispatches = []
+  const sha = await gateRelease({
+    env: releaseEnv(),
+    now: () => clock,
+    sleep: async (ms) => {
+      clock += ms
+    },
+    pollMs: 20_000,
+    timeoutMs: 60_000,
+    github: async (path, _token, request = {}) => {
+      if (request.method === 'POST') {
+        dispatches.push({ path, body: request.body })
+        return apiResponse({})
+      }
+      if (path.includes('/tags?')) {
+        return apiResponse([{ name: 'api-v0.4.0', commit: { sha: 'annotated-tag-object' } }])
+      }
+      if (path.includes('/commits/api-v0.4.0')) return apiResponse({ sha: RELEASE_SHA })
+      if (path.includes('/workflows/api.yml/runs')) return apiResponse({ workflow_runs: [success(1)] })
+      if (path.includes('/workflows/web.yml/runs')) {
+        webPolls += 1
+        if (webPolls === 1) return apiResponse({ workflow_runs: [] })
+        return apiResponse({ workflow_runs: [success(2)] })
+      }
+      throw new Error(`unexpected ${path}`)
+    },
+  })
+  assert.equal(sha, RELEASE_SHA)
+  assert.deepEqual(dispatches, [
+    {
+      path: `/repos/${RELEASE_REPO}/actions/workflows/web.yml/dispatches`,
+      body: { ref: 'api-v0.4.0' },
+    },
+  ])
+})
+
+test('a red api run blocks the release', async () => {
+  await assert.rejects(
+    () =>
+      gateRelease({
+        env: releaseEnv(),
+        github: async (path) => {
+          if (path.includes('/workflows/api.yml/runs')) {
+            return apiResponse({
+              workflow_runs: [
+                { id: 1, status: 'completed', conclusion: 'failure', created_at: '2026-10-09T00:00:00Z' },
+              ],
+            })
+          }
+          if (path.includes('/workflows/web.yml/runs')) return apiResponse({ workflow_runs: [success(2)] })
+          throw new Error(`unexpected ${path}`)
+        },
+      }),
+    /api failure/,
+  )
+})
+
+test('a missing run without a release tag fails', async () => {
+  const dispatches = []
+  await assert.rejects(
+    () =>
+      gateRelease({
+        env: releaseEnv(),
+        github: async (path, _token, request = {}) => {
+          if (request.method === 'POST') {
+            dispatches.push(path)
+            return apiResponse({})
+          }
+          if (path.includes('/tags?')) return apiResponse([])
+          if (path.includes('/workflows/api.yml/runs')) return apiResponse({ workflow_runs: [success(1)] })
+          if (path.includes('/workflows/web.yml/runs')) return apiResponse({ workflow_runs: [] })
+          throw new Error(`unexpected ${path}`)
+        },
+      }),
+    /no release tag/,
+  )
+  assert.deepEqual(dispatches, [])
+})
+
+test('an unfinished release times out', async () => {
+  let clock = 0
+  await assert.rejects(
+    () =>
+      gateRelease({
+        env: releaseEnv(),
+        now: () => clock,
+        sleep: async (ms) => {
+          clock += ms
+        },
+        pollMs: 20_000,
+        timeoutMs: 60_000,
+        github: async (path) => {
+          if (path.includes('/workflows/')) {
+            return apiResponse({
+              workflow_runs: [
+                { id: 1, status: 'in_progress', conclusion: null, created_at: '2026-10-09T00:00:00Z' },
+              ],
+            })
+          }
+          throw new Error(`unexpected ${path}`)
+        },
+      }),
+    /timed out/,
+  )
+})
+
+test('a rollback tag resolves to its commit and can dispatch that ref', async () => {
+  let webPolls = 0
+  let clock = 0
+  const dispatches = []
+  const tagCalls = []
+  const sha = await gateRelease({
+    env: releaseEnv({ RELEASE_TAG: 'api-v0.3.0', HEAD_SHA: '' }),
+    now: () => clock,
+    sleep: async (ms) => {
+      clock += ms
+    },
+    pollMs: 20_000,
+    timeoutMs: 60_000,
+    github: async (path, _token, request = {}) => {
+      if (path.includes('/tags?')) tagCalls.push(path)
+      if (request.method === 'POST') {
+        dispatches.push(request.body)
+        return apiResponse({})
+      }
+      if (path.includes('/commits/api-v0.3.0')) return apiResponse({ sha: RELEASE_SHA })
+      if (path.includes('/workflows/api.yml/runs')) return apiResponse({ workflow_runs: [success(1)] })
+      if (path.includes('/workflows/web.yml/runs')) {
+        webPolls += 1
+        if (webPolls === 1) return apiResponse({ workflow_runs: [] })
+        return apiResponse({ workflow_runs: [success(2)] })
+      }
+      throw new Error(`unexpected ${path}`)
+    },
+  })
+  assert.equal(sha, RELEASE_SHA)
+  assert.deepEqual(dispatches, [{ ref: 'api-v0.3.0' }])
+  assert.deepEqual(tagCalls, [])
+})
+
+test('a rollback tag with the wrong shape is rejected', async () => {
+  await assert.rejects(
+    () => gateRelease({ env: releaseEnv({ RELEASE_TAG: 'main' }) }),
+    /RELEASE_TAG must match/,
+  )
 })

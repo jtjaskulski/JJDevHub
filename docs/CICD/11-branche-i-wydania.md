@@ -285,7 +285,7 @@ Trzy komponenty. Każdy ma wersję, changelog i tag:
 
 | Komponent | Ścieżka w konfiguracji | Plik wersji | Co obejmuje |
 | --- | --- | --- | --- |
-| `api` | `.` z wykluczeniami | `src/api/version.txt` | `src/api`, `tests`, `Directory.*.props`, `global.json`, `nuget.config`, `JJDevHub.sln` |
+| `api` | `.` z wykluczeniami | `src/services/Identity/Identity.API/version.txt` | `src/services`, `src/building-blocks`, `src/aspire`, `src/gateway`, `tests`, `Directory.*.props`, `global.json`, `nuget.config`, `JJDevHub.sln` |
 | `web` | `src/Clients` | `src/Clients/version.txt` i `web/package.json` | klient web i `shared/theme`, bez `mobile` |
 | `infra` | `infra` | `infra/version.txt` | Compose, Prometheus, Jaeger, Grafana, skrypty CI i deployu |
 
@@ -318,8 +318,8 @@ Komponent `api` jest korzeniem repo z wykluczeniami, bo pliki budowania .NET (`D
     ".": {
       "component": "api",
       "package-name": "api",
-      "version-file": "src/api/version.txt",
-      "changelog-path": "src/api/CHANGELOG.md",
+      "version-file": "src/services/Identity/Identity.API/version.txt",
+      "changelog-path": "src/services/Identity/Identity.API/CHANGELOG.md",
       "exclude-paths": ["src/Clients", "infra", "docs", ".github", ".cursor", "legacy"]
     },
     "src/Clients": {
@@ -345,7 +345,7 @@ Komponent `api` jest korzeniem repo z wykluczeniami, bo pliki budowania .NET (`D
 - `bootstrap-sha` — commit, od którego release-please liczy historię. Bez niego pierwszy changelog zbierze wszystkie commity od początku repo, także te sprzed Conventional Commits. Po pierwszym scalonym Release PR wpis można usunąć.
 - `bump-minor-pre-major` — przed `1.0.0` `feat!:` podbija `0.4.0` → `0.5.0`, a nie skacze do `1.0.0`. Wersję `1.0.0` ustawia się świadomie jednorazowym `"release-as": "1.0.0"` w komponencie.
 - Typy ukryte nie wydają komponentu. PR `docs:` albo `ci:` nie otwiera Release PR.
-- `src/api/version.txt` czyta [Directory.Build.props](../../Directory.Build.props):
+- `src/services/Identity/Identity.API/version.txt` czyta [Directory.Build.props](../../Directory.Build.props):
 
 ```xml
 <PropertyGroup Condition="Exists('$(MSBuildProjectDirectory)/version.txt')">

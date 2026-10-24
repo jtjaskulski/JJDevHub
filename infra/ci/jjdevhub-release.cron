@@ -1,4 +1,5 @@
-# Hourly: if origin/main moved, create release/YYYY-MM-DD.N and compose up.
+# Hourly: deploy the latest release tag (*-v*) when the runner was offline
+# at release time. A commit without a release tag is not deployed.
 # Install: crontab -e  (user must be in the docker group, git remote reachable)
 #
 # Secrets live OUTSIDE the clone:
@@ -6,7 +7,5 @@
 #   sudo cp infra/docker/.env.example /etc/jjdevhub/api.env
 #   sudo chmod 600 /etc/jjdevhub/api.env
 #   # edit passwords / JWT_KEY / ASPNETCORE_ENVIRONMENT=Production
-#
-# Optional: JJDEVHUB_PUSH_RELEASE=1 to push the release branch to origin.
 
 0 * * * * cd /opt/jjdevhub && JJDEVHUB_ENV_FILE=/etc/jjdevhub/api.env /opt/jjdevhub/infra/ci/release-and-deploy.sh >> /var/log/jjdevhub-release.log 2>&1

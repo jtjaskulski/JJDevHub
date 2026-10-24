@@ -120,7 +120,7 @@ export function Shell({ children }: ShellProps) {
       </Dialog>
       <main className="w-full flex-1">{children}</main>
       <footer className="border-t border-ink/15 px-4 py-6 md:px-6">
-        <p className="mx-auto w-full max-w-3xl text-small text-muted">JJDevHub</p>
+        <p className="mx-auto w-full max-w-3xl text-small text-muted">JJDevHub {__APP_VERSION__}</p>
       </footer>
     </div>
   );

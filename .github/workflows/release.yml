@@ -1,0 +1,84 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: write
+    outputs:
+      released: ${{ steps.rp.outputs.releases_created }}
+    steps:
+      - id: rp
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - name: Run required checks on the release PR
+        if: steps.rp.outputs.prs_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ fromJSON(steps.rp.outputs.pr).headBranchName }}
+          TITLE: ${{ fromJSON(steps.rp.outputs.pr).title }}
+        run: |
+          gh workflow run api.yml --repo "$REPO" --ref "$BRANCH"
+          gh workflow run web.yml --repo "$REPO" --ref "$BRANCH"
+          gh workflow run pr-title.yml --repo "$REPO" --ref "$BRANCH" -f title="$TITLE" -f branch="$BRANCH"
+
+  gate:
+    needs: release-please
+    if: needs.release-please.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      actions: write
+      contents: read
+    outputs:
+      sha: ${{ steps.gate.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Test deploy gate
+        run: node --test infra/ci/deploy-gate.test.mjs
+
+      - id: gate
+        name: Require green CI for the release commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.sha }}
+        run: node infra/ci/deploy-gate.mjs
+
+  deploy:
+    needs: gate
+    runs-on: [self-hosted, jjdevhub]
+    environment:
+      name: production
+      url: https://hub.example.com
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    steps:
+      - name: Deploy the release commit
+        working-directory: /opt/jjdevhub
+        env:
+          DEPLOY_SHA: ${{ needs.gate.outputs.sha }}
+        run: ./infra/ci/release-and-deploy.sh "$DEPLOY_SHA"

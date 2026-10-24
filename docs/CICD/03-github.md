@@ -191,3 +191,9 @@ Job na runnerze, z `/opt/jjdevhub`:
 Sam plik stanu nie serializuje dwóch procesów. Jeśli cron i `workflow_run` wejdą w skrypt zanim którykolwiek zrobi `printf` na końcu, oba przechodzą sprawdzenie i naraz robią `git checkout` oraz `docker compose` w `/opt/jjdevhub`.
 
 Skrypt bierze `flock` na `/var/lib/jjdevhub/deploy.lock` (`JJDEVHUB_LOCK_FILE`) zanim zrobi `git fetch`, i trzyma go do końca procesu: sprawdzenie stanu, checkout, Compose i zapis SHA. Drugie wywołanie czeka. Deskryptor zamyka się przy wyjściu, także przy `already deployed`.
+
+### Wydanie z tagu
+
+Ochrona `main` jest w [.github/rulesets/main.json](../../.github/rulesets/main.json), nakładana przez [infra/ci/apply-rulesets.sh](../../infra/ci/apply-rulesets.sh). Tagów wydania pilnuje [.github/rulesets/release-tags.json](../../.github/rulesets/release-tags.json).
+
+[.github/workflows/deploy.yml](../../.github/workflows/deploy.yml) nie startuje po `workflow_run`. Deploy idzie z [.github/workflows/release.yml](../../.github/workflows/release.yml) po scaleniu Release PR, albo ręcznie z tagu `<komponent>-vX.Y.Z`. Skrypt [infra/ci/release-and-deploy.sh](../../infra/ci/release-and-deploy.sh) robi `git checkout --detach` na commicie tagu i zapisuje tagi w `/var/lib/jjdevhub/last-release-tags`. `JJDEVHUB_ALLOW_ROLLBACK=1` pozwala wdrożyć starszy commit.
