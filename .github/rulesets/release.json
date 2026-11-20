@@ -58,6 +58,9 @@
           },
           {
             "context": "codeql"
+          },
+          {
+            "context": "dependency-vulnerabilities"
           }
         ]
       }
