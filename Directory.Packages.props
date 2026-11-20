@@ -1,0 +1,7 @@
+<Project>
+    <PropertyGroup>
+        <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
+    </PropertyGroup>
+    <ItemGroup>
+    </ItemGroup>
+</Project>
