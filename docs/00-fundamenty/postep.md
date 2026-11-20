@@ -8,8 +8,8 @@ Wiersz dostaje datę, gdy sekcja `## Gotowe gdy` numeru jest spełniona i checki
 | [01-bramki/02-galezie](../01-bramki/02-galezie.md)                                   | 20.11.2026 |                                        |
 | [01-bramki/03-build-testy-format](../01-bramki/03-build-testy-format.md)             | 20.11.2026 |                                        |
 | [01-bramki/04-codeql](../01-bramki/04-codeql.md)                                     | 20.11.2026 |                                        |
-| [01-bramki/05-zaleznosci](../01-bramki/05-zaleznosci.md)                             |            |                                        |
-| [01-bramki/06-sonarqube](../01-bramki/06-sonarqube.md)                               |            |                                        |
+| [01-bramki/05-zaleznosci](../01-bramki/05-zaleznosci.md)                             | 20.11.2026 |                                        |
+| [01-bramki/06-sonarqube](../01-bramki/06-sonarqube.md)                               | 20.11.2026 |                                        |
 | [01-bramki/07-lancuch-dostaw](../01-bramki/07-lancuch-dostaw.md)                     |            |                                        |
 | [01-bramki/08-obrazy](../01-bramki/08-obrazy.md)                                     |            |                                        |
 | [01-bramki/09-wersje](../01-bramki/09-wersje.md)                                     |            |                                        |

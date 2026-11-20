@@ -1,0 +1,107 @@
+name: sonarqube
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - release
+      - main
+
+permissions: {}
+
+jobs:
+  sonarqube:
+    name: sonarqube
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      actions: read
+    env:
+      SONAR_HOST_URL: http://127.0.0.1:9000
+      SONAR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      SONAR_PR_KEY: ${{ github.event.pull_request.number }}
+      SONAR_PR_BRANCH: ${{ github.head_ref }}
+      SONAR_PR_BASE: ${{ github.base_ref }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Suchy przebieg
+        run: bash tests/ci/sonarqube.sh
+
+      - name: Detect material
+        id: material
+        run: |
+          set -euo pipefail
+          line=$(.github/scripts/sonar-material.sh)
+          printf '%s\n' "$line"
+          case "$line" in
+            no\ material*) echo "skip=true" >> "$GITHUB_OUTPUT" ;;
+            material) echo "skip=false" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "nieoczekiwany wynik materiału" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Raise host limits
+        if: steps.material.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          sudo sysctl -w vm.max_map_count=524288
+          sudo sysctl -w fs.file-max=131072
+
+      - name: Start SonarQube
+        id: server
+        if: steps.material.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          echo "started=true" >> "$GITHUB_OUTPUT"
+          docker rm -f jjdevhub-sonarqube >/dev/null 2>&1 || true
+          docker run -d --name jjdevhub-sonarqube --publish 127.0.0.1:9000:9000 sonarqube:community
+
+      - name: Coverage artifact
+        if: steps.material.outputs.skip != 'true'
+        run: bash .github/scripts/sonar-coverage.sh artifacts/coverage
+
+      - name: Bootstrap
+        if: steps.material.outputs.skip != 'true'
+        env:
+          SONAR_TOKEN_FILE: ${{ runner.temp }}/sonar-token
+        run: |
+          set -euo pipefail
+          set +x
+          password=$(openssl rand -base64 24 | tr -d '\n')
+          export SONAR_ADMIN_PASSWORD="$password"
+          unset password
+          bash .github/scripts/sonar-bootstrap.sh
+
+      - name: Ukryj token
+        if: steps.material.outputs.skip != 'true'
+        env:
+          SONAR_TOKEN_FILE: ${{ runner.temp }}/sonar-token
+        run: |
+          set +x
+          token=$(<"$SONAR_TOKEN_FILE")
+          echo "::add-mask::${token}"
+          unset token
+
+      - name: Setup .NET
+        if: steps.material.outputs.skip != 'true' && hashFiles('**/*.csproj') != ''
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Analyze
+        if: steps.material.outputs.skip != 'true'
+        env:
+          SONAR_TOKEN_FILE: ${{ runner.temp }}/sonar-token
+        run: bash .github/scripts/sonar-scan.sh
+
+      - name: Stop SonarQube
+        if: always() && steps.server.outputs.started == 'true'
+        run: docker rm -f jjdevhub-sonarqube

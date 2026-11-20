@@ -58,6 +58,12 @@
           },
           {
             "context": "codeql"
+          },
+          {
+            "context": "dependency-vulnerabilities"
+          },
+          {
+            "context": "sonarqube"
           }
         ]
       }

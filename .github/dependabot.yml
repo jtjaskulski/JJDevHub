@@ -1,0 +1,29 @@
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      nuget:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+  # npm /src/clients — dochodzi w 11-web/01-motyw
+  # npm /src/clients/web — dochodzi w 11-web/02-szkielet
+  # npm /src/clients/mobile — dochodzi w 12-mobile/01-szkielet-expo
