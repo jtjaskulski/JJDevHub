@@ -1,0 +1,36 @@
+name: branch-name
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
+    branches:
+      - develop
+      - release
+      - main
+
+permissions: {}
+
+jobs:
+  branch-name:
+    name: branch-name
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Suchy przebieg
+        run: bash tests/ci/branch-rules.sh
+
+      - name: Para gałęzi
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: bash .github/scripts/branch-name.sh "$HEAD_REF" "$BASE_REF"
