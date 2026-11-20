@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+  echo "użycie: dotnet-gate.sh <build|unit-tests|format|integration-tests|performance>" >&2
+  exit 2
+fi
+
+job=$1
+root=$(cd "$(dirname "$0")/../.." && pwd)
+cd "$root"
+
+no_material() {
+  printf 'no material\n'
+  exit 0
+}
+
+prune() {
+  find "$root" \( -path "$root/.git" -o -path '*/bin' -o -path '*/obj' -o -path '*/node_modules' \) -prune -o "$@" -print
+}
+
+has_any() {
+  local pattern=$1
+  local found
+  found=$(find "$root" \( -path "$root/.git" -o -path '*/bin' -o -path '*/obj' -o -path '*/node_modules' \) -prune -o -name "$pattern" -print -quit)
+  [[ -n $found ]]
+}
+
+is_test_project() {
+  local file=$1
+  local base=${file##*/}
+  if [[ $base == *Tests.csproj ]]; then
+    return 0
+  fi
+  grep -Eq 'Include="xunit"|Include="xunit\.|Include="Microsoft\.NET\.Test\.Sdk"|<IsTestProject>[[:space:]]*true[[:space:]]*</IsTestProject>' "$file"
+}
+
+has_test_project() {
+  local csproj
+  while IFS= read -r csproj; do
+    [[ -z $csproj ]] && continue
+    if is_test_project "$csproj"; then
+      return 0
+    fi
+  done < <(prune -name '*.csproj')
+  return 1
+}
+
+test_total() {
+  local log=$1
+  local trx=${2:-}
+  local line count
+  line=$(grep -E 'Total tests:[[:space:]]*[0-9]+' "$log" | tail -n 1 || true)
+  if [[ -z $line ]]; then
+    line=$(grep -E 'Total:[[:space:]]*[0-9]+' "$log" | tail -n 1 || true)
+  fi
+  if [[ -n $line ]]; then
+    count=${line##*[[:space:]]}
+    count=${count//[^0-9]/}
+    printf '%s' "$count"
+    return 0
+  fi
+  if [[ -n $trx && -f $trx ]]; then
+    line=$(grep -m 1 '<Counters total="' "$trx" || true)
+    if [[ -n $line ]]; then
+      count=${line#*total=\"}
+      count=${count%%\"*}
+      printf '%s' "$count"
+      return 0
+    fi
+  fi
+  if grep -Eq 'No test matches the given testcase filter|Zero tests ran' "$log"; then
+    printf '0'
+    return 0
+  fi
+  return 1
+}
+
+run_filtered_tests() {
+  local filter=$1
+  local log results trx code total
+  if ! has_test_project; then
+    no_material
+  fi
+  log=$(mktemp)
+  results=$(mktemp -d)
+  set +e
+  dotnet test JJDevHub.slnx -c Release --nologo --filter "$filter" \
+    --results-directory "$results" \
+    --logger "trx;LogFileName=tests.trx" >"$log" 2>&1
+  code=$?
+  set -e
+  cat "$log"
+  trx=$(find "$results" -name 'tests.trx' -print -quit || true)
+  total=""
+  if total=$(test_total "$log" "$trx"); then
+    :
+  else
+    total=""
+  fi
+  rm -rf "$log" "$results"
+  if [[ $total == 0 || ( -z $total && $code -eq 8 ) ]]; then
+    printf 'no material\n'
+    exit 0
+  fi
+  exit "$code"
+}
+
+case $job in
+  build)
+    if ! has_any '*.csproj'; then
+      no_material
+    fi
+    dotnet build JJDevHub.slnx -c Release --nologo
+    ;;
+  unit-tests)
+    if ! has_test_project; then
+      no_material
+    fi
+    dotnet test JJDevHub.slnx -c Release --nologo --filter 'Category!=Integration&Category!=Performance'
+    ;;
+  format)
+    if ! has_any '*.csproj' && ! has_any '*.cs'; then
+      no_material
+    fi
+    dotnet format JJDevHub.slnx --verify-no-changes --severity warn
+    ;;
+  integration-tests)
+    run_filtered_tests 'Category=Integration|Category=Contract'
+    ;;
+  performance)
+    run_filtered_tests 'Category=Performance'
+    ;;
+  *)
+    echo "nieznany job: ${job}" >&2
+    exit 2
+    ;;
+esac

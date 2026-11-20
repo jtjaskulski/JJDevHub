@@ -40,6 +40,24 @@
           },
           {
             "context": "pr-size"
+          },
+          {
+            "context": "build"
+          },
+          {
+            "context": "unit-tests"
+          },
+          {
+            "context": "format"
+          },
+          {
+            "context": "integration-tests"
+          },
+          {
+            "context": "performance"
+          },
+          {
+            "context": "codeql"
           }
         ]
       }
