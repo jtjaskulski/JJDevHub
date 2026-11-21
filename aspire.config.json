@@ -1,0 +1,5 @@
+{
+  "appHost": {
+    "path": "src/apphost/JJDevHub.AppHost/JJDevHub.AppHost.csproj"
+  }
+}

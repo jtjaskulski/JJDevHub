@@ -56,8 +56,6 @@ run_material() {
   fi
 }
 
-run_material 'no material' "$root"
-
 empty=$(mktemp -d)
 tests_only=$(mktemp -d)
 sources=$(mktemp -d)

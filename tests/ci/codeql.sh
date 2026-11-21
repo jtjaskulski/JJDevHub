@@ -16,8 +16,16 @@ fail() {
   exit 1
 }
 
+empty=$(mktemp -d)
+with_cs=$(mktemp -d)
+cleanup_langs() {
+  rm -rf -- "$empty" "$with_cs"
+}
+trap cleanup_langs EXIT
+
+git -C "$empty" init -q
 set +e
-log=$(bash "$lang" 2>&1)
+log=$(cd -- "$empty" && bash "$lang" 2>&1)
 code=$?
 set -e
 if [[ $code -ne 0 ]]; then
@@ -25,6 +33,20 @@ if [[ $code -ne 0 ]]; then
 fi
 if [[ $log != 'no material' ]]; then
   fail "brak logu no material" "$log"
+fi
+
+printf 'class A {}\n' >"$with_cs/A.cs"
+git -C "$with_cs" init -q
+git -C "$with_cs" add A.cs
+set +e
+log=$(cd -- "$with_cs" && bash "$lang" 2>&1)
+code=$?
+set -e
+if [[ $code -ne 0 ]]; then
+  fail "oczekiwano 0, jest ${code} dla csharp" "$log"
+fi
+if [[ $log != $'csharp\nno material: javascript-typescript' ]]; then
+  fail "oczekiwano csharp i brak javascript" "$log"
 fi
 
 run_gate() {
@@ -56,7 +78,7 @@ if [[ $gate_log != *'fixture/low fixture.txt 1'* ]]; then
 fi
 
 base=$(mktemp)
-trap 'rm -f "$base"' EXIT
+trap 'rm -rf -- "$empty" "$with_cs"; rm -f "$base"' EXIT
 
 cat >"$base" <<'EOF'
 - rule: fixture/high
