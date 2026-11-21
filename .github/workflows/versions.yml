@@ -1,0 +1,61 @@
+name: versions
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - release
+      - main
+  push:
+    branches:
+      - main
+
+permissions: {}
+
+jobs:
+  release-tags:
+    name: release-tags
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Suchy przebieg
+        run: bash tests/ci/versions.sh
+
+      - name: Sprawdzenie
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          bash .github/scripts/release-tags.sh --check --title "$TITLE" --base-ref "origin/${BASE_REF}" --head-ref HEAD
+
+  release-please:
+    name: release-please
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Wydanie
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: .github/release-please-config.json
+          manifest-file: .release-please-manifest.json
+          token: ${{ secrets.GITHUB_TOKEN }}

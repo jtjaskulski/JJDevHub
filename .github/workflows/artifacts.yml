@@ -1,0 +1,211 @@
+name: artifacts
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - release
+      - main
+
+permissions: {}
+
+jobs:
+  image-scan:
+    name: image-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Suchy przebieg
+        run: bash tests/ci/artifacts.sh
+
+      - name: Material
+        id: material
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          if [[ -f deploy/docker/Dockerfile ]]; then
+            git -c "http.extraheader=AUTHORIZATION: bearer ${GITHUB_TOKEN}" fetch --no-tags origin "$BASE_REF"
+          fi
+          output=$(bash .github/scripts/artifacts-material.sh)
+          printf '%s\n' "$output"
+          if [[ $output == 'no material' ]]; then
+            echo "any=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '%s\n' "$output" > "${RUNNER_TEMP}/images.txt"
+          echo "any=true" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Trivy
+        if: steps.material.outputs.any == 'true'
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.70.0
+
+      - name: Skan
+        if: steps.material.outputs.any == 'true'
+        run: |
+          set -euo pipefail
+          ignore=()
+          if [[ -f .github/trivy-allow.txt ]]; then
+            bash .github/scripts/artifacts-material.sh --ignore > "${RUNNER_TEMP}/trivy.ignore"
+            if [[ -s ${RUNNER_TEMP}/trivy.ignore ]]; then
+              ignore+=(--ignorefile "${RUNNER_TEMP}/trivy.ignore")
+            fi
+          fi
+          while IFS= read -r line; do
+            [[ -z $line ]] && continue
+            read -r projekt project assembly <<<"$line"
+            tag="jjdevhub-${projekt}:${GITHUB_SHA}"
+            docker build \
+              --file deploy/docker/Dockerfile \
+              --build-arg "PROJECT=${project}" \
+              --build-arg "ASSEMBLY=${assembly}" \
+              --tag "$tag" \
+              .
+            trivy image \
+              --severity HIGH,CRITICAL \
+              --exit-code 1 \
+              --ignore-unfixed=false \
+              "${ignore[@]}" \
+              "$tag"
+          done < "${RUNNER_TEMP}/images.txt"
+
+  sbom:
+    name: sbom
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Suchy przebieg
+        run: bash tests/ci/artifacts.sh
+
+      - name: Material
+        id: material
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          if [[ -f deploy/docker/Dockerfile ]]; then
+            git -c "http.extraheader=AUTHORIZATION: bearer ${GITHUB_TOKEN}" fetch --no-tags origin "$BASE_REF"
+          fi
+          output=$(bash .github/scripts/artifacts-material.sh)
+          printf '%s\n' "$output"
+          if [[ $output == 'no material' ]]; then
+            echo "any=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '%s\n' "$output" > "${RUNNER_TEMP}/images.txt"
+          echo "any=true" >> "$GITHUB_OUTPUT"
+
+      - name: SBOM
+        if: steps.material.outputs.any == 'true'
+        run: |
+          set -euo pipefail
+          tools=${RUNNER_TEMP}/tools
+          mkdir -p "$tools"
+          bash .github/scripts/install-pinned-tool.sh syft "$tools"
+          export PATH="${tools}:${PATH}"
+          while IFS= read -r line; do
+            [[ -z $line ]] && continue
+            read -r projekt project assembly <<<"$line"
+            tag="jjdevhub-${projekt}:${GITHUB_SHA}"
+            docker build \
+              --file deploy/docker/Dockerfile \
+              --build-arg "PROJECT=${project}" \
+              --build-arg "ASSEMBLY=${assembly}" \
+              --tag "$tag" \
+              .
+            out="sbom-${projekt}.spdx.json"
+            syft "docker:${tag}" -o "spdx-json=${out}"
+            if [[ ! -s $out ]]; then
+              echo "pusty sbom: ${out}" >&2
+              exit 1
+            fi
+          done < "${RUNNER_TEMP}/images.txt"
+
+      - name: Upload SBOM
+        if: steps.material.outputs.any == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom
+          path: sbom-*.spdx.json
+          retention-days: 14
+          if-no-files-found: error
+
+  attestations:
+    name: attestations
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Suchy przebieg
+        run: bash tests/ci/artifacts.sh
+
+      - name: Material
+        id: material
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          if [[ -f deploy/docker/Dockerfile ]]; then
+            git -c "http.extraheader=AUTHORIZATION: bearer ${GITHUB_TOKEN}" fetch --no-tags origin "$BASE_REF"
+          fi
+          output=$(bash .github/scripts/artifacts-material.sh)
+          printf '%s\n' "$output"
+          if [[ $output == 'no material' ]]; then
+            echo "any=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '%s\n' "$output" > "${RUNNER_TEMP}/images.txt"
+          echo "any=true" >> "$GITHUB_OUTPUT"
+
+      - name: Spakuj obrazy
+        if: steps.material.outputs.any == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p image-subjects
+          while IFS= read -r line; do
+            [[ -z $line ]] && continue
+            read -r projekt project assembly <<<"$line"
+            tag="jjdevhub-${projekt}:${GITHUB_SHA}"
+            docker build \
+              --file deploy/docker/Dockerfile \
+              --build-arg "PROJECT=${project}" \
+              --build-arg "ASSEMBLY=${assembly}" \
+              --tag "$tag" \
+              .
+            docker save "$tag" -o "image-subjects/image-${projekt}.tar"
+          done < "${RUNNER_TEMP}/images.txt"
+
+      - name: Atestacja
+        if: steps.material.outputs.any == 'true'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: image-subjects/image-*.tar
+          push-to-registry: false

@@ -15,6 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: write
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -28,3 +29,12 @@ jobs:
 
       - name: Testy jednostkowe
         run: bash .github/scripts/dotnet-gate.sh unit-tests
+
+      - name: Artefakt pokrycia
+        if: hashFiles('artifacts/coverage/coverage.cobertura.xml') != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage
+          path: artifacts/coverage/coverage.cobertura.xml
+          if-no-files-found: error
+          retention-days: 1

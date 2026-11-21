@@ -71,6 +71,9 @@ expect_code 0 bash "$branch_sh" develop release
 expect_code 0 bash "$branch_sh" release main
 expect_code 1 bash "$branch_sh" feature/lesson-markdown release
 expect_code 1 bash "$branch_sh" release develop
+expect_code 0 bash "$branch_sh" release-please--branches--main--components--news main
+expect_code 1 bash "$branch_sh" release-please--branches--main--components--news develop
+expect_code 1 bash "$branch_sh" release-please--branches--develop--components--news develop
 
 expect_code 1 bash "$title_sh" "feat: add lesson"
 expect_code 0 bash "$title_sh" "feat(learning): add lesson markdown"

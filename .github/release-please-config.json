@@ -1,0 +1,52 @@
+{
+  "separate-pull-requests": true,
+  "bump-minor-pre-major": true,
+  "include-component-in-tag": true,
+  "include-v-in-tag": true,
+  "tag-separator": "-",
+  "component-no-space": true,
+  "initial-version": "0.1.0",
+  "pull-request-title-pattern": "chore(${component}): release ${version}",
+  "packages": {
+    "src/services/Identity": {
+      "release-type": "simple",
+      "component": "identity",
+      "extra-files": [{ "type": "json", "path": "/versions/identity.json", "jsonpath": "$.version" }]
+    },
+    "src/services/News": {
+      "release-type": "simple",
+      "component": "news",
+      "extra-files": [{ "type": "json", "path": "/versions/news.json", "jsonpath": "$.version" }]
+    },
+    "src/services/Learning": {
+      "release-type": "simple",
+      "component": "learning",
+      "extra-files": [{ "type": "json", "path": "/versions/learning.json", "jsonpath": "$.version" }]
+    },
+    "src/services/Cv": {
+      "release-type": "simple",
+      "component": "cv",
+      "extra-files": [{ "type": "json", "path": "/versions/cv.json", "jsonpath": "$.version" }]
+    },
+    "src/services/Contact": {
+      "release-type": "simple",
+      "component": "contact",
+      "extra-files": [{ "type": "json", "path": "/versions/contact.json", "jsonpath": "$.version" }]
+    },
+    "src/gateway": {
+      "release-type": "simple",
+      "component": "gateway",
+      "extra-files": [{ "type": "json", "path": "/versions/gateway.json", "jsonpath": "$.version" }]
+    },
+    "src/clients/web": {
+      "release-type": "simple",
+      "component": "web",
+      "extra-files": [{ "type": "json", "path": "/versions/web.json", "jsonpath": "$.version" }]
+    },
+    "src/clients/mobile": {
+      "release-type": "simple",
+      "component": "mobile",
+      "extra-files": [{ "type": "json", "path": "/versions/mobile.json", "jsonpath": "$.version" }]
+    }
+  }
+}
