@@ -1,0 +1,39 @@
+name: dependencies
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - release
+      - main
+
+permissions: {}
+
+jobs:
+  dependency-vulnerabilities:
+    name: dependency-vulnerabilities
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Suchy przebieg
+        run: bash tests/ci/dependencies.sh
+
+      - name: Setup .NET
+        if: hashFiles('**/*.csproj') != ''
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Setup pnpm
+        if: hashFiles('**/package.json') != ''
+        run: corepack enable
+
+      - name: Vulnerability gate
+        run: bash .github/scripts/vulnerable.sh

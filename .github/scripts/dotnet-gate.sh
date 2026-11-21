@@ -117,7 +117,17 @@ case $job in
     if ! has_test_project; then
       no_material
     fi
-    dotnet test JJDevHub.slnx -c Release --nologo --filter 'Category!=Integration&Category!=Performance'
+    export PATH="${PATH}:${HOME}/.dotnet/tools"
+    if ! dotnet tool list --global | grep -Eq 'dotnet-coverage[[:space:]]+18\.12\.0([[:space:]]|$)'; then
+      dotnet tool uninstall --global dotnet-coverage >/dev/null 2>&1 || true
+      dotnet tool install --global dotnet-coverage --version 18.12.0
+    fi
+    mkdir -p "$root/artifacts/coverage"
+    dotnet-coverage collect \
+      --output "$root/artifacts/coverage/coverage.cobertura.xml" \
+      --output-format cobertura \
+      --nologo \
+      -- dotnet test JJDevHub.slnx -c Release --nologo --filter 'Category!=Integration&Category!=Performance'
     ;;
   format)
     if ! has_any '*.csproj' && ! has_any '*.cs'; then

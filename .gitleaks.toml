@@ -1,0 +1,11 @@
+title = "JJDevHub"
+
+[extend]
+useDefault = true
+
+# Ścieżka sama w sobie jest trafieniem. Entropia treści nie gasi pliku.
+[[rules]]
+id = "sops-file"
+description = "plik SOPS albo enc yaml"
+regex = '''(?s).+'''
+path = '''(?:^|/)[^/]*(?:\.sops\.yaml|\.enc\.yaml)$'''

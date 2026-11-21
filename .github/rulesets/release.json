@@ -58,6 +58,24 @@
           },
           {
             "context": "codeql"
+          },
+          {
+            "context": "dependency-vulnerabilities"
+          },
+          {
+            "context": "sonarqube"
+          },
+          {
+            "context": "image-scan"
+          },
+          {
+            "context": "sbom"
+          },
+          {
+            "context": "attestations"
+          },
+          {
+            "context": "release-tags"
           }
         ]
       }
