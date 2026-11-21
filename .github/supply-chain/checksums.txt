@@ -1,3 +1,4 @@
 gitleaks 8.30.1 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb gitleaks_8.30.1_linux_x64.tar.gz
 zizmor 1.31.1 d185f726bdaf92df78273217dfdd24ebcd6b0ef48cf3ce776ff5762b6e138c99 zizmor-x86_64-unknown-linux-gnu.tar.gz
 scorecard 5.6.0 19bde07129450cb65a95c6e3b9f34e034341579e6f0e241546ec3ae6efb2dd9a scorecard_5.6.0_linux_amd64.tar.gz
+syft 1.57.2 ad92bd3ec1b94a3df01d4d0aec199afa9c42b72e86da436ff5f837914d32706b syft_1.57.2_linux_amd64.tar.gz
