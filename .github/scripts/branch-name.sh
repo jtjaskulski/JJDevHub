@@ -26,6 +26,16 @@ if [[ $head == release ]]; then
   exit 1
 fi
 
+release_please='^release-please--branches--main--components--(identity|news|learning|cv|contact|gateway|web|mobile)$'
+
+if [[ $head =~ $release_please ]]; then
+  if [[ $base == main ]]; then
+    exit 0
+  fi
+  echo "pull request wydania wchodzi tylko na main: ${head} → ${base}" >&2
+  exit 1
+fi
+
 if [[ ! $head =~ $work ]]; then
   echo "nazwa głowy nie pasuje do wzorca: ${head}" >&2
   exit 1
