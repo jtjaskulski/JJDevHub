@@ -36,7 +36,6 @@ jobs:
           BASE_REF: ${{ github.base_ref }}
         run: |
           set -euo pipefail
-          git -c "http.extraheader=AUTHORIZATION: bearer ${GITHUB_TOKEN}" fetch --no-tags origin "$BASE_REF"
           bash .github/scripts/release-tags.sh --check --title "$TITLE" --base-ref "origin/${BASE_REF}" --head-ref HEAD
 
   release-please:
