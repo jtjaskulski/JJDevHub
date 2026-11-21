@@ -17,6 +17,7 @@ case "$name" in
   gitleaks) repo=gitleaks/gitleaks ;;
   zizmor) repo=zizmorcore/zizmor ;;
   scorecard) repo=ossf/scorecard ;;
+  syft) repo=anchore/syft ;;
   *) usage "nieznane narzędzie" ;;
 esac
 

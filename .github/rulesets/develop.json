@@ -64,6 +64,15 @@
           },
           {
             "context": "sonarqube"
+          },
+          {
+            "context": "image-scan"
+          },
+          {
+            "context": "sbom"
+          },
+          {
+            "context": "attestations"
           }
         ]
       }
