@@ -13,7 +13,7 @@ Wiersz dostaje datę, gdy sekcja `## Gotowe gdy` numeru jest spełniona i checki
 | [01-bramki/07-lancuch-dostaw](../01-bramki/07-lancuch-dostaw.md)                     | 21.11.2026 |                                        |
 | [01-bramki/08-obrazy](../01-bramki/08-obrazy.md)                                     | 21.11.2026 |                                        |
 | [01-bramki/09-wersje](../01-bramki/09-wersje.md)                                     | 21.11.2026 |                                        |
-| [02-szkielet-i-deploy/01-aspire](../02-szkielet-i-deploy/01-aspire.md)               |            |                                        |
+| [02-szkielet-i-deploy/01-aspire](../02-szkielet-i-deploy/01-aspire.md)               | 21.11.2026 |                                        |
 | [02-szkielet-i-deploy/02-gateway](../02-szkielet-i-deploy/02-gateway.md)             |            | `gateway-v0.1.0`                       |
 | [02-szkielet-i-deploy/03-dockerfile](../02-szkielet-i-deploy/03-dockerfile.md)       |            |                                        |
 | [02-szkielet-i-deploy/04-maszyna](../02-szkielet-i-deploy/04-maszyna.md)             |            |                                        |
