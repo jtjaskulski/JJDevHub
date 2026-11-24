@@ -58,6 +58,7 @@ Wersje poniżej są pierwszym pinem. Podbicie idzie przez Dependabota i przechod
 | `Microsoft.Extensions.Http.Resilience` | 10.11.0 | MIT | szkielet |
 | `Microsoft.Extensions.ServiceDiscovery` | 10.11.0 | MIT | szkielet |
 | `Yarp.ReverseProxy` | 2.3.0 | MIT | brama |
+| `Microsoft.Extensions.ServiceDiscovery.Yarp` | 10.11.0 | MIT | brama |
 | `Microsoft.AspNetCore.OpenApi` | 10.0.14 | MIT | REST |
 | `Scalar.AspNetCore` | 2.19.0 | MIT | REST |
 | `Microsoft.EntityFrameworkCore` | 10.0.14 | MIT | zapis |
