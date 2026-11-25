@@ -33,9 +33,16 @@ run_script() {
   fi
 }
 
-run_script 0 "$root"
-if [[ $log != 'no material' ]]; then
-  fail "brak logu no material na drzewie repozytorium" "$log"
+if [[ -f $root/deploy/docker/Dockerfile && -f $root/src/gateway/JJDevHub.Gateway/JJDevHub.Gateway.csproj ]]; then
+  run_script 1 "$root"
+  if [[ $log != *'brak BASE_REF'* ]]; then
+    fail "drzewo z Dockerfile bez BASE_REF" "$log"
+  fi
+else
+  run_script 0 "$root"
+  if [[ $log != 'no material' ]]; then
+    fail "brak logu no material na drzewie repozytorium" "$log"
+  fi
 fi
 
 empty=$(mktemp -d)
