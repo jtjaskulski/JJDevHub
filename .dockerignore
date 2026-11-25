@@ -1,0 +1,8 @@
+.git
+tests
+**/bin
+**/obj
+src/clients
+.env
+.env.*
+*.secret
