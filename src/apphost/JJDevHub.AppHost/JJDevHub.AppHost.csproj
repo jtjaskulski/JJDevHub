@@ -10,4 +10,8 @@
     <ProjectReference Include="..\..\gateway\JJDevHub.Gateway\JJDevHub.Gateway.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Docker" />
+  </ItemGroup>
+
 </Project>
