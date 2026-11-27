@@ -25,6 +25,8 @@ Dysk `sda` ma 120 GiB. Instalator założył partycję EFI 1 GiB, `/boot` 2 GiB 
 
 Użytkownik `jjdeploy` jest w grupie `docker` i nie ma hasła logowania. Katalog `/etc/jjdevhub` ma właściciela root, grupę `jjdeploy` i tryb `750`. Plik `/etc/jjdevhub/compose.env` ma właściciela `jjdeploy` i tryb `600`. Wartości zostają na maszynie. W git jest tylko `deploy/compose/compose.env.example`.
 
+Katalog `/var/lib/jjdevhub` ma właściciela `jjdeploy` i tryb `750`. Job deployu zapisuje tam plik obrazu komponentu, na przykład `gateway.image.yml`. Tego pliku nie ma w git.
+
 ## Docker
 
 Pakiety z repozytorium Ubuntu: `docker.io` i `docker-compose-v2`. Demon wstaje razem z gościem.
@@ -46,6 +48,7 @@ sudo adduser --disabled-password --gecos "" jjdeploy
 sudo usermod -aG docker jjdeploy
 sudo install -d -o root -g jjdeploy -m 750 /etc/jjdevhub
 sudo install -o jjdeploy -g jjdeploy -m 600 /dev/null /etc/jjdevhub/compose.env
+sudo install -d -o jjdeploy -g jjdeploy -m 750 /var/lib/jjdevhub
 ```
 
 Archiwum runnera dla Linux x64 leży w `/home/jjdeploy/actions-runner`. Rejestracja szła jako `jjdeploy`: adres `https://github.com/jtjaskulski/JJDevHub`, nazwa `jjdevhub`, etykieta `jjdevhub`. Usługa, z tego katalogu:
@@ -62,9 +65,9 @@ nproc
 free -h
 sudo -iu jjdeploy docker info
 systemctl is-active 'actions.runner.*'
-sudo stat -c '%a %U:%G %n' /etc/jjdevhub /etc/jjdevhub/compose.env
+sudo stat -c '%a %U:%G %n' /etc/jjdevhub /etc/jjdevhub/compose.env /var/lib/jjdevhub
 test -d /sys/firmware/efi && echo uefi
 cat /sys/class/tpm/tpm0/tpm_version_major
 ```
 
-`nproc` pokazuje 4. Pamięć jest rzędu 16 GiB. `docker info` odpowiada jako `jjdeploy`. Runner jest aktywny. Katalog env ma tryb `750` i właściciela `root:jjdeploy`, plik ma tryb `600` i właściciela `jjdeploy:jjdeploy`. Gość bootuje przez UEFI, a TPM ma wersję 2.
+`nproc` pokazuje 4. Pamięć jest rzędu 16 GiB. `docker info` odpowiada jako `jjdeploy`. Runner jest aktywny. Katalog env ma tryb `750` i właściciela `root:jjdeploy`, plik ma tryb `600` i właściciela `jjdeploy:jjdeploy`. Katalog `/var/lib/jjdevhub` ma tryb `750` i właściciela `jjdeploy:jjdeploy`. Gość bootuje przez UEFI, a TPM ma wersję 2.
