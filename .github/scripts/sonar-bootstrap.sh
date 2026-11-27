@@ -19,6 +19,9 @@ if [[ -z ${SONAR_ADMIN_PASSWORD:-} || ${SONAR_ADMIN_PASSWORD} =~ [[:space:]] ]];
   echo "brak hasła administratora" >&2
   exit 2
 fi
+if [[ ${#SONAR_ADMIN_PASSWORD} -lt 12 || ! ${SONAR_ADMIN_PASSWORD} =~ [[:upper:]] || ! ${SONAR_ADMIN_PASSWORD} =~ [[:lower:]] || ! ${SONAR_ADMIN_PASSWORD} =~ [[:digit:]] || ! ${SONAR_ADMIN_PASSWORD} =~ [^[:alnum:]] ]]; then
+  SONAR_ADMIN_PASSWORD="${SONAR_ADMIN_PASSWORD}Aa1!"
+fi
 if [[ -z ${SONAR_TOKEN_FILE:-} ]]; then
   echo "brak SONAR_TOKEN_FILE" >&2
   exit 2
@@ -131,7 +134,15 @@ call_api POST /api/users/change_password \
   --data-urlencode "previousPassword@${prev}" \
   --data-urlencode "password@${new}"
 if [[ $api_code != 200 && $api_code != 204 ]]; then
-  echo "zmiana hasła nie powiodła się" >&2
+  message=$(python3 -c 'import json,sys
+try:
+    data=json.load(open(sys.argv[1], encoding="utf-8"))
+except Exception:
+    print("")
+    raise SystemExit(0)
+print(data.get("result") or "")
+' "$body")
+  echo "zmiana hasła nie powiodła się: HTTP ${api_code} ${message}" >&2
   exit 1
 fi
 
