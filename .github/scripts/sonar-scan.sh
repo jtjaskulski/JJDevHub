@@ -71,11 +71,7 @@ export SONAR_TOKEN
 
 extra=()
 if [[ -n ${SONAR_PR_KEY:-} ]]; then
-  extra+=(
-    "sonar.pullrequest.key=${SONAR_PR_KEY}"
-    "sonar.pullrequest.branch=${SONAR_PR_BRANCH}"
-    "sonar.pullrequest.base=${SONAR_PR_BASE}"
-  )
+  printf 'community build nie przyjmuje parametrów pull requestu\n'
 fi
 if [[ ${#cobertura[@]} -gt 0 ]]; then
   extra+=("sonar.cs.cobertura.reportsPaths=$(join_by_comma "${cobertura[@]}")")
@@ -91,7 +87,19 @@ if [[ $has_csproj -eq 1 ]]; then
   fi
   export PATH="${PATH}:${HOME}/.dotnet/tools"
   dotnet tool install --global dotnet-sonarscanner --version "$scanner_version"
-  begin=(/k:jjdevhub /s:"$root/sonar-project.properties" "/d:sonar.host.url=${host}")
+  begin=(/k:jjdevhub "/d:sonar.host.url=${host}" "/d:sonar.token=${SONAR_TOKEN}")
+  while IFS= read -r line || [[ -n ${line:-} ]]; do
+    line=${line%%$'\r'}
+    [[ $line =~ ^[[:space:]]*# || $line != *=* ]] && continue
+    key=${line%%=*}
+    value=${line#*=}
+    case $key in
+      sonar.projectKey | sonar.sources | sonar.tests | sonar.test.inclusions)
+        continue
+        ;;
+    esac
+    begin+=("/d:${key}=${value}")
+  done <"$root/sonar-project.properties"
   if [[ ${#extra[@]} -gt 0 ]]; then
     for item in "${extra[@]}"; do
       begin+=("/d:${item}")
@@ -99,7 +107,7 @@ if [[ $has_csproj -eq 1 ]]; then
   fi
   dotnet sonarscanner begin "${begin[@]}"
   dotnet build "$root/JJDevHub.slnx" -c Release --nologo
-  dotnet sonarscanner end
+  dotnet sonarscanner end "/d:sonar.token=${SONAR_TOKEN}"
 else
   archive=$(mktemp)
   unpacked=$(mktemp -d)
