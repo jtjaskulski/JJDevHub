@@ -91,7 +91,7 @@ if [[ $has_csproj -eq 1 ]]; then
   fi
   export PATH="${PATH}:${HOME}/.dotnet/tools"
   dotnet tool install --global dotnet-sonarscanner --version "$scanner_version"
-  begin=(/k:jjdevhub "/d:sonar.host.url=${host}")
+  begin=(/k:jjdevhub "/d:sonar.host.url=\"${host}\"")
   while IFS= read -r line || [[ -n ${line:-} ]]; do
     line=${line%%$'\r'}
     [[ $line =~ ^[[:space:]]*# || $line != *=* ]] && continue
