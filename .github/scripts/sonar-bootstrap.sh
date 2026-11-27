@@ -108,7 +108,7 @@ call_api() {
 deadline=$(( $(date +%s) + 300 ))
 ready=0
 while [[ $(date +%s) -lt $deadline ]]; do
-  status_body=$(curl --silent --show-error --max-time 5 "${host}/api/system/status" || true)
+  status_body=$(curl --silent --max-time 5 "${host}/api/system/status" || true)
   if printf '%s' "$status_body" | python3 -c 'import json,sys
 try:
     data=json.load(sys.stdin)
@@ -156,48 +156,11 @@ if [[ $api_code != 200 && $api_code != 204 ]]; then
   echo "utworzenie bramki nie powiodło się" >&2
   exit 1
 fi
-gate_id=$(python3 -c '
-import json
-import sys
-raw = open(sys.argv[1], encoding="utf-8").read().strip()
-if not raw:
-    print("")
-    raise SystemExit(0)
-try:
-    data = json.loads(raw)
-except json.JSONDecodeError:
-    print("")
-    raise SystemExit(0)
-ident = data.get("id") or ""
-nested = data.get("qualityGate")
-if not ident and isinstance(nested, dict):
-    ident = nested.get("id") or ""
-print(ident)
-' "$body")
-if [[ -z $gate_id ]]; then
-  call_api GET "/api/qualitygates/show?name=jjdevhub"
-  if [[ $api_code == 200 ]]; then
-    gate_id=$(python3 -c '
-import json
-import sys
-data = json.load(open(sys.argv[1], encoding="utf-8"))
-ident = data.get("id") or ""
-nested = data.get("qualityGate")
-if not ident and isinstance(nested, dict):
-    ident = nested.get("id") or ""
-print(ident)
-' "$body")
-  fi
-fi
-if [[ -z $gate_id ]]; then
-  echo "brak identyfikatora bramki" >&2
-  exit 1
-fi
 
 while IFS=$'\t' read -r metric op error; do
   [[ -z $metric ]] && continue
   call_api POST /api/qualitygates/create_condition \
-    --data-urlencode "gateId=${gate_id}" \
+    --data-urlencode "gateName=jjdevhub" \
     --data-urlencode "metric=${metric}" \
     --data-urlencode "op=${op}" \
     --data-urlencode "error=${error}"
@@ -208,7 +171,7 @@ while IFS=$'\t' read -r metric op error; do
 done <"$conditions"
 
 call_api POST /api/qualitygates/select \
-  --data-urlencode "gateId=${gate_id}" \
+  --data-urlencode "gateName=jjdevhub" \
   --data-urlencode "projectKey=jjdevhub"
 if [[ $api_code != 200 && $api_code != 204 ]]; then
   echo "przypięcie bramki nie powiodło się" >&2
