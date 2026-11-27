@@ -71,11 +71,7 @@ export SONAR_TOKEN
 
 extra=()
 if [[ -n ${SONAR_PR_KEY:-} ]]; then
-  extra+=(
-    "sonar.pullrequest.key=${SONAR_PR_KEY}"
-    "sonar.pullrequest.branch=${SONAR_PR_BRANCH}"
-    "sonar.pullrequest.base=${SONAR_PR_BASE}"
-  )
+  printf 'community build nie przyjmuje parametrów pull requestu\n'
 fi
 if [[ ${#cobertura[@]} -gt 0 ]]; then
   extra+=("sonar.cs.cobertura.reportsPaths=$(join_by_comma "${cobertura[@]}")")
