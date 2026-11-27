@@ -8,10 +8,11 @@ affected=$root/.github/scripts/affected-components.sh
 rm -rf "$root"/tests/ci/.format.*
 
 expect_no_material() {
-  local job=$1
+  local script=$1
+  local job=$2
   local log code
   set +e
-  log=$(bash "$gate" "$job" 2>&1)
+  log=$(bash "$script" "$job" 2>&1)
   code=$?
   set -e
   if [[ $code -ne 0 ]]; then
@@ -26,9 +27,15 @@ expect_no_material() {
   fi
 }
 
+empty=$(mktemp -d)
+mkdir -p "$empty/.github/scripts"
+cp "$gate" "$empty/.github/scripts/dotnet-gate.sh"
+
 for job in build unit-tests format integration-tests performance; do
-  expect_no_material "$job"
+  expect_no_material "$empty/.github/scripts/dotnet-gate.sh" "$job"
 done
+
+rm -rf "$empty"
 
 list=$(bash "$affected")
 if [[ $list != '{"components":[],"kernel":false}' ]]; then

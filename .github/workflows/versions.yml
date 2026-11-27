@@ -20,6 +20,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+      attestations: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -29,6 +30,9 @@ jobs:
 
       - name: Suchy przebieg
         run: bash tests/ci/versions.sh
+
+      - name: Suchy przebieg deployu
+        run: bash tests/ci/deploy.sh
 
       - name: Sprawdzenie
         env:
@@ -46,6 +50,8 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    outputs:
+      tags: ${{ steps.tags.outputs.tags }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -54,8 +60,58 @@ jobs:
           persist-credentials: false
 
       - name: Wydanie
+        id: release
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           config-file: .github/release-please-config.json
           manifest-file: .release-please-manifest.json
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tagi
+        id: tags
+        env:
+          CREATED: ${{ steps.release.outputs.releases_created }}
+          IDENTITY: ${{ steps.release.outputs['src/services/Identity--tag_name'] }}
+          NEWS: ${{ steps.release.outputs['src/services/News--tag_name'] }}
+          LEARNING: ${{ steps.release.outputs['src/services/Learning--tag_name'] }}
+          CV: ${{ steps.release.outputs['src/services/Cv--tag_name'] }}
+          CONTACT: ${{ steps.release.outputs['src/services/Contact--tag_name'] }}
+          GATEWAY: ${{ steps.release.outputs['src/gateway--tag_name'] }}
+          WEB: ${{ steps.release.outputs['src/clients/web--tag_name'] }}
+          MOBILE: ${{ steps.release.outputs['src/clients/mobile--tag_name'] }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+
+          created = os.environ.get("CREATED", "")
+          names = ("IDENTITY", "NEWS", "LEARNING", "CV", "CONTACT", "GATEWAY", "WEB", "MOBILE")
+          tags = []
+          if created == "true":
+              for name in names:
+                  value = os.environ.get(name, "")
+                  if value:
+                      tags.append(value)
+              if not tags:
+                  raise SystemExit("wydanie bez tagu")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write("tags=" + json.dumps(tags) + "\n")
+          PY
+
+  deploy:
+    name: deploy
+    needs: release-please
+    if: needs.release-please.result == 'success' && needs.release-please.outputs.tags != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: ${{ fromJson(needs.release-please.outputs.tags || '[]') }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      tag: ${{ matrix.tag }}

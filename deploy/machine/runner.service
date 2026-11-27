@@ -1,0 +1,14 @@
+[Unit]
+Description=GitHub Actions Runner (jtjaskulski-JJDevHub.jjdevhub)
+After=network-online.target
+
+[Service]
+ExecStart=/home/jjdeploy/actions-runner/runsvc.sh
+User=jjdeploy
+WorkingDirectory=/home/jjdeploy/actions-runner
+KillMode=process
+KillSignal=SIGTERM
+TimeoutStopSec=5min
+
+[Install]
+WantedBy=multi-user.target

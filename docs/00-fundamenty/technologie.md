@@ -49,14 +49,16 @@ Wersje poniżej są pierwszym pinem. Podbicie idzie przez Dependabota i przechod
 | --- | --- | --- | --- |
 | `Aspire.Hosting.PostgreSQL` | 13.6.5 | MIT | bazy |
 | `Aspire.Hosting.Docker` | 13.6.5 | MIT | compose |
+| `Aspire.AppHost.Sdk` | 13.6.5 | MIT | szkielet |
 | `OpenTelemetry.Extensions.Hosting` | 1.20.1 | Apache-2.0 | szkielet |
 | `OpenTelemetry.Exporter.OpenTelemetryProtocol` | 1.20.1 | Apache-2.0 | szkielet |
 | `OpenTelemetry.Instrumentation.AspNetCore` | 1.20.1 | Apache-2.0 | szkielet |
 | `OpenTelemetry.Instrumentation.Http` | 1.20.1 | Apache-2.0 | szkielet |
 | `OpenTelemetry.Instrumentation.Runtime` | 1.20.1 | Apache-2.0 | szkielet |
 | `Microsoft.Extensions.Http.Resilience` | 10.11.0 | MIT | szkielet |
-| `Microsoft.Extensions.ServiceDiscovery` | z linii Aspire 13.6.5 | MIT | szkielet |
+| `Microsoft.Extensions.ServiceDiscovery` | 10.11.0 | MIT | szkielet |
 | `Yarp.ReverseProxy` | 2.3.0 | MIT | brama |
+| `Microsoft.Extensions.ServiceDiscovery.Yarp` | 10.11.0 | MIT | brama |
 | `Microsoft.AspNetCore.OpenApi` | 10.0.14 | MIT | REST |
 | `Scalar.AspNetCore` | 2.19.0 | MIT | REST |
 | `Microsoft.EntityFrameworkCore` | 10.0.14 | MIT | zapis |
@@ -89,7 +91,7 @@ Wersje poniżej są pierwszym pinem. Podbicie idzie przez Dependabota i przechod
 | `Aspire.Hosting.Redis` | 13.6.5 | MIT | cache, faza klastra |
 | `Aspire.StackExchange.Redis` | z linii 13.6.5 | MIT | cache, faza klastra |
 
-`Microsoft.Extensions.ServiceDiscovery` i klient Redisa biorą wersję dokładnie taką, jaką wskaże `dotnet package search` w dniu numeru, z tej samej linii 13.6.5. Nie wpisuje się tu numeru z pamięci.
+`Microsoft.Extensions.ServiceDiscovery` stoi na `10.11.0`, tej samej poprawce co `Microsoft.Extensions.Http.Resilience`. Wyszukanie w dniu numeru szkieletu pokazuje też `11.0.0`; to już następna linia i ten numer jej nie bierze. Klient Redisa nadal czeka na numer cache i bierze wersję, jaką wskaże `dotnet package search` tego dnia, z linii 13.6.5. Nie wpisuje się jej z pamięci.
 
 Serwery, które nie są pakietem NuGet:
 
@@ -97,7 +99,7 @@ Serwery, które nie są pakietem NuGet:
 | --- | --- | --- |
 | `postgres:18` | PostgreSQL | dziesięć baz |
 | `apache/kafka:4.4.0` | Apache-2.0 | broker |
-| `grafana/otel-lgtm` | AGPL-3.0 dla Grafany, reszta stosu według obrazu | telemetria na maszynie i na laptopie |
+| `grafana/otel-lgtm:0.41.1` | AGPL-3.0 dla Grafany, reszta stosu według obrazu | telemetria na maszynie i na laptopie |
 | `openbao/openbao` | MPL-2.0 | sekrety w fazie klastra |
 | `sonarqube:community` | LGPL-3.0 | bramka jakości, nie jest biblioteką aplikacji |
 
