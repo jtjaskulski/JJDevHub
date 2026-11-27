@@ -50,9 +50,10 @@ netrc=$(mktemp)
 prev=$(mktemp)
 new=$(mktemp)
 body=$(mktemp)
-chmod 600 "$netrc" "$prev" "$new" "$body"
+show_body=$(mktemp)
+chmod 600 "$netrc" "$prev" "$new" "$body" "$show_body"
 cleanup() {
-  rm -f -- "$conditions" "$netrc" "$prev" "$new" "$body"
+  rm -f -- "$conditions" "$netrc" "$prev" "$new" "$body" "$show_body"
 }
 trap cleanup EXIT
 
@@ -168,15 +169,50 @@ if [[ $api_code != 200 && $api_code != 204 ]]; then
   exit 1
 fi
 
+call_api GET "/api/qualitygates/show?name=jjdevhub"
+if [[ $api_code != 200 ]]; then
+  echo "odczyt bramki nie powiódł się: HTTP ${api_code}" >&2
+  exit 1
+fi
+cp "$body" "$show_body"
+
 while IFS=$'\t' read -r metric op error; do
   [[ -z $metric ]] && continue
-  call_api POST /api/qualitygates/create_condition \
-    --data-urlencode "gateName=jjdevhub" \
-    --data-urlencode "metric=${metric}" \
-    --data-urlencode "op=${op}" \
-    --data-urlencode "error=${error}"
+  condition_id=$(python3 -c '
+import json
+import sys
+data = json.load(open(sys.argv[1], encoding="utf-8"))
+metric = sys.argv[2]
+for condition in data.get("conditions") or []:
+    if condition.get("metric") == metric:
+        print(condition.get("id") or "")
+        raise SystemExit(0)
+print("")
+' "$show_body" "$metric")
+  if [[ -n $condition_id ]]; then
+    call_api POST /api/qualitygates/update_condition \
+      --data-urlencode "id=${condition_id}" \
+      --data-urlencode "metric=${metric}" \
+      --data-urlencode "op=${op}" \
+      --data-urlencode "error=${error}"
+  else
+    call_api POST /api/qualitygates/create_condition \
+      --data-urlencode "gateName=jjdevhub" \
+      --data-urlencode "metric=${metric}" \
+      --data-urlencode "op=${op}" \
+      --data-urlencode "error=${error}"
+  fi
   if [[ $api_code != 200 && $api_code != 204 ]]; then
-    echo "warunek bramki nie wszedł: ${metric}" >&2
+    message=$(python3 -c 'import json,sys
+try:
+    data=json.load(open(sys.argv[1], encoding="utf-8"))
+except Exception:
+    print("")
+    raise SystemExit(0)
+errors=data.get("errors") or []
+print(errors[0].get("msg") if errors and isinstance(errors[0], dict) else "")
+' "$body")
+    echo "warunek bramki nie wszedł: ${metric}: HTTP ${api_code} ${message}" >&2
     exit 1
   fi
 done <"$conditions"
