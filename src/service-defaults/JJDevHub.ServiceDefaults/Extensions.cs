@@ -1,12 +1,14 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
 namespace Microsoft.Extensions.Hosting;
@@ -74,7 +76,8 @@ public static class Extensions
             logging.IncludeScopes = true;
         });
 
-        builder.Services.AddOpenTelemetry()
+        IOpenTelemetryBuilder telemetry = builder.Services.AddOpenTelemetry()
+            .ConfigureResource(resource => AddServiceResource(resource, builder.Configuration))
             .WithMetrics(metrics =>
             {
                 metrics.AddAspNetCoreInstrumentation()
@@ -96,10 +99,32 @@ public static class Extensions
         var endpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"];
         if (!string.IsNullOrWhiteSpace(endpoint))
         {
-            builder.Services.AddOpenTelemetry().UseOtlpExporter();
+            telemetry.UseOtlpExporter();
         }
 
         return builder;
+    }
+
+    private static void AddServiceResource(ResourceBuilder resource, IConfiguration configuration)
+    {
+        string? serviceName = configuration["OTEL_SERVICE_NAME"];
+        string? serviceVersion = configuration["SERVICE_VERSION"];
+        string? version = string.IsNullOrWhiteSpace(serviceVersion) ? null : serviceVersion;
+        if (!string.IsNullOrWhiteSpace(serviceName))
+        {
+            resource.AddService(serviceName, serviceVersion: version);
+            return;
+        }
+
+        if (version is null)
+        {
+            return;
+        }
+
+        resource.AddAttributes(
+        [
+            new KeyValuePair<string, object>("service.version", version),
+        ]);
     }
 
     private static TBuilder AddDefaultHealthChecks<TBuilder>(this TBuilder builder)

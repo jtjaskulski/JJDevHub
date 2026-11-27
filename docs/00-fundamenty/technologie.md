@@ -99,7 +99,7 @@ Serwery, które nie są pakietem NuGet:
 | --- | --- | --- |
 | `postgres:18` | PostgreSQL | dziesięć baz |
 | `apache/kafka:4.4.0` | Apache-2.0 | broker |
-| `grafana/otel-lgtm` | AGPL-3.0 dla Grafany, reszta stosu według obrazu | telemetria na maszynie i na laptopie |
+| `grafana/otel-lgtm:0.41.1` | AGPL-3.0 dla Grafany, reszta stosu według obrazu | telemetria na maszynie i na laptopie |
 | `openbao/openbao` | MPL-2.0 | sekrety w fazie klastra |
 | `sonarqube:community` | LGPL-3.0 | bramka jakości, nie jest biblioteką aplikacji |
 

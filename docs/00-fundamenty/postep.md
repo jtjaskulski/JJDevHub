@@ -15,12 +15,12 @@ Wiersz dostaje datę, gdy sekcja `## Gotowe gdy` numeru jest spełniona i checki
 | [01-bramki/09-wersje](../01-bramki/09-wersje.md)                                     | 21.11.2026 |                                        |
 | [02-szkielet-i-deploy/01-aspire](../02-szkielet-i-deploy/01-aspire.md)               | 21.11.2026 |                                        |
 | [02-szkielet-i-deploy/02-gateway](../02-szkielet-i-deploy/02-gateway.md)             | 24.11.2026 | `gateway-v0.1.0`                       |
-| [02-szkielet-i-deploy/03-dockerfile](../02-szkielet-i-deploy/03-dockerfile.md)       |            |                                        |
-| [02-szkielet-i-deploy/04-maszyna](../02-szkielet-i-deploy/04-maszyna.md)             |            |                                        |
-| [02-szkielet-i-deploy/05-cloudflare](../02-szkielet-i-deploy/05-cloudflare.md)       |            |                                        |
-| [02-szkielet-i-deploy/06-compose](../02-szkielet-i-deploy/06-compose.md)             |            |                                        |
-| [02-szkielet-i-deploy/07-deploy](../02-szkielet-i-deploy/07-deploy.md)               |            | pierwszy rollout bramy                 |
-| [02-szkielet-i-deploy/08-telemetria](../02-szkielet-i-deploy/08-telemetria.md)       |            |                                        |
+| [02-szkielet-i-deploy/03-dockerfile](../02-szkielet-i-deploy/03-dockerfile.md)       | 25.11.2026 |                                        |
+| [02-szkielet-i-deploy/04-maszyna](../02-szkielet-i-deploy/04-maszyna.md)             | 27.11.2026 |                                        |
+| [02-szkielet-i-deploy/05-cloudflare](../02-szkielet-i-deploy/05-cloudflare.md)       | 27.11.2026 |                                        |
+| [02-szkielet-i-deploy/06-compose](../02-szkielet-i-deploy/06-compose.md)             | 27.11.2026 |                                        |
+| [02-szkielet-i-deploy/07-deploy](../02-szkielet-i-deploy/07-deploy.md)               | 27.11.2026 | pierwszy rollout bramy                 |
+| [02-szkielet-i-deploy/08-telemetria](../02-szkielet-i-deploy/08-telemetria.md)       | 27.11.2026 |                                        |
 | [03-learning-zapis/01-kernel-i-domena](../03-learning-zapis/01-kernel-i-domena.md)   |            |                                        |
 | [03-learning-zapis/02-use-case-i-porty](../03-learning-zapis/02-use-case-i-porty.md) |            |                                        |
 | [03-learning-zapis/03-postgres](../03-learning-zapis/03-postgres.md)                 |            |                                        |
