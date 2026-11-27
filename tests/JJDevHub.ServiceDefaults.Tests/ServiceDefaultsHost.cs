@@ -7,7 +7,17 @@ namespace JJDevHub.ServiceDefaults.Tests;
 
 internal static class ServiceDefaultsHost
 {
-    public static async Task<WebApplication> StartAsync(CancellationToken cancellationToken)
+    public static Task<WebApplication> StartAsync(CancellationToken cancellationToken)
+    {
+        return StartAsync(new Dictionary<string, string?>
+        {
+            ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "",
+        }, cancellationToken);
+    }
+
+    public static async Task<WebApplication> StartAsync(
+        IReadOnlyDictionary<string, string?> settings,
+        CancellationToken cancellationToken)
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
@@ -15,10 +25,7 @@ internal static class ServiceDefaultsHost
             ApplicationName = "JJDevHub.ServiceDefaults.Tests",
         });
 
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
-        {
-            ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "",
-        });
+        builder.Configuration.AddInMemoryCollection(settings);
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.AddServiceDefaults();
 
