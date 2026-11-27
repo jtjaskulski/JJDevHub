@@ -30,6 +30,7 @@ jobs:
         id: material
         env:
           BASE_REF: ${{ github.base_ref }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           if [[ -f deploy/docker/Dockerfile ]]; then
@@ -100,6 +101,7 @@ jobs:
         id: material
         env:
           BASE_REF: ${{ github.base_ref }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           if [[ -f deploy/docker/Dockerfile ]]; then
@@ -171,6 +173,7 @@ jobs:
         id: material
         env:
           BASE_REF: ${{ github.base_ref }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           if [[ -f deploy/docker/Dockerfile ]]; then
