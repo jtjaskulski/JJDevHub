@@ -34,7 +34,8 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -f deploy/docker/Dockerfile ]]; then
-            git -c "http.extraheader=AUTHORIZATION: bearer ${GITHUB_TOKEN}" fetch --no-tags origin "$BASE_REF"
+            auth=$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w 0)
+            git -c "http.extraheader=AUTHORIZATION: basic ${auth}" fetch --no-tags origin "$BASE_REF"
           fi
           output=$(bash .github/scripts/artifacts-material.sh)
           printf '%s\n' "$output"
@@ -105,7 +106,8 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -f deploy/docker/Dockerfile ]]; then
-            git -c "http.extraheader=AUTHORIZATION: bearer ${GITHUB_TOKEN}" fetch --no-tags origin "$BASE_REF"
+            auth=$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w 0)
+            git -c "http.extraheader=AUTHORIZATION: basic ${auth}" fetch --no-tags origin "$BASE_REF"
           fi
           output=$(bash .github/scripts/artifacts-material.sh)
           printf '%s\n' "$output"
@@ -177,7 +179,8 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -f deploy/docker/Dockerfile ]]; then
-            git -c "http.extraheader=AUTHORIZATION: bearer ${GITHUB_TOKEN}" fetch --no-tags origin "$BASE_REF"
+            auth=$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w 0)
+            git -c "http.extraheader=AUTHORIZATION: basic ${auth}" fetch --no-tags origin "$BASE_REF"
           fi
           output=$(bash .github/scripts/artifacts-material.sh)
           printf '%s\n' "$output"

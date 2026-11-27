@@ -189,6 +189,12 @@ fi
 if ! grep -q 'actions/attest-build-provenance@' "$workflow"; then
   fail "brak atestacji w workflow"
 fi
+if ! grep -q 'AUTHORIZATION: basic' "$workflow"; then
+  fail "brak nagłówka basic przy fetchu"
+fi
+if grep -q 'AUTHORIZATION: bearer' "$workflow"; then
+  fail "fetch używa bearer"
+fi
 
 for name in image-scan sbom attestations; do
   if ! grep -q "name: ${name}" "$workflow"; then

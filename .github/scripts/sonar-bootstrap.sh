@@ -156,7 +156,39 @@ if [[ $api_code != 200 && $api_code != 204 ]]; then
   echo "utworzenie bramki nie powiodło się" >&2
   exit 1
 fi
-gate_id=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("id") or "")' "$body")
+gate_id=$(python3 -c '
+import json
+import sys
+raw = open(sys.argv[1], encoding="utf-8").read().strip()
+if not raw:
+    print("")
+    raise SystemExit(0)
+try:
+    data = json.loads(raw)
+except json.JSONDecodeError:
+    print("")
+    raise SystemExit(0)
+ident = data.get("id") or ""
+nested = data.get("qualityGate")
+if not ident and isinstance(nested, dict):
+    ident = nested.get("id") or ""
+print(ident)
+' "$body")
+if [[ -z $gate_id ]]; then
+  call_api GET "/api/qualitygates/show?name=jjdevhub"
+  if [[ $api_code == 200 ]]; then
+    gate_id=$(python3 -c '
+import json
+import sys
+data = json.load(open(sys.argv[1], encoding="utf-8"))
+ident = data.get("id") or ""
+nested = data.get("qualityGate")
+if not ident and isinstance(nested, dict):
+    ident = nested.get("id") or ""
+print(ident)
+' "$body")
+  fi
+fi
 if [[ -z $gate_id ]]; then
   echo "brak identyfikatora bramki" >&2
   exit 1
