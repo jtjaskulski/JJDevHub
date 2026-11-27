@@ -91,7 +91,19 @@ if [[ $has_csproj -eq 1 ]]; then
   fi
   export PATH="${PATH}:${HOME}/.dotnet/tools"
   dotnet tool install --global dotnet-sonarscanner --version "$scanner_version"
-  begin=(/k:jjdevhub /s:"$root/sonar-project.properties" "/d:sonar.host.url=${host}")
+  begin=(/k:jjdevhub "/d:sonar.host.url=${host}")
+  while IFS= read -r line || [[ -n ${line:-} ]]; do
+    line=${line%%$'\r'}
+    [[ $line =~ ^[[:space:]]*# || $line != *=* ]] && continue
+    key=${line%%=*}
+    value=${line#*=}
+    case $key in
+      sonar.projectKey | sonar.sources | sonar.tests | sonar.test.inclusions)
+        continue
+        ;;
+    esac
+    begin+=("/d:${key}=${value}")
+  done <"$root/sonar-project.properties"
   if [[ ${#extra[@]} -gt 0 ]]; then
     for item in "${extra[@]}"; do
       begin+=("/d:${item}")
