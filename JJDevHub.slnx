@@ -1,2 +1,16 @@
 <Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/apphost/">
+    <Project Path="src/apphost/JJDevHub.AppHost/JJDevHub.AppHost.csproj" />
+  </Folder>
+  <Folder Name="/src/gateway/">
+    <Project Path="src/gateway/JJDevHub.Gateway/JJDevHub.Gateway.csproj" />
+  </Folder>
+  <Folder Name="/src/service-defaults/">
+    <Project Path="src/service-defaults/JJDevHub.ServiceDefaults/JJDevHub.ServiceDefaults.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/JJDevHub.Gateway.Tests/JJDevHub.Gateway.Tests.csproj" />
+    <Project Path="tests/JJDevHub.ServiceDefaults.Tests/JJDevHub.ServiceDefaults.Tests.csproj" />
+  </Folder>
 </Solution>

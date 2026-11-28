@@ -78,27 +78,23 @@ test_total() {
 
 run_filtered_tests() {
   local filter=$1
-  local log results trx code total
+  local log code total
   if ! has_test_project; then
     no_material
   fi
   log=$(mktemp)
-  results=$(mktemp -d)
   set +e
-  dotnet test JJDevHub.slnx -c Release --nologo --filter "$filter" \
-    --results-directory "$results" \
-    --logger "trx;LogFileName=tests.trx" >"$log" 2>&1
+  dotnet test --solution JJDevHub.slnx -c Release --filter "$filter" >"$log" 2>&1
   code=$?
   set -e
   cat "$log"
-  trx=$(find "$results" -name 'tests.trx' -print -quit || true)
   total=""
-  if total=$(test_total "$log" "$trx"); then
+  if total=$(test_total "$log"); then
     :
   else
     total=""
   fi
-  rm -rf "$log" "$results"
+  rm -f "$log"
   if [[ $total == 0 || ( -z $total && $code -eq 8 ) ]]; then
     printf 'no material\n'
     exit 0
@@ -127,7 +123,7 @@ case $job in
       --output "$root/artifacts/coverage/coverage.cobertura.xml" \
       --output-format cobertura \
       --nologo \
-      -- dotnet test JJDevHub.slnx -c Release --nologo --filter 'Category!=Integration&Category!=Performance'
+      -- dotnet test --solution JJDevHub.slnx -c Release --filter 'Category!=Integration&Category!=Performance'
     ;;
   format)
     if ! has_any '*.csproj' && ! has_any '*.cs'; then

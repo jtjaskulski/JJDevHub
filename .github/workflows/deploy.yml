@@ -1,0 +1,325 @@
+name: deploy
+
+on:
+  push:
+    tags:
+      - "*-v[0-9]*.[0-9]*.[0-9]*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: tag
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: tag
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  publish:
+    name: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      image: ${{ steps.component.outputs.image }}
+      component: ${{ steps.component.outputs.component }}
+      tag: ${{ steps.component.outputs.tag }}
+      owner: ${{ steps.component.outputs.owner }}
+      digest: ${{ steps.push.outputs.digest }}
+      reference: ${{ steps.push.outputs.image }}
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Komponent
+        id: component
+        env:
+          OWNER_RAW: ${{ github.repository_owner }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          output=$(bash .github/scripts/deploy-component.sh "$TAG")
+          printf '%s\n' "$output"
+          auth=$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w 0)
+          git -c "http.extraheader=AUTHORIZATION: basic ${auth}" fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$TAG" FETCH_HEAD; then
+            echo "tag nie jest na main" >&2
+            exit 1
+          fi
+          owner=$(printf '%s' "$OWNER_RAW" | tr '[:upper:]' '[:lower:]')
+          if [[ $output == 'component has no image yet' ]]; then
+            echo "image=false" >> "$GITHUB_OUTPUT"
+            echo "component=${TAG%%-v*}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          read -r component project assembly <<<"$output"
+          {
+            echo "image=true"
+            echo "component=${component}"
+            echo "project=${project}"
+            echo "assembly=${assembly}"
+            echo "tag=${TAG}"
+            echo "owner=${owner}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Setup .NET
+        if: steps.component.outputs.image == 'true'
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: global.json
+
+      - name: Compose
+        if: steps.component.outputs.image == 'true'
+        run: |
+          set -euo pipefail
+          dotnet tool install Aspire.Cli --version 13.6.5 --tool-path "${RUNNER_TEMP}/aspire"
+          export PATH="${RUNNER_TEMP}/aspire:${PATH}"
+          aspire publish -o aspire-output --non-interactive --nologo
+          mapfile -t files < <(find aspire-output -name docker-compose.yaml -type f | sort)
+          if [[ ${#files[@]} -ne 1 ]]; then
+            echo "oczekiwano jednego docker-compose.yaml" >&2
+            exit 1
+          fi
+          mkdir -p "${RUNNER_TEMP}/compose"
+          cp "${files[0]}" "${RUNNER_TEMP}/compose/docker-compose.yaml"
+
+      - name: Artefakt compose
+        if: steps.component.outputs.image == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: compose-${{ steps.component.outputs.component }}
+          path: ${{ runner.temp }}/compose/docker-compose.yaml
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Login
+        if: steps.component.outputs.image == 'true'
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ steps.component.outputs.owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Obraz
+        id: push
+        if: steps.component.outputs.image == 'true'
+        env:
+          OWNER: ${{ steps.component.outputs.owner }}
+          COMPONENT: ${{ steps.component.outputs.component }}
+          PROJECT: ${{ steps.component.outputs.project }}
+          ASSEMBLY: ${{ steps.component.outputs.assembly }}
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${OWNER}/jjdevhub-${COMPONENT}"
+          ref="${image}:${TAG}"
+          docker build \
+            --file deploy/docker/Dockerfile \
+            --build-arg "PROJECT=${PROJECT}" \
+            --build-arg "ASSEMBLY=${ASSEMBLY}" \
+            --tag "$ref" \
+            .
+          docker push "$ref"
+          digest=$(docker image inspect "$ref" --format '{{range .RepoDigests}}{{.}}{{"\n"}}{{end}}' | awk -v prefix="${image}@" 'index($0, prefix) == 1 { sub(/^.*@/, ""); print; exit }')
+          if [[ ! $digest =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "brak digestu" >&2
+            exit 1
+          fi
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+
+      - name: Widoczność
+        if: steps.component.outputs.image == 'true'
+        env:
+          OWNER: ${{ steps.component.outputs.owner }}
+          COMPONENT: ${{ steps.component.outputs.component }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          name="jjdevhub-${COMPONENT}"
+          kind=$(gh api "users/${OWNER}" --jq .type)
+          if [[ $kind == Organization ]]; then
+            path="/orgs/${OWNER}/packages/container/${name}/visibility"
+          elif [[ $kind == User ]]; then
+            path="/user/packages/container/${name}/visibility"
+          else
+            echo "nieznany właściciel pakietu" >&2
+            exit 1
+          fi
+          ok=0
+          for _ in 1 2 3 4 5 6; do
+            if gh api --method PUT -H "Accept: application/vnd.github+json" "$path" -f visibility=public; then
+              ok=1
+              break
+            fi
+            sleep 5
+          done
+          if [[ $ok -ne 1 ]]; then
+            echo "nie da się ustawić widoczności obrazu" >&2
+            exit 1
+          fi
+
+      - name: Atestacja
+        if: steps.component.outputs.image == 'true'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.push.outputs.image }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: SBOM
+        if: steps.component.outputs.image == 'true'
+        env:
+          OWNER: ${{ steps.component.outputs.owner }}
+          COMPONENT: ${{ steps.component.outputs.component }}
+        run: |
+          set -euo pipefail
+          tools=${RUNNER_TEMP}/tools
+          mkdir -p "$tools"
+          bash .github/scripts/install-pinned-tool.sh syft "$tools"
+          export PATH="${tools}:${PATH}"
+          image="ghcr.io/${OWNER}/jjdevhub-${COMPONENT}:${TAG}"
+          out="sbom-${COMPONENT}.spdx.json"
+          syft "docker:${image}" -o "spdx-json=${out}"
+          if [[ ! -s $out ]]; then
+            echo "pusty sbom: ${out}" >&2
+            exit 1
+          fi
+
+      - name: Artefakt SBOM
+        if: steps.component.outputs.image == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom-${{ steps.component.outputs.component }}
+          path: sbom-*.spdx.json
+          retention-days: 14
+          if-no-files-found: error
+
+  deploy:
+    name: deploy
+    needs: publish
+    if: needs.publish.outputs.image == 'true'
+    runs-on: [self-hosted, jjdevhub]
+    environment: production
+    timeout-minutes: 20
+    concurrency:
+      group: deploy-${{ needs.publish.outputs.component }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+      id-token: write
+      attestations: read
+    env:
+      TAG: ${{ needs.publish.outputs.tag }}
+      OWNER: ${{ needs.publish.outputs.owner }}
+      COMPONENT: ${{ needs.publish.outputs.component }}
+      DIGEST: ${{ needs.publish.outputs.digest }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Weryfikacja
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash .github/scripts/verify-attestation.sh "$OWNER" "$COMPONENT" "$DIGEST"
+
+      - name: Compose
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: compose-${{ needs.publish.outputs.component }}
+          path: aspire-output
+
+      - name: Login
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ needs.publish.outputs.owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Override
+        run: |
+          set -euo pipefail
+          image="ghcr.io/${OWNER}/jjdevhub-${COMPONENT}@${DIGEST}"
+          case "$image" in
+            *@sha256:*) ;;
+            *) echo "obraz bez digestu" >&2; exit 1 ;;
+          esac
+          if [[ ! -d /var/lib/jjdevhub || ! -w /var/lib/jjdevhub ]]; then
+            echo "brak zapisywalnego /var/lib/jjdevhub" >&2
+            exit 1
+          fi
+          python3 - "/var/lib/jjdevhub/${COMPONENT}.image.yml" "$COMPONENT" "$image" <<'PY'
+          import pathlib
+          import sys
+
+          path, service, image = sys.argv[1:]
+          if "@sha256:" not in image or " " in image or "\n" in image:
+              raise SystemExit("zły obraz")
+          text = f"services:\n  {service}:\n    image: {image}\n"
+          pathlib.Path(path).write_text(text, encoding="utf-8")
+          PY
+
+      - name: Wersja
+        run: bash .github/scripts/set-service-version.sh /etc/jjdevhub/compose.env "$TAG"
+
+      - name: Uruchomienie
+        run: |
+          set -euo pipefail
+          docker compose \
+            -p jjdevhub \
+            -f aspire-output/docker-compose.yaml \
+            -f "/var/lib/jjdevhub/${COMPONENT}.image.yml" \
+            --env-file /etc/jjdevhub/compose.env \
+            up -d --no-build --remove-orphans "$COMPONENT"
+
+      - name: Zdrowie
+        run: |
+          set -euo pipefail
+          if [[ $COMPONENT != gateway ]]; then
+            echo "brak sprawdzenia zdrowia dla ${COMPONENT}" >&2
+            exit 1
+          fi
+          live=0
+          for _ in 1 2 3 4 5 6 7 8 9 10; do
+            if curl --fail --silent --show-error http://127.0.0.1:8080/health/live; then
+              live=1
+              break
+            fi
+            sleep 2
+          done
+          if [[ $live -ne 1 ]]; then
+            echo "brama nie odpowiada" >&2
+            exit 1
+          fi
+          body=$(curl --fail --silent --show-error http://127.0.0.1:8080/versions)
+          python3 - "$body" "$COMPONENT" "$TAG" <<'PY'
+          import json
+          import sys
+
+          payload, field, tag = sys.argv[1:]
+          data = json.loads(payload)
+          if data.get(field) != tag:
+              print(f"pole {field} nie jest tagiem", file=sys.stderr)
+              raise SystemExit(1)
+          PY

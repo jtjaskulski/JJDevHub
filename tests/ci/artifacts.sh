@@ -33,9 +33,16 @@ run_script() {
   fi
 }
 
-run_script 0 "$root"
-if [[ $log != 'no material' ]]; then
-  fail "brak logu no material na drzewie repozytorium" "$log"
+if [[ -f $root/deploy/docker/Dockerfile && -f $root/src/gateway/JJDevHub.Gateway/JJDevHub.Gateway.csproj ]]; then
+  run_script 1 "$root"
+  if [[ $log != *'brak BASE_REF'* ]]; then
+    fail "drzewo z Dockerfile bez BASE_REF" "$log"
+  fi
+else
+  run_script 0 "$root"
+  if [[ $log != 'no material' ]]; then
+    fail "brak logu no material na drzewie repozytorium" "$log"
+  fi
 fi
 
 empty=$(mktemp -d)
@@ -181,6 +188,12 @@ if ! grep -q 'push-to-registry: false' "$workflow"; then
 fi
 if ! grep -q 'actions/attest-build-provenance@' "$workflow"; then
   fail "brak atestacji w workflow"
+fi
+if ! grep -q 'AUTHORIZATION: basic' "$workflow"; then
+  fail "brak nagłówka basic przy fetchu"
+fi
+if grep -q 'AUTHORIZATION: bearer' "$workflow"; then
+  fail "fetch używa bearer"
 fi
 
 for name in image-scan sbom attestations; do

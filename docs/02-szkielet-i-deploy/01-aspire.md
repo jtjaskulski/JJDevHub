@@ -91,15 +91,17 @@ Projekt testowy referencjonuje ServiceDefaults. Nie jest wyjątkiem od reguły �
 
 Nazwa faktu: `Health_live_returns_ok_outside_development`.
 
+`dotnet test` na SDK 10 z xunit.v3 idzie przez Microsoft.Testing.Platform. Przełącznik `test.runner` jest w `global.json`. Ścieżka projektu idzie przez `--project`.
+
 ```bash
-dotnet test tests/JJDevHub.ServiceDefaults.Tests --nologo
+dotnet test --project tests/JJDevHub.ServiceDefaults.Tests
 ```
 
 ## Checkpoint
 
 ```bash
 dotnet build JJDevHub.slnx -c Release --nologo
-dotnet test tests/JJDevHub.ServiceDefaults.Tests --nologo --filter "Category!=Integration&Category!=Performance"
+dotnet test --project tests/JJDevHub.ServiceDefaults.Tests --filter "Category!=Integration&Category!=Performance"
 aspire run --help
 test -f aspire.config.json
 ```
@@ -152,7 +154,7 @@ Trace id łączy spany. Correlation id jest w logu i w odpowiedzi, także gdy ś
 
 ## Gotowe gdy
 
-- `dotnet test tests/JJDevHub.ServiceDefaults.Tests` przechodzi, w tym fakt health poza Development.
+- `dotnet test --project tests/JJDevHub.ServiceDefaults.Tests` przechodzi, w tym fakt health poza Development.
 - `aspire run` otwiera dashboard i nie wymaga bazy.
 - W AppHost nie ma zasobu Postgres ani Kafka.
 - Eksporter OTLP nie ma adresu na sztywno w `appsettings.json`.

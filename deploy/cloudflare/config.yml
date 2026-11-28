@@ -1,0 +1,4 @@
+ingress:
+  - hostname: hub.jjdevhub.com
+    service: http://127.0.0.1:8080
+  - service: http_status:404
