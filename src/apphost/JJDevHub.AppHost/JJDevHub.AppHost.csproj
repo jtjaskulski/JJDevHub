@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\gateway\JJDevHub.Gateway\JJDevHub.Gateway.csproj" />
+    <ProjectReference Include="..\..\services\Learning\Learning.Api\Learning.Api.csproj" />
   </ItemGroup>
 
   <ItemGroup>

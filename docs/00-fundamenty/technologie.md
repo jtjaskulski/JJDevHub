@@ -64,8 +64,10 @@ Wersje poniżej są pierwszym pinem. Podbicie idzie przez Dependabota i przechod
 | `Microsoft.AspNetCore.OpenApi` | 10.0.14 | MIT | REST |
 | `Scalar.AspNetCore` | 2.19.0 | MIT | REST |
 | `Microsoft.EntityFrameworkCore` | 10.0.14 | MIT | zapis |
+| `Microsoft.EntityFrameworkCore.Relational` | 10.0.14 | MIT | zapis |
 | `Npgsql.EntityFrameworkCore.PostgreSQL` | 10.0.3 | PostgreSQL | zapis |
 | `EFCore.NamingConventions` | 10.0.1 | MIT | zapis |
+| `Microsoft.EntityFrameworkCore.Design` | 10.0.14 | MIT | zapis |
 | `Npgsql` | 10.0.3 | PostgreSQL | odczyt i test łączności |
 | `Dapper` | 2.1.89 | Apache-2.0 | odczyt |
 | `Confluent.Kafka` | 2.16.0 | Apache-2.0 | szyna |

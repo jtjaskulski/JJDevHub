@@ -12,6 +12,8 @@
   <Folder Name="/src/services/Learning/">
     <Project Path="src/services/Learning/Learning.Application/Learning.Application.csproj" />
     <Project Path="src/services/Learning/Learning.Domain/Learning.Domain.csproj" />
+    <Project Path="src/services/Learning/Learning.Api/Learning.Api.csproj" />
+    <Project Path="src/services/Learning/Learning.Infrastructure/Learning.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/src/shared/">
     <Project Path="src/shared/JJDevHub.Shared.Kernel/JJDevHub.Shared.Kernel.csproj" />
@@ -22,6 +24,7 @@
     <Project Path="tests/JJDevHub.ServiceDefaults.Tests/JJDevHub.ServiceDefaults.Tests.csproj" />
     <Project Path="tests/JJDevHub.Shared.Kernel.Tests/JJDevHub.Shared.Kernel.Tests.csproj" />
     <Project Path="tests/Learning.Application.Tests/Learning.Application.Tests.csproj" />
+    <Project Path="tests/Learning.Infrastructure.Tests/Learning.Infrastructure.Tests.csproj" />
     <Project Path="tests/Learning.Domain.Tests/Learning.Domain.Tests.csproj" />
   </Folder>
 </Solution>

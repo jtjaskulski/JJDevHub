@@ -10,6 +10,10 @@ namespace Learning.Domain
             CategorySlug = categorySlug;
         }
 
+        private Technology()
+        {
+        }
+
         public Slug CategorySlug { get; }
 
         public static Result<Technology> Publish(Slug slug, LocalizedText name, Slug categorySlug, TimeProvider clock)

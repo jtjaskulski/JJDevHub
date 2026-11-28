@@ -17,6 +17,10 @@ namespace Learning.Domain
             Visibility = visibility;
         }
 
+        private Course()
+        {
+        }
+
         public Slug TechnologySlug { get; }
 
         public Visibility Visibility { get; }

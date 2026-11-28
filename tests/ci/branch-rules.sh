@@ -83,14 +83,14 @@ expect_code 0 bash "$title_sh" "docs: abc"
 expect_code 1 bash "$title_sh" "docs(cicd): update the pipeline"
 expect_code 1 bash "$title_sh" "docs: ab"
 
-expect_size 1 "src/file.cs:801"
-expect_size 1 "src/services/Learning/File.cs:801"
-expect_size 0 "src/file.cs:800"
-expect_size 0 "src/services/Learning/Infrastructure/Persistence/Migrations/001_Init.cs:801"
-expect_size 0 "pnpm-lock.yaml:801"
-expect_size 0 "src/App.Designer.cs:801"
-expect_size 0 "src/clients/shared/api-client/generated/client.ts:801"
-expect_size 0 "aspire-output/run.log:801"
+expect_size 1 "src/file.cs:1501"
+expect_size 1 "src/services/Learning/File.cs:1501"
+expect_size 0 "src/file.cs:1500"
+expect_size 0 "src/services/Learning/Infrastructure/Persistence/Migrations/001_Init.cs:1501"
+expect_size 0 "pnpm-lock.yaml:1501"
+expect_size 0 "src/App.Designer.cs:1501"
+expect_size 0 "src/clients/shared/api-client/generated/client.ts:1501"
+expect_size 0 "aspire-output/run.log:1501"
 
 set +e
 (
@@ -101,11 +101,11 @@ set +e
   git -C "$dir" config user.email "ci@example.com"
   git -C "$dir" config user.name "ci"
   git -C "$dir" config commit.gpgsign false
-  write_lines "$dir/src/file.cs" 400 a
+  write_lines "$dir/src/file.cs" 750 a
   git -C "$dir" add -- src/file.cs
   git -C "$dir" commit -q -m base
   base=$(git -C "$dir" rev-parse HEAD)
-  write_lines "$dir/src/file.cs" 401 b
+  write_lines "$dir/src/file.cs" 751 b
   git -C "$dir" add -- src/file.cs
   git -C "$dir" commit -q -m head
   head=$(git -C "$dir" rev-parse HEAD)

@@ -9,6 +9,10 @@ namespace Learning.Domain
         {
         }
 
+        private Category()
+        {
+        }
+
         public static Result<Category> Publish(Slug slug, LocalizedText name, TimeProvider clock)
         {
             if (name.IsBlank)

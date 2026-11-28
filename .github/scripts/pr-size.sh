@@ -8,7 +8,7 @@ fi
 
 base=$1
 head=$2
-limit=800
+limit=1500
 
 excluded() {
   local path=$1
