@@ -45,6 +45,17 @@ builder.AddContainer(telemetryName, telemetryImage, telemetryTag)
     .WithHttpEndpoint(targetPort: grafanaPort, port: grafanaPort, name: "grafana", isProxied: false)
     .PublishAsDockerComposeService((_, service) => BindTelemetryOnLoopback(service));
 
+IResourceBuilder<PostgresServerResource> postgres = builder.AddPostgres("postgres")
+    .WithImage("postgres", "18")
+    .WithDataVolume("jjdevhub-postgres")
+    .WithInitFiles(Path.Combine(repositoryRoot, "deploy", "postgres"));
+foreach (string databaseName in DatabaseNames())
+{
+    postgres = postgres.WithEnvironment(PasswordEnvironment(databaseName), DatabasePassword(builder, databaseName));
+}
+
+postgres.PublishAsDockerComposeService((_, service) => BindPostgres(service));
+
 builder.AddProject<Projects.JJDevHub_Gateway>(gatewayName)
     .WithEnvironment("SERVICE_VERSION", serviceVersion)
     .WithEnvironment("OTEL_SERVICE_NAME", gatewayName)
@@ -121,6 +132,65 @@ void BindTelemetryOnLoopback(Service service)
     {
         MountReadOnly(service, Required(mount, "Source"), Required(mount, "Target"));
     }
+}
+
+static void BindPostgres(Service service)
+{
+    service.Ports = [];
+    if (service.Volumes is null)
+    {
+        return;
+    }
+
+    foreach (Volume volume in service.Volumes)
+    {
+        if (volume.Target is null)
+        {
+            continue;
+        }
+
+        if (!volume.Target.StartsWith("/docker-entrypoint-initdb.d", StringComparison.Ordinal))
+        {
+            continue;
+        }
+
+        volume.Type = "bind";
+        volume.Source = "../deploy/postgres";
+        volume.Target = "/docker-entrypoint-initdb.d";
+        volume.ReadOnly = true;
+    }
+}
+
+static string[] DatabaseNames()
+{
+    return
+    [
+        "identity_write",
+        "identity_read",
+        "news_write",
+        "news_read",
+        "learning_write",
+        "learning_read",
+        "cv_write",
+        "cv_read",
+        "contact_write",
+        "contact_read",
+    ];
+}
+
+static string PasswordEnvironment(string databaseName)
+{
+    return databaseName.ToUpperInvariant() + "_PASSWORD";
+}
+
+static IResourceBuilder<ParameterResource> DatabasePassword(IDistributedApplicationBuilder builder, string databaseName)
+{
+    string parameterName = databaseName.Replace('_', '-') + "-password";
+    ParameterResource password = ParameterResourceBuilderExtensions.CreateDefaultPasswordParameter(
+        builder,
+        parameterName,
+        special: false);
+    return builder.CreateResourceBuilder(password);
 }
 
 static void MountReadOnly(Service service, string source, string target)

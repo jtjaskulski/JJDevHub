@@ -54,6 +54,9 @@ test_total() {
   if [[ -z $line ]]; then
     line=$(grep -E 'Total:[[:space:]]*[0-9]+' "$log" | tail -n 1 || true)
   fi
+  if [[ -z $line ]]; then
+    line=$(grep -E -i '^[[:space:]]*total:[[:space:]]*[0-9]+' "$log" | tail -n 1 || true)
+  fi
   if [[ -n $line ]]; then
     count=${line##*[[:space:]]}
     count=${count//[^0-9]/}
@@ -78,13 +81,13 @@ test_total() {
 
 run_filtered_tests() {
   local filter=$1
-  local log code total
+  local log code total failed_line failed
   if ! has_test_project; then
     no_material
   fi
   log=$(mktemp)
   set +e
-  dotnet test --solution JJDevHub.slnx -c Release --filter "$filter" >"$log" 2>&1
+  dotnet test --solution JJDevHub.slnx -c Release --filter "$filter" --ignore-exit-code 8 >"$log" 2>&1
   code=$?
   set -e
   cat "$log"
@@ -94,10 +97,18 @@ run_filtered_tests() {
   else
     total=""
   fi
+  failed_line=$(grep -E -i '^[[:space:]]*failed:[[:space:]]*[0-9]+' "$log" | tail -n 1 || true)
   rm -f "$log"
   if [[ $total == 0 || ( -z $total && $code -eq 8 ) ]]; then
     printf 'no material\n'
     exit 0
+  fi
+  if [[ $code -eq 8 ]]; then
+    failed=${failed_line##*[[:space:]]}
+    failed=${failed//[^0-9]/}
+    if [[ -z $failed || $failed == 0 ]]; then
+      exit 0
+    fi
   fi
   exit "$code"
 }
@@ -123,7 +134,7 @@ case $job in
       --output "$root/artifacts/coverage/coverage.cobertura.xml" \
       --output-format cobertura \
       --nologo \
-      -- dotnet test --solution JJDevHub.slnx -c Release --filter 'Category!=Integration&Category!=Performance'
+      -- dotnet test --solution JJDevHub.slnx -c Release --filter 'Category!=Integration&Category!=Performance' --ignore-exit-code 8
     ;;
   format)
     if ! has_any '*.csproj' && ! has_any '*.cs'; then

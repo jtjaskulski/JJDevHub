@@ -291,6 +291,12 @@ jobs:
             -f aspire-output/docker-compose.yaml \
             -f "/var/lib/jjdevhub/${COMPONENT}.image.yml" \
             --env-file /etc/jjdevhub/compose.env \
+            up -d --no-build --no-recreate postgres
+          docker compose \
+            -p jjdevhub \
+            -f aspire-output/docker-compose.yaml \
+            -f "/var/lib/jjdevhub/${COMPONENT}.image.yml" \
+            --env-file /etc/jjdevhub/compose.env \
             up -d --no-build --remove-orphans "$COMPONENT"
 
       - name: Zdrowie
