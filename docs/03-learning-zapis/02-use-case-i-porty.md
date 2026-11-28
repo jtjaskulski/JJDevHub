@@ -49,11 +49,16 @@ Handler dostaje `TimeProvider` i `CancellationToken`. Nie tworzy `CancellationTo
 | `Learning.Application/Ports/ICategoryRepository.cs` | półka |
 | `Learning.Application/Ports/IStudentProgressStore.cs` | wiersz ukończenia |
 | `Learning.Application/Ports/IUnitOfWork.cs` | `SaveChangesAsync` |
-| `Learning.Application/UseCases/PublishTechnology.cs` | komenda i handler |
-| `Learning.Application/UseCases/PublishCourse.cs` | odmawia, gdy nie ma technologii |
-| `Learning.Application/UseCases/PublishLesson.cs` | odmawia, gdy nie ma kursu |
-| `Learning.Application/UseCases/ReviseLesson.cs` | zmienia Markdown i nazwę, nie slug |
-| `Learning.Application/UseCases/CompleteLesson.cs` | zapisuje postęp |
+| `Learning.Application/UseCases/Commands/PublishTechnologyCommand.cs` | wejście publikacji technologii |
+| `Learning.Application/UseCases/Handlers/PublishTechnologyHandler.cs` | odmawia, gdy nie ma kategorii |
+| `Learning.Application/UseCases/Commands/PublishCourseCommand.cs` | wejście publikacji kursu |
+| `Learning.Application/UseCases/Handlers/PublishCourseHandler.cs` | odmawia, gdy nie ma technologii |
+| `Learning.Application/UseCases/Commands/PublishLessonCommand.cs` | wejście publikacji lekcji |
+| `Learning.Application/UseCases/Handlers/PublishLessonHandler.cs` | odmawia, gdy nie ma kursu |
+| `Learning.Application/UseCases/Commands/ReviseLessonCommand.cs` | wejście zmiany lekcji |
+| `Learning.Application/UseCases/Handlers/ReviseLessonHandler.cs` | zmienia Markdown i nazwę, nie slug |
+| `Learning.Application/UseCases/Commands/CompleteLessonCommand.cs` | wejście ukończenia |
+| `Learning.Application/UseCases/Handlers/CompleteLessonHandler.cs` | zapisuje postęp |
 | `Learning.Application/LearningApplication.cs` | `AddLearningApplication` |
 | `tests/Learning.Application.Tests/` | magazyn w pamięci |
 
@@ -62,6 +67,8 @@ Projekt aplikacji referencjonuje domenę i jądro oraz `Microsoft.Extensions.Dep
 ## Plan
 
 ### 1. Komenda kursu
+
+Rekord jest w `Learning.Application/UseCases/Commands/PublishCourseCommand.cs`, klasa w `Learning.Application/UseCases/Handlers/PublishCourseHandler.cs`. Fragment poniżej jest kontraktem kolejności w handlerze.
 
 ```csharp
 public sealed record PublishCourseCommand(
@@ -161,6 +168,7 @@ Zapis zwraca encję albo jej brak. Odczyt zwróci DTO pod slug i język i nie b�
 
 - Aplikacja nie referencjonuje EF, Kafki ani ASP.NET.
 - Jedna komenda, jeden handler, jedna metoda publiczna `HandleAsync`.
+- Komenda i handler są w osobnych plikach. Kwerenda też.
 - Mapowanie jest ręczne.
 - Magazyn w pamięci nie leży w projekcie produkcyjnym.
 - Handler nie czyta `HttpContext`.

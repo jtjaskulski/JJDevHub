@@ -40,9 +40,12 @@ Polityka `owner` na zapisie. Aktor w audycie, tak jak przy lekcji. Utworzenie i 
 
 | Ścieżka | Odpowiedzialność |
 | --- | --- |
-| `News.Application/UseCases/CreateArticle.cs` | utworzenie |
-| `News.Application/UseCases/ReviseArticle.cs` | rewizja |
-| `News.Application/UseCases/PublishArticle.cs` | publikacja |
+| `News.Application/UseCases/Commands/CreateArticleCommand.cs` | wejście utworzenia |
+| `News.Application/UseCases/Handlers/CreateArticleHandler.cs` | utworzenie |
+| `News.Application/UseCases/Commands/ReviseArticleCommand.cs` | wejście rewizji |
+| `News.Application/UseCases/Handlers/ReviseArticleHandler.cs` | rewizja |
+| `News.Application/UseCases/Commands/PublishArticleCommand.cs` | wejście publikacji |
+| `News.Application/UseCases/Handlers/PublishArticleHandler.cs` | publikacja |
 | `News.Contracts/ArticleCreatedV1.cs` i sąsiedzi | szyna; nazwy zgodne z faktami, osobne typy |
 | `News.Api/Endpoints/ArticleEndpoints.cs` | HTTP |
 | `News.Relay`, `News.Projector` | ten sam wzorzec co Learning, topic `news.articles` |

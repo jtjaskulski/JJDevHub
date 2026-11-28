@@ -55,6 +55,8 @@ Wersje poniżej są pierwszym pinem. Podbicie idzie przez Dependabota i przechod
 | `OpenTelemetry.Instrumentation.AspNetCore` | 1.20.1 | Apache-2.0 | szkielet |
 | `OpenTelemetry.Instrumentation.Http` | 1.20.1 | Apache-2.0 | szkielet |
 | `OpenTelemetry.Instrumentation.Runtime` | 1.20.1 | Apache-2.0 | szkielet |
+| `Microsoft.Extensions.DependencyInjection` | 10.0.15 | MIT | testy portów |
+| `Microsoft.Extensions.DependencyInjection.Abstractions` | 10.0.15 | MIT | porty Learning |
 | `Microsoft.Extensions.Http.Resilience` | 10.11.0 | MIT | szkielet |
 | `Microsoft.Extensions.ServiceDiscovery` | 10.11.0 | MIT | szkielet |
 | `Yarp.ReverseProxy` | 2.3.0 | MIT | brama |

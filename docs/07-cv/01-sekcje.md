@@ -40,7 +40,8 @@ Każda sekcja ma utworzenie i rewizję. Nazwy: `cv.position-created.v1`, `cv.pos
 | --- | --- |
 | `src/services/Cv/Cv.Domain/Profile.cs` i pozostałe sekcje | reguły i `Apply` |
 | `src/services/Cv/Cv.Domain/Skill.cs` | slug zamrożony |
-| `Cv.Application/UseCases/` | handler na komendę |
+| `Cv.Application/UseCases/Commands/` | komenda sekcji |
+| `Cv.Application/UseCases/Handlers/` | handler na komendę |
 | `Cv.Api/Endpoints/` | `owner`, `If-Match` przy rewizji |
 | `tests/Cv.Domain.Tests/SkillTests.cs` | zamrożenie sluga |
 

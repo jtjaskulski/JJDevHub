@@ -46,11 +46,13 @@ Nie ma prepare między Postgresem Identity a Postgresem Learning. Jest wiadomoś
 | Ścieżka | Odpowiedzialność |
 | --- | --- |
 | `Identity.Domain/RegistrationSaga.cs` | przejścia stanów |
-| `Identity.Application/UseCases/RegisterStudent.cs` | start |
+| `Identity.Application/UseCases/Commands/RegisterStudentCommand.cs` | wejście startu |
+| `Identity.Application/UseCases/Handlers/RegisterStudentHandler.cs` | start |
 | `Identity.Infrastructure/RegistrationTimeout.cs` | pętla |
 | `Identity.Contracts/RegistrationRequestedV1.cs` | prośba |
 | `Learning.Contracts/EnrollmentConfirmedV1.cs` i `EnrollmentRejectedV1.cs` | wynik |
-| `Learning.Application/UseCases/EnrollStudent.cs` | wiersz `Enrollment` |
+| `Learning.Application/UseCases/Commands/EnrollStudentCommand.cs` | wejście zapisu |
+| `Learning.Application/UseCases/Handlers/EnrollStudentHandler.cs` | wiersz `Enrollment` |
 | `Learning.Projector` albo osobny konsument w Learning | nasłuch `identity.registration` |
 | `tests/Identity.Domain.Tests/RegistrationSagaTests.cs` | przejścia bez brokera |
 
