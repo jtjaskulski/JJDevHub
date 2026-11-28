@@ -51,7 +51,8 @@ Polityka: zalogowany `student` albo `owner`. Gość dostaje `401`. Gość i tak 
 | --- | --- |
 | `Learning.Api/Assistant/AssistantEndpoint.cs` | `POST /assistant/ask` |
 | `Learning.Api/Assistant/CourseTools.cs` | dwa narzędzia |
-| `Learning.Application/Assistant/AskCourse.cs` | złożenie odpowiedzi |
+| `Learning.Application/UseCases/Queries/AskCourseQuery.cs` | pytanie o kurs |
+| `Learning.Application/UseCases/Handlers/AskCourseHandler.cs` | złożenie odpowiedzi |
 | `tests/Learning.Api.Tests/AssistantTests.cs` | fałszywy `IChatClient` |
 
 Paczki `Microsoft.Extensions.AI` i `Microsoft.Extensions.AI.OpenAI` w wersjach z tabeli technologii.

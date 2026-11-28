@@ -46,8 +46,10 @@ Endpoint studenta bez roli `student` to `403` z `inquiry.student.forbidden`, bo 
 | --- | --- |
 | `Contact.Domain/StudentInquiry.cs` | reguła roli i treści |
 | `Contact.Domain/RecruiterInquiry.cs` | imię, e-mail, treść |
-| `Contact.Application/UseCases/ReceiveStudentInquiry.cs` | handler |
-| `Contact.Application/UseCases/ReceiveRecruiterInquiry.cs` | handler |
+| `Contact.Application/UseCases/Commands/ReceiveStudentInquiryCommand.cs` | wejście studenta |
+| `Contact.Application/UseCases/Handlers/ReceiveStudentInquiryHandler.cs` | handler studenta |
+| `Contact.Application/UseCases/Commands/ReceiveRecruiterInquiryCommand.cs` | wejście rekrutera |
+| `Contact.Application/UseCases/Handlers/ReceiveRecruiterInquiryHandler.cs` | handler rekrutera |
 | `Contact.Contracts/` | dwa rekordy faktów |
 | `Contact.Api/Endpoints/InquiryEndpoints.cs` | dwa `POST` |
 | `Contact.Relay/` | publikacja outboxa |

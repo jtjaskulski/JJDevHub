@@ -19,7 +19,7 @@ namespace Learning.Domain
             Visibility = visibility;
         }
 
-        public LocalizedText Body { get; }
+        public LocalizedText Body { get; private set; }
 
         public Slug CourseSlug { get; }
 
@@ -52,6 +52,17 @@ namespace Learning.Domain
                 visibility,
                 clock.GetUtcNow());
             return Result<Lesson>.Ok(lesson);
+        }
+
+        public Result ChangeBody(LocalizedText body)
+        {
+            if (body.IsBlank)
+            {
+                return Result.Fail(ResultErrorKind.Invalid, "learning.lesson.body_blank");
+            }
+
+            Body = body;
+            return Result.Ok();
         }
     }
 }

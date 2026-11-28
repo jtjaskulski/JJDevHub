@@ -45,8 +45,10 @@ Właściciel nie potrzebuje zaproszenia. Powstaje z polecenia `seed-owner`.
 | --- | --- |
 | `src/services/Identity/Identity.Domain/Account.cs` | fabryka, bez hasła w `ToString` |
 | `src/services/Identity/Identity.Domain/Invite.cs` | ważność i zużycie |
-| `src/services/Identity/Identity.Application/UseCases/SeedOwner.cs` | idempotentny seed |
-| `src/services/Identity/Identity.Application/UseCases/IssueInvite.cs` | wydaje kod |
+| `src/services/Identity/Identity.Application/UseCases/Commands/SeedOwnerCommand.cs` | wejście seedu |
+| `src/services/Identity/Identity.Application/UseCases/Handlers/SeedOwnerHandler.cs` | idempotentny seed |
+| `src/services/Identity/Identity.Application/UseCases/Commands/IssueInviteCommand.cs` | wejście zaproszenia |
+| `src/services/Identity/Identity.Application/UseCases/Handlers/IssueInviteHandler.cs` | wydaje kod |
 | `src/services/Identity/Identity.Infrastructure/Persistence/IdentityDbContext.cs` | tabele `accounts`, `invites` |
 | `src/services/Identity/Identity.Api/Program.cs` | host, migracja jak w Learning, argument `seed-owner` |
 

@@ -10,6 +10,7 @@
     <Project Path="src/service-defaults/JJDevHub.ServiceDefaults/JJDevHub.ServiceDefaults.csproj" />
   </Folder>
   <Folder Name="/src/services/Learning/">
+    <Project Path="src/services/Learning/Learning.Application/Learning.Application.csproj" />
     <Project Path="src/services/Learning/Learning.Domain/Learning.Domain.csproj" />
   </Folder>
   <Folder Name="/src/shared/">
@@ -19,6 +20,7 @@
     <Project Path="tests/JJDevHub.Gateway.Tests/JJDevHub.Gateway.Tests.csproj" />
     <Project Path="tests/JJDevHub.ServiceDefaults.Tests/JJDevHub.ServiceDefaults.Tests.csproj" />
     <Project Path="tests/JJDevHub.Shared.Kernel.Tests/JJDevHub.Shared.Kernel.Tests.csproj" />
+    <Project Path="tests/Learning.Application.Tests/Learning.Application.Tests.csproj" />
     <Project Path="tests/Learning.Domain.Tests/Learning.Domain.Tests.csproj" />
   </Folder>
 </Solution>

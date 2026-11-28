@@ -18,6 +18,8 @@ Każdy plik numerowany trzyma sekcje w tej kolejności. Pliki fundamentu tego sz
 | `## Źródła` | lista: adres, potem dwa do czterech zdań — co jest wiążące, której decyzji dotyczy, czego ze źródła nie bierzemy |
 | `## Gotowe gdy` | warunki końca; ostatni da się sprawdzić komendą albo plikiem |
 
+W tabeli `## Klasy i ścieżki` komenda, kwerenda i handler są osobnymi plikami: `UseCases/Commands/`, `UseCases/Queries/` i `UseCases/Handlers/`. Wejście i handler nie dzielą pliku.
+
 `## Dlaczego ta technologia` tłumaczy wybór, zanim powstanie kod. `## Plan` mówi, co zrobić, i nie powtarza uzasadnień. `### Co jest do czego` odpowiada, po co klasa albo job istnieje i kto go woła.
 
 `## Umiesz wyjaśnić` nie jest ozdobą. Jeśli odpowiedź wzorcowa nie daje się powiedzieć własnymi słowami, numer nie jest zrozumiany i nie wpisuje się go do [postep.md](postep.md). Następny numer buduje na tym, więc luka zostaje w kodzie.
