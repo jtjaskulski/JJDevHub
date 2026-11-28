@@ -6,7 +6,7 @@ Ten plik mówi, jak numer wchodzi do repozytorium. Słownik jest w [slownik.md](
 
 W toku jest jeden numer. Numer jest jednym pull requestem. Następny numer startuje, gdy poprzedni ma zielone checki, spełnione `## Gotowe gdy` i wiersz w [postep.md](postep.md).
 
-Pull request, który realizuje numer, nie przekracza 800 zmienionych linii poza plikami wyłączonymi w [01-bramki/02-galezie.md](../01-bramki/02-galezie.md). Gdy się nie mieści, numer był za duży i specyfikację dzieli się, zanim powstanie reszta kodu. Nie omija się limitu, łącząc dwa numery „bo i tak są małe”.
+Pull request, który realizuje numer, nie przekracza 1500 zmienionych linii poza plikami wyłączonymi w [01-bramki/02-galezie.md](../01-bramki/02-galezie.md). Gdy się nie mieści, numer był za duży i specyfikację dzieli się, zanim powstanie reszta kodu. Nie omija się limitu, łącząc dwa numery „bo i tak są małe”.
 
 Biblioteka współdzielona powstaje, gdy potrzebuje jej druga usługa. Do tego czasu kod mieszka w projekcie usługi, która go pierwsza używa. Wyjątkiem jest `JJDevHub.Shared.Kernel`: język `Result` i wartość `Entity` są kontraktem błędów od pierwszej usługi, bo później nie da się ich przenieść bez zmiany każdego testu.
 

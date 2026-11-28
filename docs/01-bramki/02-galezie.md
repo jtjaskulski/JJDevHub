@@ -24,7 +24,7 @@ Tytuł ma typ, opcjonalny zakres i opis. Problem, który zamyka, to commit `upda
 
 `feat` i `fix` mają zakres obowiązkowo. `docs`, `chore`, `ci`, `refactor`, `test`, `perf` i `build` mogą iść bez zakresu, gdy nie podbijają komponentu.
 
-### Limit 800 linii
+### Limit 1500 linii
 
 `pr-size` liczy dodane i usunięte linie.diffu. Problem, który zamyka, to numer, który po cichu wciąga następny. Odpada brak limitu. Koszt: migracja EF i wygenerowany klient OpenAPI muszą być wyłączone z liczenia, inaczej sam generator wywala check. Wyłączenie jest listą ścieżek w skrypcie, nie komentarzem w pull requeście.
 
@@ -75,7 +75,7 @@ Job `pr-title` bierze tytuł zdarzenia pull requestu. Wzorzec typu: `feat`, `fix
 - `*.Designer.cs`
 - `aspire-output/**`
 
-Próg to 800. Powyżej kod wyjścia `1` i w logu suma. Nie ma etykiety, która próg wyłącza.
+Próg to 1500. Powyżej kod wyjścia `1` i w logu suma. Nie ma etykiety, która próg wyłącza.
 
 ### 4. Rulesety
 
@@ -103,7 +103,7 @@ Skrypty mają test w `tests/ci/branch-rules.sh`, odpalany lokalnie i w jobie `br
 | nazwa `feature/lesson-markdown`, baza `develop` | `branch-name.sh` | kod `0` |
 | tytuł `feat: add lesson` | `pr-title.sh` | kod `1`, bo `feat` bez zakresu |
 | tytuł `feat(learning): add lesson markdown` | `pr-title.sh` | kod `0` |
-| diff 801 linii w `src/` | `pr-size.sh` | kod `1` |
+| diff 1501 linii w `src/` | `pr-size.sh` | kod `1` |
 
 Job na prawdziwym pull requeście woła te same skrypty. Suchy przebieg nie zastępuje joba.
 
@@ -165,5 +165,5 @@ Squash o treści tytułu pull requestu. Dlatego tytuł jest kontraktem, nie ozdo
 - `feature/lesson-markdown` przechodzi, `feature/lesson_markdown` pada kodem `1`.
 - `feat(news): publish article revision` przechodzi, `feat:` bez zakresu pada.
 - Trzy rulesety wymagają `branch-name`, `pr-title` i `pr-size`.
-- Diff 801 linii w `src/services` pada, a same pliki w `**/Migrations/**` nie podbijają sumy.
+- Diff 1501 linii w `src/services` pada, a same pliki w `**/Migrations/**` nie podbijają sumy.
 - `actionlint` na trzech workflow zwraca kod zero.

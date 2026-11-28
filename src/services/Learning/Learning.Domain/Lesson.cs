@@ -19,6 +19,11 @@ namespace Learning.Domain
             Visibility = visibility;
         }
 
+        private Lesson()
+        {
+            Body = LocalizedText.Empty;
+        }
+
         public LocalizedText Body { get; private set; }
 
         public Slug CourseSlug { get; }

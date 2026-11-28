@@ -1,5 +1,6 @@
 using JJDevHub.Shared.Kernel;
 
+using Learning.Application;
 using Learning.Application.Ports;
 using Learning.Application.UseCases.Commands;
 using Learning.Domain;
@@ -21,13 +22,26 @@ namespace Learning.Application.UseCases.Handlers
                 return RefuseSlug(lesson, command.NewSlug);
             }
 
+            if (lesson.Version != command.ExpectedVersion)
+            {
+                return Result.Fail(ResultErrorKind.Conflict, "learning.version.conflict");
+            }
+
             Result revised = Apply(lesson, command);
             if (!revised.IsSuccess)
             {
                 return revised;
             }
 
-            await unitOfWork.SaveChangesAsync(cancellationToken);
+            try
+            {
+                await unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            catch (ConcurrencyConflictException)
+            {
+                return Result.Fail(ResultErrorKind.Conflict, "learning.version.conflict");
+            }
+
             return Result.Ok();
         }
 

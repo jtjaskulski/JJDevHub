@@ -8,7 +8,7 @@ ARG ASSEMBLY
 ARG TARGETARCH
 WORKDIR /src
 COPY global.json Directory.Build.props Directory.Packages.props ./
-COPY --parents src/*/*/*.csproj ./
+COPY --parents src/*/*/*.csproj src/*/*/*/*.csproj ./
 RUN set -eu; \
     case "$TARGETARCH" in \
         amd64) rid=linux-x64 ;; \

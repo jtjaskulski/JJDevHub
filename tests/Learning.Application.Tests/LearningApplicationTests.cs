@@ -98,7 +98,7 @@ namespace Learning.Application.Tests
             var handler = new ReviseLessonHandler(lessons, unitOfWork);
 
             Result revised = await handler.HandleAsync(
-                new ReviseLessonCommand("intro", "Nowa", "New", "# Nowe", "# New", null),
+                new ReviseLessonCommand("intro", 1, "Nowa", "New", "# Nowe", "# New", null),
                 CancellationToken.None);
 
             revised.IsSuccess.ShouldBeFalse();
@@ -117,7 +117,7 @@ namespace Learning.Application.Tests
             var handler = new ReviseLessonHandler(lessons, unitOfWork);
 
             Result revised = await handler.HandleAsync(
-                new ReviseLessonCommand("intro", "Nowa", "New", "# Nowe", "# New", "inny"),
+                new ReviseLessonCommand("intro", 1, "Nowa", "New", "# Nowe", "# New", "inny"),
                 CancellationToken.None);
 
             revised.IsSuccess.ShouldBeFalse();
@@ -139,7 +139,7 @@ namespace Learning.Application.Tests
             var handler = new ReviseLessonHandler(lessons, unitOfWork);
 
             Result revised = await handler.HandleAsync(
-                new ReviseLessonCommand("intro", "Nowa", "New", "# Nowe", "# New", null),
+                new ReviseLessonCommand("intro", 1, "Nowa", "New", "# Nowe", "# New", null),
                 CancellationToken.None);
 
             revised.IsSuccess.ShouldBeTrue();

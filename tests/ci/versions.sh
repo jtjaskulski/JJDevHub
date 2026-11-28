@@ -63,12 +63,12 @@ expect_code 1 bash "$tags_sh" --check --title 'feat(news): add lesson' --paths d
 expect_code 1 bash "$tags_sh" --check --title 'feat(shared): bump kernel' --paths docs/README.md
 
 shared_out=$(bash "$tags_sh" --check --title 'feat(shared): bump kernel' --paths src/shared/JJDevHub.Shared.Kernel/Result.cs)
-if [[ $shared_out != 'nie ma kogo podbijać' ]]; then
-  echo "oczekiwano pustej listy jądra, jest [${shared_out}]" >&2
+if [[ $shared_out != 'learning' ]]; then
+  echo "oczekiwano podbicia learning, jest [${shared_out}]" >&2
   exit 1
 fi
 
-expect_out 'nie ma kogo podbijać' bash "$bump_sh" --paths src/shared/JJDevHub.Shared.Kernel/Result.cs
+expect_out 'learning' bash "$bump_sh" --paths src/shared/JJDevHub.Shared.Kernel/Result.cs
 expect_out '' bash "$bump_sh" --paths src/services/News/Foo.cs
 
 python3 - "$root/.github/workflows/versions.yml" <<'PY'

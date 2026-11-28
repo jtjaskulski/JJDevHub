@@ -10,6 +10,14 @@ namespace Learning.Domain
             Slug = slug;
             Name = name;
             PublishedAt = publishedAt;
+            Version = 1;
+        }
+
+        protected PublishedEntry()
+            : base(Guid.Empty)
+        {
+            Name = LocalizedText.Empty;
+            Version = 1;
         }
 
         public Slug Slug { get; }
@@ -17,6 +25,8 @@ namespace Learning.Domain
         public LocalizedText Name { get; private set; }
 
         public DateTimeOffset PublishedAt { get; }
+
+        public int Version { get; private set; }
 
         public Result ChangeSlug(Slug slug)
         {

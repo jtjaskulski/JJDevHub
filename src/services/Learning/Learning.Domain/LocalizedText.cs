@@ -35,6 +35,18 @@ namespace Learning.Domain
             return Result<LocalizedText>.Ok(new LocalizedText(TextOrNull(polish), TextOrNull(english), false));
         }
 
+        public static LocalizedText Restore(string? polish, string? english)
+        {
+            string? storedPolish = TextOrNull(polish);
+            string? storedEnglish = TextOrNull(english);
+            if (storedPolish is null && storedEnglish is null)
+            {
+                return Empty;
+            }
+
+            return new LocalizedText(storedPolish, storedEnglish, false);
+        }
+
         protected override IEnumerable<object?> GetEqualityComponents()
         {
             return [_polish, _english, _blank];
