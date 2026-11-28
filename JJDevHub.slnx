@@ -18,6 +18,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/JJDevHub.Gateway.Tests/JJDevHub.Gateway.Tests.csproj" />
+    <Project Path="tests/JJDevHub.Integration.Tests/JJDevHub.Integration.Tests.csproj" />
     <Project Path="tests/JJDevHub.ServiceDefaults.Tests/JJDevHub.ServiceDefaults.Tests.csproj" />
     <Project Path="tests/JJDevHub.Shared.Kernel.Tests/JJDevHub.Shared.Kernel.Tests.csproj" />
     <Project Path="tests/Learning.Application.Tests/Learning.Application.Tests.csproj" />
